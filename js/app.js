@@ -494,7 +494,8 @@ function viewFamily() {
   } else {
     h += `<div class="note">Dữ liệu đang lưu trên trình duyệt của máy này. Muốn đồng bộ giữa điện thoại của bố, mẹ và máy của con, hãy bật Firebase theo hướng dẫn trong README của repo.</div>`;
   }
-  h += `<div class="row"><button class="btn primary" data-act="seed-form">Nạp lịch gia đình</button><button class="btn ghost" data-act="export">Tải bản sao lưu</button><label class="btn ghost file-btn">Nhập từ file sao lưu<input type="file" id="import-file" accept=".json,application/json"></label>
+  if (getSeedMem()) h += `<div class="note">🔐 Máy này đã nhớ mật khẩu lịch gia đình. Mỗi khi lịch lưu sẵn có bản mới, app tự nạp lúc mở. <button class="btn quiet sm" data-act="seed-forget">Quên mật khẩu</button></div>`;
+  h += `<div class="row"><button class="btn ${getSeedMem() ? 'ghost' : 'primary'}" data-act="seed-form">Nạp lịch gia đình</button><button class="btn ghost" data-act="export">Tải bản sao lưu</button><label class="btn ghost file-btn">Nhập từ file sao lưu<input type="file" id="import-file" accept=".json,application/json"></label>
     ${store?.kind === 'firebase' ? '<button class="btn quiet" data-act="leave">Đổi sang gia đình khác</button>' : ''}</div></section>`;
   return h;
 }
@@ -745,7 +746,7 @@ async function importBackup(file) {
     toast('File này không phải bản sao lưu của Bé Chăm Ngoan.');
   }
 }
-async function importData(j) {
+async function importData(j, quiet = false) {
   {
     const data = j && j.data;
     if (!data || typeof data !== 'object' || !data.kids) throw new Error('bad');
@@ -755,7 +756,7 @@ async function importData(j) {
     if (n) parts.push(`${n} con mới`);
     if (matched.length) parts.push(`gộp vào ${matched.join(', ')}`);
     for (const [c, label] of [['chores', 'việc nhà'], ['timetables', 'thời khoá biểu'], ['lessons', 'buổi học thêm'], ['stays', 'ngày trong lịch ở nhà nào']]) { const m = Object.keys(data[c] || {}).length; if (m) parts.push(`${m} ${label}`); }
-    toast(`Đã nhập: ${parts.join(', ') || 'không có gì mới'}.`);
+    if (!quiet) toast(`Đã nhập: ${parts.join(', ') || 'không có gì mới'}.`);
   }
 }
 
@@ -764,21 +765,47 @@ async function importData(j) {
 // để repo công khai mà người ngoài không đọc được. Tạo file bằng tools/ma-hoa.mjs.
 const SEED_URL = 'data/gia-dinh.enc.json';
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-async function decryptSeed(pass) {
+// Nhớ mật khẩu trên máy này để tự nạp lịch mới mỗi khi file mã hoá đổi (mỗi lần mã hoá có salt/iv mới).
+const SEED_KEY = 'be-cham-ngoan-seed';
+const getSeedMem = () => { try { return JSON.parse(localStorage.getItem(SEED_KEY) || 'null'); } catch (e) { return null; } };
+const setSeedMem = v => { try { v ? localStorage.setItem(SEED_KEY, JSON.stringify(v)) : localStorage.removeItem(SEED_KEY); } catch (e) {} };
+const seedVer = f => f.salt + '.' + f.iv;
+async function fetchSeed() {
   const r = await fetch(SEED_URL, { cache: 'no-store' });
   if (!r.ok) throw Object.assign(new Error('missing'), { code: 'missing' });
-  const f = await r.json();
+  return r.json();
+}
+async function decryptSeed(pass, f) {
+  f = f || await fetchSeed();
   const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass.normalize('NFC')), 'PBKDF2', false, ['deriveKey']);
   const key = await crypto.subtle.deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt: b64(f.salt), iterations: f.iter }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
   let plain;
   try { plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(f.iv) }, key, b64(f.ct)); }
   catch (e) { throw Object.assign(new Error('wrong'), { code: 'wrong' }); }
-  return JSON.parse(new TextDecoder().decode(plain));
+  return { json: JSON.parse(new TextDecoder().decode(plain)), ver: seedVer(f) };
+}
+// Lúc mở app: nếu máy này đã nhớ mật khẩu và lịch lưu sẵn có bản mới thì tự nạp.
+let seedChecked = false;
+async function autoSeed() {
+  if (seedChecked) return; seedChecked = true;
+  const mem = getSeedMem(); if (!mem?.pass || !crypto?.subtle) return;
+  try {
+    const f = await fetchSeed();
+    if (seedVer(f) === mem.ver) return;
+    const { json, ver } = await decryptSeed(mem.pass, f);
+    await importData(json, true);
+    setSeedMem({ ...mem, ver });
+    toast('Đã tự nạp lịch gia đình bản mới.');
+  } catch (e) {
+    if (e.code === 'wrong') { setSeedMem(null); toast('Lịch gia đình đã đổi mật khẩu. Vào Gia đình để nạp lại.'); }
+    else console.warn('Không tự nạp được lịch gia đình', e);
+  }
 }
 function seedForm() {
   openModal(`<h2>Nạp lịch gia đình</h2>
   <p class="muted" style="margin:-8px 0 0">Lịch của các con được lưu sẵn trong app dưới dạng mã hoá. Gõ mật khẩu gia đình để nạp vào máy này. Dữ liệu được gộp vào bảng hiện có, không xoá gì.</p>
   <div class="field"><label for="seedpass">Mật khẩu</label><input id="seedpass" class="input" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false"></div>
+  <div class="seg"><label><input type="checkbox" id="seedmem" checked><span>Nhớ trên máy này, tự nạp khi lịch có bản mới</span></label></div>
   <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="seed-load">Nạp lịch</button></div>`);
 }
 
@@ -867,11 +894,13 @@ document.addEventListener('click', e => {
     return toast(id ? 'Đã lưu.' : `Đã thêm ${days.length} buổi học thêm cho ${kidName(kid)}.`);
   }
   if (a === 'seed-form') return seedForm();
+  if (a === 'seed-forget') { setSeedMem(null); render(); return toast('Máy này không còn nhớ mật khẩu.'); }
   if (a === 'seed-load') {
     const pass = $('#seedpass').value.trim().toLowerCase(); if (!pass) { $('#seedpass').focus(); return toast('Nhập mật khẩu nhé.'); }
     if (!crypto?.subtle) return toast('Trình duyệt này không giải mã được. Mở app bằng đường dẫn https.');
     b.disabled = true; b.textContent = 'Đang mở…';
-    decryptSeed(pass).then(async j => { closeModal(); await importData(j); confetti(); })
+    const mem = $('#seedmem').checked;
+    decryptSeed(pass).then(async ({ json, ver }) => { closeModal(); setSeedMem(mem ? { pass, ver } : null); seedChecked = true; await importData(json); confetti(); render(); })
       .catch(e => {
         b.disabled = false; b.textContent = 'Nạp lịch';
         toast(e.code === 'wrong' ? 'Sai mật khẩu. Thử lại nhé.' : e.code === 'missing' ? 'App chưa có lịch gia đình nào được lưu sẵn.' : 'Không nạp được. Kiểm tra mạng rồi thử lại.');
@@ -1042,7 +1071,7 @@ async function startFirebase() {
   render();
   try {
     store = await firebaseStore(firebaseConfig, family, (data, meta) => {
-      S = data; loaded = true; stale = !!meta.fromCache; render();
+      S = data; loaded = true; stale = !!meta.fromCache; render(); autoSeed();
     }, (type, err) => {
       console.error(err);
       if (err?.code === 'permission-denied') toast('Firestore từ chối truy cập. Kiểm tra Rules trong README.');
@@ -1074,4 +1103,5 @@ if (firebaseConfig) {
 } else {
   store = localStore((data) => { S = data; loaded = true; render(); });
   store.start();
+  autoSeed();
 }

@@ -70,7 +70,7 @@ Vào **Gia đình → Tải bản sao lưu** để tải file `.json`. Dùng **N
 
 Vì repo công khai, lịch của các con được lưu sẵn trong `data/gia-dinh.enc.json` dưới dạng **mã hoá** (AES-GCM, khoá sinh từ mật khẩu bằng PBKDF2-SHA256, 600.000 vòng). Người ngoài xem repo chỉ thấy chuỗi ký tự vô nghĩa.
 
-Trên máy mới: mở app, vào **Gia đình → Nạp lịch gia đình**, gõ mật khẩu gia đình. Dữ liệu được gộp vào bảng hiện có; con trùng tên được gộp vào con đã có.
+Trên máy mới: mở app, vào **Gia đình → Nạp lịch gia đình**, gõ mật khẩu gia đình. Dữ liệu được gộp vào bảng hiện có; con trùng tên được gộp vào con đã có. Nếu chọn **Nhớ trên máy này**, mỗi khi file mã hoá trong repo có bản mới, app tự nạp lúc mở (các mục trùng mã được ghi đè bằng bản mới). Bấm **Quên mật khẩu** ở mục Gia đình để tắt.
 
 Cập nhật lịch lưu sẵn: trong app bấm **Tải bản sao lưu**, rồi mã hoá file đó:
 
