@@ -4,7 +4,7 @@ Bảng việc nhà cho các con, bằng tiếng Việt:
 
 - **Hôm nay:** mỗi con đóng dấu sao cho việc đã làm. Nếu con có thời khoá biểu thì hiện luôn giờ ở trường và các môn hôm nay; sau giờ tan học đổi thành các môn cần soạn cặp cho buổi học tiếp theo.
 - **Lịch học:** thời khoá biểu ở trường của từng con (lớp, năm học, giờ từng tiết, nghỉ trưa, có thể học cả Thứ Bảy). Tô sáng ngày hôm nay và tiết đang học, đếm số tiết mỗi môn và số giờ con ở trường mỗi tuần, in khổ ngang để dán bàn học.
-- **Học thêm:** các buổi học thêm, gia sư, thể thao của từng con theo ngày trong tuần. Mục **Cả nhà** xếp lịch của các con theo từng ngày, báo những giờ hai con học cùng lúc ở hai nơi (để sắp người đưa đón), và cộng số giờ học thêm mỗi tuần của từng con.
+- **Học thêm:** các buổi học thêm, gia sư, thể thao của từng con theo ngày trong tuần, ghi học ở nhà hay đi học, ai đưa đi và ai đón về (Bố, Mẹ, Grab, tự đi...). Mục **Cả nhà** xếp lịch đưa đón theo từng ngày, đếm số chuyến mỗi tuần của từng người, và cảnh báo khi một buổi chưa có người đưa/đón hoặc một người có hai chuyến cách nhau dưới 20 phút.
 - **Chế độ cho bé:** chữ và nút to để con tự đánh dấu. Muốn thoát thì giữ nút 1 giây.
 - **Phần thưởng:** đổi sao lấy quà, thưởng thêm hoặc trừ sao, có lịch sử.
 - **Tiền tiêu vặt:** tính theo tuần, theo việc đã làm hoặc nhận đủ. Bố mẹ đánh dấu "Đã trả".

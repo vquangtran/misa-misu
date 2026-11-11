@@ -173,14 +173,42 @@ const LESSON_ICONS = [[/bóng rổ/, '🏀'], [/bóng đá/, '⚽'], [/bơi/, '�
   [/võ|karate|taekwondo/, '🥋'], [/cờ/, '♟️'], [/nhật/, '🗾'], [/anh|english/, '🔤'], [/toán/, '➗'], [/việt|văn/, '📖']];
 const lessonIcon = name => { const n = String(name).toLowerCase(); return (LESSON_ICONS.find(([re]) => re.test(n)) || [0, '📚'])[1]; };
 const LESSON_NAMES = ['Tiếng Anh', 'Toán', 'Gia sư Toán', 'Gia sư Tiếng Việt', 'Bóng đá', 'Bóng rổ', 'Nhảy', 'Bơi', 'Piano', 'Vẽ', 'Võ', 'Cờ vua'];
-// Những buổi mà một con khác cũng đang học cùng lúc (cùng ngày, giờ chồng lên nhau).
-function clashes(list) {
-  const out = new Set();
-  for (const a of list) for (const b of list)
-    if (a.id < b.id && a.kid !== b.kid && a.day === b.day && toMin(a.s) < toMin(b.e) && toMin(b.s) < toMin(a.e)) { out.add(a.id); out.add(b.id); }
+// Đi lại: l.home = true (học ở nhà) | false (đi học bên ngoài) | không có (chưa ghi).
+// l.go / l.back: ai đưa đi, ai đón về ("Bố", "Mẹ", "Grab", "Tự đi"...).
+const WHO_NAMES = ['Bố', 'Mẹ', 'Ông bà', 'Grab', 'Tự đi'];
+// Grab, taxi, tự đi... không phải một người trong nhà phải chạy xe.
+const isRide = w => /grab|taxi|xe buýt|xe bus|tự đi|tự về|be\b|xanh/i.test(String(w || ''));
+const whoIcon = w => /grab|taxi|be\b|xanh/i.test(w) ? '🚕' : /tự/i.test(w) ? '🚶' : /buýt|bus/i.test(w) ? '🚌' : '🚗';
+function tripText(t) {
+  const k = kidName(t.l.kid), w = String(t.who || '').trim();
+  if (!w) return t.kind === 'go' ? `Chưa có người đưa ${k} đi ${t.l.name}` : `Chưa có người đón ${k} (${t.l.name})`;
+  if (/^tự/i.test(w)) return t.kind === 'go' ? `${k} tự đi ${t.l.name}` : `${k} tự về`;
+  if (isRide(w)) return t.kind === 'go' ? `${k} đi ${w} tới ${t.l.name}` : `${k} về bằng ${w}`;
+  return t.kind === 'go' ? `${w} đưa ${k} đi ${t.l.name}` : `${w} đón ${k} (${t.l.name})`;
+}
+// Các chuyến đưa đón của những buổi học bên ngoài, xếp theo giờ.
+function tripsOf(list) {
+  const out = [];
+  for (const l of list) if (l.home === false) {
+    out.push({ t: toMin(l.s), kind: 'go', who: l.go, l });
+    out.push({ t: toMin(l.e), kind: 'back', who: l.back, l });
+  }
+  return out.sort((a, b) => a.t - b.t || (a.kind === 'back' ? -1 : 1));
+}
+// Cảnh báo: buổi đi học chưa có người đưa/đón, hoặc một người có hai chuyến cách nhau dưới 20 phút.
+function tripWarnings(trips) {
+  const out = [];
+  for (const t of trips) if (!String(t.who || '').trim()) out.push(tripText(t));
+  const people = trips.filter(t => t.who && !isRide(t.who));
+  people.forEach((a, i) => people.slice(i + 1).forEach(b => {
+    if (a.l.id !== b.l.id && a.who.trim().toLowerCase() === b.who.trim().toLowerCase() && Math.abs(a.t - b.t) < 20)
+      out.push(`${a.who} có 2 chuyến sát nhau: ${hm(a.t)} ${tripText(a).replace(a.who + ' ', '')} và ${hm(b.t)} ${tripText(b).replace(b.who + ' ', '')}`);
+  }));
   return out;
 }
-const lessonChips = list => list.map(l => `<span class="sj-chip sj${subjTint(l.name)}">${lessonIcon(l.name)} ${esc(l.s)} ${esc(l.name)}</span>`).join('');
+const placeTxt = l => l.home === true ? '🏠 Ở nhà' : l.home === false
+  ? `${l.go ? whoIcon(l.go) + ' Đi: ' + esc(l.go) : '⚠️ Chưa có người đưa'} · ${l.back ? 'Về: ' + esc(l.back) : '⚠️ chưa có người đón'}` : '';
+const lessonChips = list => list.map(l => `<span class="sj-chip sj${subjTint(l.name)}">${lessonIcon(l.name)} ${esc(l.s)} ${esc(l.name)}${l.home === true ? ' · ở nhà' : l.home === false && l.go ? ` · ${whoIcon(l.go)} ${esc(/^tự/i.test(l.go) ? 'tự đi' : isRide(l.go) ? 'đi ' + l.go : l.go + ' đưa')}` : ''}</span>`).join('');
 
 // Dòng ngắn "hôm nay ở trường" cho màn Hôm nay và chế độ cho bé.
 function schoolNow(k, d, isToday) {
@@ -246,7 +274,7 @@ function viewToday() {
     const sc = schoolNow(k, d, isT);
     if (sc) h += `<a class="school-line" href="#lich-hoc" data-act="tkb-go" data-kid="${k.id}"><b>${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}:</b> ${esc(sc.subjects.join(', '))}</a>`;
     const lt = lessonsOn(k.id, d.getDay());
-    if (lt.length) h += `<a class="school-line" href="#lich-hoc" data-act="tkb-go" data-kid="${k.id}"><b>📚 Học thêm:</b> ${lt.map(l => `${esc(l.name)} ${esc(l.s)} – ${esc(l.e)}`).join(', ')}</a>`;
+    if (lt.length) h += `<a class="school-line" href="#lich-hoc" data-act="tkb-go" data-kid="${k.id}"><b>📚 Học thêm:</b> ${lt.map(l => `${esc(l.name)} ${esc(l.s)} – ${esc(l.e)}${l.home === true ? ' (ở nhà)' : l.home === false ? ` (${l.go ? 'đi: ' + esc(l.go) : 'chưa có người đưa'}, ${l.back ? 'về: ' + esc(l.back) : 'chưa có người đón'})` : ''}`).join(', ')}</a>`;
     if (!list.length) { h += `<p class="muted" style="margin:12px 0 0">Hôm nay ${esc(k.name)} không có việc nào. Nghỉ ngơi thôi!</p></section>`; continue; }
     h += `<div class="prog"><div class="bar ${n === list.length ? 'full' : ''}"><b style="width:${pct}%"></b></div><span class="num">${n} / ${list.length} việc xong</span></div><div class="list">`;
     for (const c of list) {
@@ -315,34 +343,28 @@ function kidSchedule(k) {
   return h;
 }
 
-// Cả nhà: lịch học thêm của các con theo từng ngày, báo những giờ hai con học cùng lúc.
+// Cả nhà: lịch học thêm của các con theo từng ngày, kèm lịch đưa đón và cảnh báo.
 function familyWeek(kids) {
   const wd = today().getDay(), all = lessonsList();
   let h = `<div class="row"><button class="btn primary" data-act="lesson-form">Thêm buổi học thêm</button></div>`;
-  if (!all.length) return h + `<section class="card empty"><div class="big">📚</div><h2>Chưa có lịch học thêm</h2><p class="muted">Thêm các buổi học thêm của từng con. App sẽ xếp theo ngày và báo những giờ các con học cùng lúc ở hai nơi.</p></section>`;
-  const clash = clashes(all);
+  if (!all.length) return h + `<section class="card empty"><div class="big">📚</div><h2>Chưa có lịch học thêm</h2><p class="muted">Thêm các buổi học thêm của từng con, ghi học ở nhà hay đi học và ai đưa đón. App sẽ xếp lịch đưa đón theo từng ngày.</p></section>`;
   const days = WEEK_ORDER.filter(d => all.some(l => l.day === d));
-  const clashDays = days.filter(d => all.some(l => l.day === d && clash.has(l.id)));
-  h += `<div class="tiles">${kids.map(k => { const ls = all.filter(l => l.kid === k.id); return `<div class="tile"><span class="who">${ava(k, 'sm')}${esc(k.name)}</span><span class="amt num">${ls.length ? durTxt(ls.reduce((a, l) => a + lessonMin(l), 0)) : '—'}</span><span class="muted small">${ls.length} buổi học thêm mỗi tuần</span></div>`; }).join('')}</div>`;
-  if (clashDays.length) h += `<div class="note">⚠️ <b>${clashDays.length} ngày có giờ trùng</b> (${clashDays.map(WDN).join(', ')}): các con học cùng lúc ở những lớp khác nhau, có thể cần hai người đưa đón.</div>`;
-  h += `<section class="card"><div class="list">${days.map(d => { const dl = all.filter(l => l.day === d), cl = clashSpans(dl);
-    return `<div class="day-sep ${d === wd ? 'on' : ''}">${WDN(d)}${d === wd ? ' · hôm nay' : ''}</div>${cl.map(c => `<div class="clash">⚠️ ${esc(c)}</div>`).join('')}${dl.map(l => lessonItem(l, true)).join('')}`; }).join('')}</div></section>`;
+  h += `<div class="tiles">${kids.map(k => { const ls = all.filter(l => l.kid === k.id); return `<div class="tile"><span class="who">${ava(k, 'sm')}${esc(k.name)}</span><span class="amt num">${ls.length ? durTxt(ls.reduce((a, l) => a + lessonMin(l), 0)) : '—'}</span><span class="muted small">${ls.length} buổi học thêm mỗi tuần${ls.some(l => l.home === true) ? `, ${ls.filter(l => l.home === true).length} buổi ở nhà` : ''}</span></div>`; }).join('')}</div>`;
+  // Đếm chuyến đưa đón mỗi tuần theo người / phương tiện.
+  const trips = tripsOf(all), count = {};
+  for (const t of trips) if (t.who) { const w = /^tự/i.test(t.who) ? 'Tự đi' : t.who.trim(); count[w] = (count[w] || 0) + 1; }
+  const warnDays = days.filter(d => tripWarnings(tripsOf(all.filter(l => l.day === d))).length);
+  if (trips.length) h += `<div class="note">🚗 <b>Đưa đón mỗi tuần:</b> ${Object.entries(count).sort((a, b) => b[1] - a[1]).map(([w, n]) => `${esc(w)} ${n} chuyến`).join(' · ') || 'chưa ghi ai đưa đón'}.${warnDays.length ? ` <b>Cần xem lại:</b> ${warnDays.map(WDN).join(', ')}.` : ''}</div>`;
+  h += `<section class="card"><div class="list">${days.map(d => {
+    const dl = all.filter(l => l.day === d), tr = tripsOf(dl), warn = tripWarnings(tr);
+    return `<div class="day-sep ${d === wd ? 'on' : ''}">${WDN(d)}${d === wd ? ' · hôm nay' : ''}</div>${warn.map(c => `<div class="clash">⚠️ ${esc(c)}</div>`).join('')}${dl.map(l => lessonItem(l, true)).join('')}
+      ${tr.some(t => t.who) ? `<div class="trips"><b>Đưa đón</b>${tr.filter(t => t.who).map(t => `<div><span class="num">${hm(t.t)}</span> ${whoIcon(t.who)} ${esc(tripText(t))}</div>`).join('')}</div>` : ''}`;
+  }).join('')}</div></section>`;
   return h;
-}
-// "Sa và Su cùng học 17:30 – 19:30" cho từng cặp buổi chồng giờ trong một ngày.
-function clashSpans(dayList) {
-  const out = [];
-  dayList.forEach((a, i) => dayList.slice(i + 1).forEach(b => {
-    if (a.kid === b.kid) return;
-    const s = Math.max(toMin(a.s), toMin(b.s)), e = Math.min(toMin(a.e), toMin(b.e));
-    const [x, y] = (S.kids[a.kid].order ?? 0) <= (S.kids[b.kid].order ?? 0) ? [a, b] : [b, a];
-    if (s < e) out.push(`${kidName(x.kid)} và ${kidName(y.kid)} cùng học ${hm(s)} – ${hm(e)}`);
-  }));
-  return out;
 }
 function lessonItem(l, who = false) {
   const k = S.kids[l.kid] ? { id: l.kid, ...S.kids[l.kid] } : null;
-  return `<div class="item">${who && k ? ava(k, 'sm') : `<span class="ico">${lessonIcon(l.name)}</span>`}<div class="txt"><div class="t">${who && k ? `${esc(k.name)} · ` : ''}${esc(l.name)}</div><div class="s num">${esc(l.s)} – ${esc(l.e)} · ${durTxt(lessonMin(l))}</div></div>
+  return `<div class="item">${who && k ? ava(k, 'sm') : `<span class="ico">${lessonIcon(l.name)}</span>`}<div class="txt"><div class="t">${who && k ? `${esc(k.name)} · ` : ''}${esc(l.name)}</div><div class="s num">${esc(l.s)} – ${esc(l.e)} · ${durTxt(lessonMin(l))}</div>${placeTxt(l) ? `<div class="s">${placeTxt(l)}</div>` : ''}</div>
     <div class="acts"><button class="btn ghost sm" data-act="lesson-form" data-id="${l.id}">Sửa</button></div></div>`;
 }
 
@@ -601,6 +623,7 @@ function readTkbForm() {
   };
 }
 
+const whoNames = () => [...new Set([...WHO_NAMES, ...lessonsList().flatMap(l => [l.go, l.back]).map(w => String(w || '').trim()).filter(Boolean)])];
 function lessonForm(id, kidPre) {
   const l = id ? S.lessons[id] : null, kids = kidsList();
   if (!kids.length) return;
@@ -614,7 +637,14 @@ function lessonForm(id, kidPre) {
   <div class="field"><span class="lbl">${l ? 'Ngày' : 'Những ngày (cùng giờ)'}</span><div class="seg">${WEEK_ORDER.map(d => `<label><input type="${l ? 'radio' : 'checkbox'}" name="lday" value="${d}" ${d === day ? 'checked' : ''}><span>${WDS[d]}</span></label>`).join('')}</div></div>
   <div class="row2"><div class="field"><label for="ls">Từ</label><input id="ls" class="input num" type="time" value="${esc(l?.s || '17:30')}"></div>
     <div class="field"><label for="le">Đến</label><input id="le" class="input num" type="time" value="${esc(l?.e || '19:30')}"></div></div>
-  ${l ? '' : '<span class="muted small">Cùng một lớp mà mỗi ngày học một giờ khác nhau thì thêm từng ngày một.</span>'}
+  <div class="field"><span class="lbl">Học ở đâu</span><div class="seg">
+    <label><input type="radio" name="lwhere" value="home" ${l?.home === true ? 'checked' : ''}><span>🏠 Ở nhà</span></label>
+    <label><input type="radio" name="lwhere" value="out" ${l?.home === false ? 'checked' : ''}><span>🚗 Đi học bên ngoài</span></label></div></div>
+  <div class="lgo" ${l?.home === false ? '' : 'hidden'}>${[['lgo', 'Ai đưa đi', l?.go], ['lback', 'Ai đón về', l?.back]].map(([fid, lbl, v]) => `<div class="field"><label for="${fid}">${lbl}</label>
+    <input id="${fid}" class="input" list="who-list" maxlength="20" value="${esc(v || '')}" placeholder="Ví dụ: Bố, Grab">
+    <div class="row">${whoNames().map(w => `<button class="btn quiet sm" data-act="who-fill" data-t="${fid}" data-v="${esc(w)}">${whoIcon(w)} ${esc(w)}</button>`).join('')}</div></div>`).join('')}
+    <datalist id="who-list">${whoNames().map(w => `<option value="${esc(w)}">`).join('')}</datalist></div>
+  ${l ? '' : '<span class="muted small">Cùng một lớp mà mỗi ngày học một giờ khác nhau, hoặc mỗi ngày một người đưa đón khác nhau, thì thêm từng ngày một.</span>'}
   <div class="foot">${l ? `<button class="btn danger left" data-act="lesson-del" data-id="${id}">Xoá</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="lesson-save" data-id="${id || ''}">Lưu</button></div>`);
 }
 
@@ -747,11 +777,15 @@ document.addEventListener('click', e => {
     if (!days.length) return toast('Chọn ít nhất một ngày.');
     if (toMin(ls) === null || toMin(le) === null) return toast('Nhập đủ giờ bắt đầu và kết thúc.');
     if (toMin(le) <= toMin(ls)) return toast('Giờ kết thúc phải sau giờ bắt đầu.');
+    const where = radioVal('lwhere'), trip = {};
+    if (where === 'home') trip.home = true;
+    if (where === 'out') Object.assign(trip, { home: false, go: $('#lgo').value.trim(), back: $('#lback').value.trim() });
     closeModal();
-    if (id) put('lessons', id, { kid, day: days[0], s: ls, e: le, name });
-    else days.forEach(d => put('lessons', uid(), { kid, day: d, s: ls, e: le, name }));
+    if (id) put('lessons', id, { kid, day: days[0], s: ls, e: le, name, ...trip });
+    else days.forEach(d => put('lessons', uid(), { kid, day: d, s: ls, e: le, name, ...trip }));
     return toast(id ? 'Đã lưu.' : `Đã thêm ${days.length} buổi học thêm cho ${kidName(kid)}.`);
   }
+  if (a === 'who-fill') { const i = $('#' + b.dataset.t); if (i) i.value = b.dataset.v; return; }
   if (a === 'lesson-del') { if (!armed(b, 'Bấm lần nữa để xoá')) return; closeModal(); del('lessons', id); return toast('Đã xoá buổi học thêm.'); }
   if (a === 'km-open') { const ks = kidsList(); UI.km = { on: true, kid: ks.length === 1 ? ks[0].id : null }; return render(); }
   if (a === 'km-kid') { UI.km.kid = b.dataset.kid || null; return render(); }
@@ -836,6 +870,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('change', e => {
   if (e.target.name === 'bkid') UI.bonusKid = e.target.value;
+  if (e.target.name === 'lwhere') { const g = $('#modal .lgo'); if (g) g.hidden = e.target.value !== 'out'; }
   if (e.target.name === 'tkbkid') { UI.tkbKid = e.target.value; render(); }
   if ((e.target.id === 'tsat' || e.target.id === 'tlunch' || e.target.name === 'tday') && tkbDraft && !$('#modal').hidden) tkbForm(tkbDraft.kid, { ...readTkbForm(), keep: true });
   if (e.target.id === 'import-file' && e.target.files[0]) importBackup(e.target.files[0]);

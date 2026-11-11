@@ -312,3 +312,7 @@ select.input{appearance:auto}
 .tile .who+.amt{margin-top:2px}
 .print-lessons{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 18px;font-size:13px}
 .clash{font-size:13px;font-weight:600;background:var(--bad-soft);color:var(--bad);border-radius:10px;padding:5px 10px;margin:6px 0 2px}
+.trips{background:var(--surface-2);border-radius:12px;padding:8px 12px;margin:4px 0 10px;font-size:13px;display:flex;flex-direction:column;gap:2px}
+.trips b{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.lgo{display:flex;flex-direction:column;gap:14px}
+.lgo .row{gap:6px}
