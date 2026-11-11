@@ -244,3 +244,63 @@ main{flex:1;min-width:0;padding-left:max(16px,env(safe-area-inset-left,0px));pad
 }
 body{margin:0}
 main{padding-top:calc(12px + env(safe-area-inset-top,0px))}
+
+/* thời khoá biểu */
+.sj0{background:var(--t0)} .sj1{background:var(--t1)} .sj2{background:var(--t2)} .sj3{background:var(--t3)} .sj4{background:var(--t4)} .sj5{background:var(--t5)}
+.sj-list{display:flex;flex-wrap:wrap;gap:6px}
+.sj-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;font-weight:600;font-size:13px;color:var(--ink)}
+.tkb{border-collapse:separate;border-spacing:3px;width:100%;min-width:540px;table-layout:fixed;font-size:13px}
+.tkb th{font-family:var(--display);font-size:14px;font-weight:800;padding:6px 2px;border-radius:10px;background:var(--surface-2)}
+.tkb th.on{background:var(--accent);color:var(--on-accent)}
+.tkb td{padding:6px 3px;text-align:center;border-radius:10px;line-height:1.25;height:46px;overflow-wrap:anywhere;font-weight:600}
+.tkb td.p{font-family:var(--display);font-weight:800;font-size:15px;color:var(--muted)}
+.tkb td.tm{font-size:11.5px;font-weight:500;color:var(--muted)}
+.tkb td.no{background:var(--surface-2);opacity:.5}
+.tkb td.col{box-shadow:inset 0 0 0 2px var(--accent-soft)}
+.tkb td.now{box-shadow:inset 0 0 0 3px var(--accent);font-weight:800}
+.tkb tr.lunch td{background:var(--star-soft);height:auto;padding:5px;font-weight:700}
+.tkb-card{display:flex;flex-direction:column;gap:12px}
+.tkb-today{background:var(--surface-2);border-radius:14px;padding:10px 14px;font-size:14px;display:flex;flex-direction:column;gap:8px}
+/* hai cột Tiết và Giờ đứng yên khi cuộn ngang trên điện thoại */
+.tkb th:nth-child(-n+2),.tkb td.p,.tkb td.tm{position:sticky;z-index:1;background:var(--surface);box-shadow:0 0 0 3px var(--surface)}
+.tkb td.p,.tkb td.tm{border-radius:0}
+.tkb th:nth-child(1),.tkb td.p{left:0}
+.tkb th:nth-child(2),.tkb td.tm{left:47px}
+.tkb th:nth-child(-n+2){background:var(--surface-2)}
+.tkb tr.lunch td{position:static}
+.tkb-times{border-collapse:collapse;width:100%}
+.tkb-times th{font-size:13px;font-weight:700;color:var(--muted);text-align:left;padding:0 4px 4px}
+.tkb-times td{padding:3px 4px}
+.tkb-times td:first-child{width:40px;text-align:center}
+.tkb-times td:last-child{width:40px}
+.tkb-times .input{padding:7px 8px}
+.tkb-times .iconbtn{width:32px;height:32px;font-size:18px;line-height:1}
+.subj-rows{display:flex;flex-direction:column;gap:6px}
+.subj-row{display:grid;grid-template-columns:96px 1fr;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.subj-row b{color:var(--ink)}
+.subj-lunch{font-size:13px;font-weight:700;background:var(--star-soft);border-radius:10px;padding:4px 10px;text-align:center}
+.seg .cnt{font-style:normal;font-size:11px;font-weight:800;background:var(--accent);color:var(--on-accent);border-radius:999px;padding:0 6px;line-height:16px}
+.row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+select.input{appearance:auto}
+.school-line{display:block;margin-top:10px;padding:8px 12px;border-radius:12px;background:var(--surface-2);color:var(--ink);text-decoration:none;font-size:13px}
+.school-line:hover{background:var(--accent-soft)}
+.km-school{background:var(--surface);box-shadow:var(--shadow);border-radius:22px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.km-school .t{font-family:var(--display);font-size:22px;font-weight:800}
+.km-school .sj-chip{font-size:17px;padding:6px 14px}
+.tab{text-align:center;line-height:1.2}
+@page landscape{size:A4 landscape;margin:12mm}
+@media print{
+  #print-area.landscape{page:landscape}
+  #print-area .tkb{min-width:0;font-size:14px}
+  #print-area .tkb td{height:52px}
+  #print-area .tkb th{background:#EFEEF7;color:#1C1930}
+  #print-area .tkb td.no{background:#F6F6FA;opacity:1}
+  #print-area .tkb td.tm,#print-area .tkb td.p{color:#555;background:#fff;position:static}
+  #print-area .tkb th{position:static;box-shadow:none}
+  #print-area .tkb td.tm,#print-area .tkb td.p{box-shadow:none}
+  #print-area .tkb tr.lunch td{background:#FFF4D1}
+  #print-area .sj0{background:#FFE4D6} #print-area .sj1{background:#D9F1E5} #print-area .sj2{background:#E4E0FB}
+  #print-area .sj3{background:#FFF0C4} #print-area .sj4{background:#D7EAFA} #print-area .sj5{background:#FBDCE7}
+  #print-area .tkb td{color:#1C1930}
+  #print-area{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}

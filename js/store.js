@@ -9,8 +9,9 @@
 //   done     việc đã xong   id = "YYYY-MM-DD", { [kidId]: { [choreId]: số sao nhận được (0 = chưa) } }
 //   ledger   sổ sao         { kid, delta, kind: reward|bonus|penalty, note, icon, at }
 //   paid     tiền đã trả    id = kidId_YYYY-MM-DD (thứ Hai), { kid, week, amount, paidAt }
+//   timetables thời khoá biểu  id = kidId, { cls, year, days: [1..6], lunch, rows: [{ s, e, d: { [thứ]: môn } }] }
 
-export const COLS = ['kids', 'chores', 'rewards', 'done', 'ledger', 'paid'];
+export const COLS = ['kids', 'chores', 'rewards', 'done', 'ledger', 'paid', 'timetables'];
 const FIREBASE_VERSION = '10.12.2';
 const FB = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/`;
 
@@ -78,7 +79,12 @@ export async function firebaseStore(config, family, onData, onStatus) {
             snap.metadata.fromCache ? cached.add(col) : cached.delete(col);
             if (got.size === COLS.length) onData(S, { fromCache: cached.size > 0 });
           },
-          err => onStatus && onStatus('error', err),
+          err => {
+            // Một nhóm lỗi (ví dụ Rules cũ chưa có nhóm mới) thì vẫn mở các nhóm còn lại.
+            got.add(col);
+            if (got.size === COLS.length) onData(S, { fromCache: cached.size > 0 });
+            onStatus && onStatus('error', err);
+          },
         );
       }
     },
