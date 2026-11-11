@@ -23,6 +23,8 @@ App là web tĩnh, không cần bước build: HTML, CSS và JavaScript thuần.
 | `js/store.js` | Lưu dữ liệu: trên máy (localStorage) hoặc Firebase |
 | `js/config.js` | Cấu hình Firebase |
 | `firestore.rules` | Quy tắc bảo vệ dữ liệu trên Firestore |
+| `data/gia-dinh.enc.json` | Lịch gia đình lưu sẵn, đã mã hoá |
+| `tools/ma-hoa.mjs` | Mã hoá bản sao lưu thành file trên |
 
 ## Chạy thử trên máy
 
@@ -63,6 +65,20 @@ Mỗi gia đình có một mã ngẫu nhiên 23 ký tự, nằm trong link mời
 ## Sao lưu
 
 Vào **Gia đình → Tải bản sao lưu** để tải file `.json`. Dùng **Nhập từ file sao lưu** để đưa dữ liệu vào máy khác hoặc vào gia đình mới. Khi nhập, dữ liệu được gộp vào bảng hiện có (ghi đè các mục trùng mã), không xoá gì. Con trong file trùng tên với con đã có (không phân biệt hoa thường) thì được gộp vào con đó, không tạo thêm con mới.
+
+## Lịch gia đình lưu sẵn (mã hoá)
+
+Vì repo công khai, lịch của các con được lưu sẵn trong `data/gia-dinh.enc.json` dưới dạng **mã hoá** (AES-GCM, khoá sinh từ mật khẩu bằng PBKDF2-SHA256, 600.000 vòng). Người ngoài xem repo chỉ thấy chuỗi ký tự vô nghĩa.
+
+Trên máy mới: mở app, vào **Gia đình → Nạp lịch gia đình**, gõ mật khẩu gia đình. Dữ liệu được gộp vào bảng hiện có; con trùng tên được gộp vào con đã có.
+
+Cập nhật lịch lưu sẵn: trong app bấm **Tải bản sao lưu**, rồi mã hoá file đó:
+
+```bash
+MAT_KHAU='mật khẩu gia đình' node tools/ma-hoa.mjs be-cham-ngoan-sao-luu.json > data/gia-dinh.enc.json
+```
+
+Chỉ commit file `.enc.json`, không commit file sao lưu chưa mã hoá và không ghi mật khẩu vào repo.
 
 ## Cài lên màn hình điện thoại
 

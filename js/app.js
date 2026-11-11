@@ -288,7 +288,7 @@ const loading = () => `<div class="card empty"><div class="big">⏳</div><h2>Đa
 function noKids() {
   return `<div class="card empty"><div class="big">👧🧒</div><h2>Bắt đầu với các con</h2>
   <p class="muted">Thêm tên và hình đại diện cho từng con, sau đó giao việc nhà cho các con. Nếu có file sao lưu, vào mục Gia đình để nhập.</p>
-  <div class="row" style="justify-content:center;margin-top:10px"><button class="btn primary" data-act="kid-form">Thêm con</button></div></div>`;
+  <div class="row" style="justify-content:center;margin-top:10px"><button class="btn primary" data-act="kid-form">Thêm con</button><button class="btn ghost" data-act="seed-form">Nạp lịch gia đình</button></div></div>`;
 }
 
 function viewToday() {
@@ -494,7 +494,7 @@ function viewFamily() {
   } else {
     h += `<div class="note">Dữ liệu đang lưu trên trình duyệt của máy này. Muốn đồng bộ giữa điện thoại của bố, mẹ và máy của con, hãy bật Firebase theo hướng dẫn trong README của repo.</div>`;
   }
-  h += `<div class="row"><button class="btn ghost" data-act="export">Tải bản sao lưu</button><label class="btn ghost file-btn">Nhập từ file sao lưu<input type="file" id="import-file" accept=".json,application/json"></label>
+  h += `<div class="row"><button class="btn primary" data-act="seed-form">Nạp lịch gia đình</button><button class="btn ghost" data-act="export">Tải bản sao lưu</button><label class="btn ghost file-btn">Nhập từ file sao lưu<input type="file" id="import-file" accept=".json,application/json"></label>
     ${store?.kind === 'firebase' ? '<button class="btn quiet" data-act="leave">Đổi sang gia đình khác</button>' : ''}</div></section>`;
   return h;
 }
@@ -739,7 +739,14 @@ function matchKidsByName(data) {
 }
 async function importBackup(file) {
   try {
-    const j = JSON.parse(await file.text());
+    await importData(JSON.parse(await file.text()));
+  } catch (e) {
+    console.error(e);
+    toast('File này không phải bản sao lưu của Bé Chăm Ngoan.');
+  }
+}
+async function importData(j) {
+  {
     const data = j && j.data;
     if (!data || typeof data !== 'object' || !data.kids) throw new Error('bad');
     const matched = matchKidsByName(data);
@@ -749,10 +756,30 @@ async function importBackup(file) {
     if (matched.length) parts.push(`gộp vào ${matched.join(', ')}`);
     for (const [c, label] of [['chores', 'việc nhà'], ['timetables', 'thời khoá biểu'], ['lessons', 'buổi học thêm'], ['stays', 'ngày trong lịch ở nhà nào']]) { const m = Object.keys(data[c] || {}).length; if (m) parts.push(`${m} ${label}`); }
     toast(`Đã nhập: ${parts.join(', ') || 'không có gì mới'}.`);
-  } catch (e) {
-    console.error(e);
-    toast('File này không phải bản sao lưu của Bé Chăm Ngoan.');
   }
+}
+
+// ---------- lịch gia đình mã hoá ----------
+// data/gia-dinh.enc.json là một bản sao lưu đã mã hoá (AES-GCM, khoá sinh từ mật khẩu bằng PBKDF2-SHA256),
+// để repo công khai mà người ngoài không đọc được. Tạo file bằng tools/ma-hoa.mjs.
+const SEED_URL = 'data/gia-dinh.enc.json';
+const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function decryptSeed(pass) {
+  const r = await fetch(SEED_URL, { cache: 'no-store' });
+  if (!r.ok) throw Object.assign(new Error('missing'), { code: 'missing' });
+  const f = await r.json();
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass.normalize('NFC')), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt: b64(f.salt), iterations: f.iter }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+  let plain;
+  try { plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(f.iv) }, key, b64(f.ct)); }
+  catch (e) { throw Object.assign(new Error('wrong'), { code: 'wrong' }); }
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+function seedForm() {
+  openModal(`<h2>Nạp lịch gia đình</h2>
+  <p class="muted" style="margin:-8px 0 0">Lịch của các con được lưu sẵn trong app dưới dạng mã hoá. Gõ mật khẩu gia đình để nạp vào máy này. Dữ liệu được gộp vào bảng hiện có, không xoá gì.</p>
+  <div class="field"><label for="seedpass">Mật khẩu</label><input id="seedpass" class="input" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false"></div>
+  <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="seed-load">Nạp lịch</button></div>`);
 }
 
 // ---------- actions ----------
@@ -838,6 +865,20 @@ document.addEventListener('click', e => {
     if (id) put('lessons', id, { kid, day: days[0], s: ls, e: le, name, ...trip });
     else days.forEach(d => put('lessons', uid(), { kid, day: d, s: ls, e: le, name, ...trip }));
     return toast(id ? 'Đã lưu.' : `Đã thêm ${days.length} buổi học thêm cho ${kidName(kid)}.`);
+  }
+  if (a === 'seed-form') return seedForm();
+  if (a === 'seed-load') {
+    const pass = $('#seedpass').value.trim().toLowerCase(); if (!pass) { $('#seedpass').focus(); return toast('Nhập mật khẩu nhé.'); }
+    if (!crypto?.subtle) return toast('Trình duyệt này không giải mã được. Mở app bằng đường dẫn https.');
+    b.disabled = true; b.textContent = 'Đang mở…';
+    decryptSeed(pass).then(async j => { closeModal(); await importData(j); confetti(); })
+      .catch(e => {
+        b.disabled = false; b.textContent = 'Nạp lịch';
+        toast(e.code === 'wrong' ? 'Sai mật khẩu. Thử lại nhé.' : e.code === 'missing' ? 'App chưa có lịch gia đình nào được lưu sẵn.' : 'Không nạp được. Kiểm tra mạng rồi thử lại.');
+        if (e.code === 'wrong') { $('#seedpass').select(); }
+        if (!['wrong', 'missing'].includes(e.code)) console.error(e);
+      });
+    return;
   }
   if (a === 'stay-form') return stayForm();
   if (a === 'stay-save') {
@@ -938,7 +979,10 @@ document.addEventListener('change', e => {
   if (e.target.id === 'import-file' && e.target.files[0]) importBackup(e.target.files[0]);
 });
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#modal').hidden) closeModal(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !$('#modal').hidden) closeModal();
+  if (e.key === 'Enter' && e.target.id === 'seedpass') $('#modal [data-act="seed-load"]')?.click();
+});
 
 // Giữ nút để thoát chế độ cho bé
 let holdT = 0;
