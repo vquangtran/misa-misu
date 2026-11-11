@@ -4,6 +4,7 @@ Bảng việc nhà cho các con, bằng tiếng Việt:
 
 - **Hôm nay:** mỗi con đóng dấu sao cho việc đã làm. Nếu con có thời khoá biểu thì hiện luôn giờ ở trường và các môn hôm nay; sau giờ tan học đổi thành các môn cần soạn cặp cho buổi học tiếp theo.
 - **Lịch học:** thời khoá biểu ở trường của từng con (lớp, năm học, giờ từng tiết, nghỉ trưa, có thể học cả Thứ Bảy). Tô sáng ngày hôm nay và tiết đang học, đếm số tiết mỗi môn và số giờ con ở trường mỗi tuần, in khổ ngang để dán bàn học.
+- **Học thêm:** các buổi học thêm, gia sư, thể thao của từng con theo ngày trong tuần. Mục **Cả nhà** xếp lịch của các con theo từng ngày, báo những giờ hai con học cùng lúc ở hai nơi (để sắp người đưa đón), và cộng số giờ học thêm mỗi tuần của từng con.
 - **Chế độ cho bé:** chữ và nút to để con tự đánh dấu. Muốn thoát thì giữ nút 1 giây.
 - **Phần thưởng:** đổi sao lấy quà, thưởng thêm hoặc trừ sao, có lịch sử.
 - **Tiền tiêu vặt:** tính theo tuần, theo việc đã làm hoặc nhận đủ. Bố mẹ đánh dấu "Đã trả".
@@ -36,7 +37,7 @@ Khi `js/config.js` để `null`, dữ liệu chỉ lưu trên trình duyệt c�
 
 1. Vào https://console.firebase.google.com, bấm **Create a project**, đặt tên (ví dụ `misa-misu`). Có thể tắt Google Analytics.
 2. **Build → Firestore Database → Create database**. Chọn vùng `asia-southeast1` (Singapore), chế độ **production**.
-3. Trong Firestore, mở tab **Rules**, dán toàn bộ nội dung file `firestore.rules`, bấm **Publish**. Mỗi khi app có thêm nhóm dữ liệu mới (ví dụ `timetables` cho Lịch học), dán lại file này một lần nữa, nếu không phần mới sẽ không lưu được.
+3. Trong Firestore, mở tab **Rules**, dán toàn bộ nội dung file `firestore.rules`, bấm **Publish**. Mỗi khi app có thêm nhóm dữ liệu mới (ví dụ `timetables` và `lessons` cho Lịch học), dán lại file này một lần nữa, nếu không phần mới sẽ không lưu được.
 4. **Build → Authentication → Get started → Sign-in method**, bật **Anonymous**.
 5. **Authentication → Settings → Authorized domains**, thêm `vquangtran.github.io`.
 6. **Project settings** (bánh răng) → **Your apps** → bấm biểu tượng web `</>`, đặt tên rồi bấm **Register app**. Firebase hiện ra đoạn `firebaseConfig`.
@@ -60,7 +61,7 @@ Mỗi gia đình có một mã ngẫu nhiên 23 ký tự, nằm trong link mời
 
 ## Sao lưu
 
-Vào **Gia đình → Tải bản sao lưu** để tải file `.json`. Dùng **Nhập từ file sao lưu** để đưa dữ liệu vào máy khác hoặc vào gia đình mới. Khi nhập, dữ liệu được gộp vào bảng hiện có (ghi đè các mục trùng mã), không xoá gì.
+Vào **Gia đình → Tải bản sao lưu** để tải file `.json`. Dùng **Nhập từ file sao lưu** để đưa dữ liệu vào máy khác hoặc vào gia đình mới. Khi nhập, dữ liệu được gộp vào bảng hiện có (ghi đè các mục trùng mã), không xoá gì. Con trong file trùng tên với con đã có (không phân biệt hoa thường) thì được gộp vào con đó, không tạo thêm con mới.
 
 ## Cài lên màn hình điện thoại
 

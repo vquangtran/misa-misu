@@ -304,3 +304,11 @@ select.input{appearance:auto}
   #print-area .tkb td{color:#1C1930}
   #print-area{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
+/* học thêm */
+.day-sep{font-family:var(--display);font-weight:800;font-size:15px;color:var(--muted);padding:12px 0 2px;border-top:1px solid var(--line)}
+.day-sep:first-child{border-top:0;padding-top:0}
+.day-sep.on{color:var(--accent)}
+.day-sep+.item{border-top:0}
+.tile .who+.amt{margin-top:2px}
+.print-lessons{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 18px;font-size:13px}
+.clash{font-size:13px;font-weight:600;background:var(--bad-soft);color:var(--bad);border-radius:10px;padding:5px 10px;margin:6px 0 2px}

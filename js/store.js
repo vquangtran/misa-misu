@@ -10,8 +10,9 @@
 //   ledger   sổ sao         { kid, delta, kind: reward|bonus|penalty, note, icon, at }
 //   paid     tiền đã trả    id = kidId_YYYY-MM-DD (thứ Hai), { kid, week, amount, paidAt }
 //   timetables thời khoá biểu  id = kidId, { cls, year, days: [1..6], lunch, rows: [{ s, e, d: { [thứ]: môn } }] }
+//   lessons  học thêm       { kid, day: 0..6, s: "HH:MM", e: "HH:MM", name }
 
-export const COLS = ['kids', 'chores', 'rewards', 'done', 'ledger', 'paid', 'timetables'];
+export const COLS = ['kids', 'chores', 'rewards', 'done', 'ledger', 'paid', 'timetables', 'lessons'];
 const FIREBASE_VERSION = '10.12.2';
 const FB = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/`;
 

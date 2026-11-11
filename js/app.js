@@ -161,6 +161,27 @@ function tkbStats(t) {
   }
   return { periods, inClass, atSchool, subjects: Object.entries(count).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'vi')) };
 }
+// ---------- học thêm ----------
+// Mỗi buổi học thêm là một mục riêng: { kid, day: 0..6, s, e, name }.
+const lessonsList = () => Object.entries(S.lessons || {}).map(([id, l]) => ({ id, ...l, day: Number(l.day) }))
+  .filter(l => S.kids[l.kid] && toMin(l.s) !== null && toMin(l.e) !== null)
+  .sort((a, b) => WEEK_ORDER.indexOf(a.day) - WEEK_ORDER.indexOf(b.day) || toMin(a.s) - toMin(b.s) || (S.kids[a.kid].order ?? 0) - (S.kids[b.kid].order ?? 0));
+const lessonsOf = kidId => lessonsList().filter(l => l.kid === kidId);
+const lessonsOn = (kidId, wd) => lessonsOf(kidId).filter(l => l.day === wd);
+const lessonMin = l => Math.max(0, toMin(l.e) - toMin(l.s));
+const LESSON_ICONS = [[/bóng rổ/, '🏀'], [/bóng đá/, '⚽'], [/bơi/, '🏊'], [/nhảy|múa|dance/, '💃'], [/piano|đàn|nhạc/, '🎹'], [/vẽ|mĩ thuật|mỹ thuật/, '🎨'],
+  [/võ|karate|taekwondo/, '🥋'], [/cờ/, '♟️'], [/nhật/, '🗾'], [/anh|english/, '🔤'], [/toán/, '➗'], [/việt|văn/, '📖']];
+const lessonIcon = name => { const n = String(name).toLowerCase(); return (LESSON_ICONS.find(([re]) => re.test(n)) || [0, '📚'])[1]; };
+const LESSON_NAMES = ['Tiếng Anh', 'Toán', 'Gia sư Toán', 'Gia sư Tiếng Việt', 'Bóng đá', 'Bóng rổ', 'Nhảy', 'Bơi', 'Piano', 'Vẽ', 'Võ', 'Cờ vua'];
+// Những buổi mà một con khác cũng đang học cùng lúc (cùng ngày, giờ chồng lên nhau).
+function clashes(list) {
+  const out = new Set();
+  for (const a of list) for (const b of list)
+    if (a.id < b.id && a.kid !== b.kid && a.day === b.day && toMin(a.s) < toMin(b.e) && toMin(b.s) < toMin(a.e)) { out.add(a.id); out.add(b.id); }
+  return out;
+}
+const lessonChips = list => list.map(l => `<span class="sj-chip sj${subjTint(l.name)}">${lessonIcon(l.name)} ${esc(l.s)} ${esc(l.name)}</span>`).join('');
+
 // Dòng ngắn "hôm nay ở trường" cho màn Hôm nay và chế độ cho bé.
 function schoolNow(k, d, isToday) {
   const t = tkbOf(k.id); if (!t) return null;
@@ -224,6 +245,8 @@ function viewToday() {
     h += `<section class="card"><div class="kid-head">${ava(k)}<div class="kid-name">${esc(k.name)}</div>${bdayChip(k, d)}<span class="stars num" title="Số sao hiện có">${STAR}${balance(k.id)}</span></div>`;
     const sc = schoolNow(k, d, isT);
     if (sc) h += `<a class="school-line" href="#lich-hoc" data-act="tkb-go" data-kid="${k.id}"><b>${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}:</b> ${esc(sc.subjects.join(', '))}</a>`;
+    const lt = lessonsOn(k.id, d.getDay());
+    if (lt.length) h += `<a class="school-line" href="#lich-hoc" data-act="tkb-go" data-kid="${k.id}"><b>📚 Học thêm:</b> ${lt.map(l => `${esc(l.name)} ${esc(l.s)} – ${esc(l.e)}`).join(', ')}</a>`;
     if (!list.length) { h += `<p class="muted" style="margin:12px 0 0">Hôm nay ${esc(k.name)} không có việc nào. Nghỉ ngơi thôi!</p></section>`; continue; }
     h += `<div class="prog"><div class="bar ${n === list.length ? 'full' : ''}"><b style="width:${pct}%"></b></div><span class="num">${n} / ${list.length} việc xong</span></div><div class="list">`;
     for (const c of list) {
@@ -238,39 +261,89 @@ function viewToday() {
 
 function viewSchedule() {
   const kids = kidsList();
-  let h = `<div class="head"><h1>Lịch học</h1><p>Thời khoá biểu ở trường, phần chiếm nhiều thời gian nhất trong ngày của con.</p></div>`;
+  let h = `<div class="head"><h1>Lịch học</h1><p>Lịch ở trường và lịch học thêm, phần chiếm nhiều thời gian nhất trong tuần của các con.</p></div>`;
   if (!kids.length) return h + noKids();
-  const k = kids.find(x => x.id === UI.tkbKid) || kids[0], t = tkbOf(k.id);
-  if (kids.length > 1) h += `<div class="seg">${kids.map(x => `<label><input type="radio" name="tkbkid" value="${x.id}" ${x.id === k.id ? 'checked' : ''}><span>${esc(x.avatar)} ${esc(x.name)}${tkbOf(x.id) ? '' : ' <i class="muted small" style="font-style:normal">(chưa có)</i>'}</span></label>`).join('')}</div>`;
-  if (!t) {
-    return h + `<section class="card empty"><div class="big">🏫</div><h2>Chưa có thời khoá biểu của ${esc(k.name)}</h2>
+  // Nhiều con thì mặc định xem cả nhà, để thấy ngay giờ nào cần đưa đón hai nơi.
+  const all = kids.length > 1 && (UI.tkbKid === 'all' || !S.kids[UI.tkbKid]);
+  const k = all ? null : kids.find(x => x.id === UI.tkbKid) || kids[0];
+  if (kids.length > 1) h += `<div class="seg"><label><input type="radio" name="tkbkid" value="all" ${all ? 'checked' : ''}><span>👨‍👩‍👧 Cả nhà</span></label>${kids.map(x => `<label><input type="radio" name="tkbkid" value="${x.id}" ${x.id === k?.id ? 'checked' : ''}><span>${esc(x.avatar)} ${esc(x.name)}</span></label>`).join('')}</div>`;
+  return h + (all ? familyWeek(kids) : kidSchedule(k));
+}
+
+function kidSchedule(k) {
+  const t = tkbOf(k.id), td = today(), wd = td.getDay(), now = nowMin();
+  let h = '';
+  if (!t && lessonsOf(k.id).length) {
+    h += `<section class="card"><div class="kid-head"><span class="ico" style="font-size:28px">🏫</span><div class="txt" style="flex:1"><b>Lịch ở trường</b><div class="muted small">Chưa có thời khoá biểu ở trường của ${esc(k.name)}.</div></div><button class="btn ghost sm" data-act="tkb-form" data-kid="${k.id}">Tạo</button></div></section>`;
+  } else if (!t) {
+    h += `<section class="card empty" style="padding:20px 18px"><div class="big">🏫</div><h2>Chưa có thời khoá biểu ở trường của ${esc(k.name)}</h2>
     <p class="muted">Nhập các tiết học một lần. App sẽ cho biết hôm nay con học những môn gì, và tối nay cần soạn cặp cho môn nào.</p>
     <div class="row" style="justify-content:center;margin-top:10px"><button class="btn primary" data-act="tkb-form" data-kid="${k.id}">Tạo thời khoá biểu</button></div></section>`;
-  }
-  const td = today(), wd = td.getDay(), info = schoolDay(t, wd), now = nowMin();
-  let line;
-  if (info && now < toMin(info.end)) {
-    const cur = info.list.find(x => toMin(x.s) <= now && now < toMin(x.e));
-    line = `<div><b>Hôm nay ${esc(k.name)} học ${info.list.length} tiết</b>, ${esc(info.start)} – ${esc(info.end)}.${cur ? ` Đang học: <b>${esc(cur.subj)}</b> (tiết ${cur.i + 1}).` : ''}</div>`;
   } else {
-    const nx = nextSchool(t, td);
-    line = nx ? `<div><b>${info ? 'Hôm nay đã tan học.' : 'Hôm nay không đi học.'}</b> ${esc(nx.label)} có:</div><div class="sj-list">${subjChips(nx.info.subjects)}</div>` : 'Chưa có tiết nào trong thời khoá biểu.';
+    const info = schoolDay(t, wd);
+    let line;
+    if (info && now < toMin(info.end)) {
+      const cur = info.list.find(x => toMin(x.s) <= now && now < toMin(x.e));
+      line = `<div><b>Hôm nay ${esc(k.name)} học ${info.list.length} tiết</b>, ${esc(info.start)} – ${esc(info.end)}.${cur ? ` Đang học: <b>${esc(cur.subj)}</b> (tiết ${cur.i + 1}).` : ''}</div>`;
+    } else {
+      const nx = nextSchool(t, td);
+      line = nx ? `<div><b>${info ? 'Hôm nay đã tan học.' : 'Hôm nay không đi học.'}</b> ${esc(nx.label)} có:</div><div class="sj-list">${subjChips(nx.info.subjects)}</div>` : '<div>Chưa có tiết nào trong thời khoá biểu.</div>';
+    }
+    h += `<section class="card tkb-card"><div class="kid-head">${ava(k, 'sm')}<div><div class="kid-name" style="font-size:21px">${esc(t.cls || k.name)}</div>${t.year ? `<div class="muted small">Năm học ${esc(t.year)}</div>` : ''}</div>
+      <div class="acts" style="margin-left:auto"><button class="btn ghost sm" data-act="tkb-form" data-kid="${k.id}">Sửa</button><button class="btn ghost sm" data-act="tkb-print" data-kid="${k.id}">In</button></div></div>
+      <div class="tkb-today">${line}</div>
+      ${tkbTable(t, info ? wd : null)}</section>`;
   }
-  const st = tkbStats(t);
-  h += `<section class="card tkb-card"><div class="kid-head">${ava(k, 'sm')}<div><div class="kid-name" style="font-size:21px">${esc(t.cls || k.name)}</div>${t.year ? `<div class="muted small">Năm học ${esc(t.year)}</div>` : ''}</div>
-    <div class="acts" style="margin-left:auto"><button class="btn ghost sm" data-act="tkb-form" data-kid="${k.id}">Sửa</button><button class="btn ghost sm" data-act="tkb-print" data-kid="${k.id}">In</button></div></div>
-    <div class="tkb-today">${line}</div>
-    ${tkbTable(t, info ? wd : null)}</section>`;
-  if (st.periods) {
-    h += `<div class="sec-title">Mỗi tuần ở trường</div>
-    <div class="tiles">
-      <div class="tile"><span class="muted small">Số tiết</span><span class="amt num">${st.periods} tiết</span></div>
-      <div class="tile"><span class="muted small">Ngồi trong lớp</span><span class="amt num">${durTxt(st.inClass)}</span></div>
-      <div class="tile"><span class="muted small">Ở trường (cả giờ nghỉ)</span><span class="amt num">${durTxt(st.atSchool)}</span></div>
-    </div>
-    <section class="card"><h2 style="font-size:19px">Số tiết mỗi môn</h2><div class="sj-list">${st.subjects.map(([s, n]) => `<span class="sj-chip sj${subjTint(s)}">${esc(s)} <b class="num">${n}</b></span>`).join('')}</div></section>`;
+  // Học thêm
+  const ls = lessonsOf(k.id);
+  h += `<div class="sec-title">Học thêm</div><div class="row"><button class="btn primary" data-act="lesson-form" data-kid="${k.id}">Thêm buổi học thêm</button></div>`;
+  if (ls.length) {
+    h += `<section class="card"><div class="list">${WEEK_ORDER.filter(d => ls.some(l => l.day === d)).map(d =>
+      `<div class="day-sep ${d === wd ? 'on' : ''}">${WDN(d)}${d === wd ? ' · hôm nay' : ''}</div>${ls.filter(l => l.day === d).map(l => lessonItem(l)).join('')}`).join('')}</div></section>`;
+  } else h += `<p class="muted" style="margin:0">Chưa có buổi học thêm nào. Ví dụ: Tiếng Anh, Thứ 2 từ 17:30 đến 19:30.</p>`;
+  // Thống kê tuần
+  const st = t ? tkbStats(t) : { periods: 0, inClass: 0, atSchool: 0, subjects: [] };
+  const lm = ls.reduce((a, l) => a + lessonMin(l), 0);
+  if (st.periods || ls.length) {
+    h += `<div class="sec-title">Mỗi tuần của ${esc(k.name)}</div><div class="tiles">
+      ${st.periods ? `<div class="tile"><span class="muted small">Ở trường (${st.periods} tiết)</span><span class="amt num">${durTxt(st.atSchool)}</span></div>` : ''}
+      ${ls.length ? `<div class="tile"><span class="muted small">Học thêm (${ls.length} buổi)</span><span class="amt num">${durTxt(lm)}</span></div>` : ''}
+      ${st.periods && ls.length ? `<div class="tile"><span class="muted small">Tổng cộng</span><span class="amt num">${durTxt(st.atSchool + lm)}</span></div>` : ''}
+    </div>`;
+    if (st.periods) h += `<section class="card"><h2 style="font-size:19px">Số tiết mỗi môn ở trường</h2><div class="sj-list">${st.subjects.map(([s, n]) => `<span class="sj-chip sj${subjTint(s)}">${esc(s)} <b class="num">${n}</b></span>`).join('')}</div></section>`;
   }
   return h;
+}
+
+// Cả nhà: lịch học thêm của các con theo từng ngày, báo những giờ hai con học cùng lúc.
+function familyWeek(kids) {
+  const wd = today().getDay(), all = lessonsList();
+  let h = `<div class="row"><button class="btn primary" data-act="lesson-form">Thêm buổi học thêm</button></div>`;
+  if (!all.length) return h + `<section class="card empty"><div class="big">📚</div><h2>Chưa có lịch học thêm</h2><p class="muted">Thêm các buổi học thêm của từng con. App sẽ xếp theo ngày và báo những giờ các con học cùng lúc ở hai nơi.</p></section>`;
+  const clash = clashes(all);
+  const days = WEEK_ORDER.filter(d => all.some(l => l.day === d));
+  const clashDays = days.filter(d => all.some(l => l.day === d && clash.has(l.id)));
+  h += `<div class="tiles">${kids.map(k => { const ls = all.filter(l => l.kid === k.id); return `<div class="tile"><span class="who">${ava(k, 'sm')}${esc(k.name)}</span><span class="amt num">${ls.length ? durTxt(ls.reduce((a, l) => a + lessonMin(l), 0)) : '—'}</span><span class="muted small">${ls.length} buổi học thêm mỗi tuần</span></div>`; }).join('')}</div>`;
+  if (clashDays.length) h += `<div class="note">⚠️ <b>${clashDays.length} ngày có giờ trùng</b> (${clashDays.map(WDN).join(', ')}): các con học cùng lúc ở những lớp khác nhau, có thể cần hai người đưa đón.</div>`;
+  h += `<section class="card"><div class="list">${days.map(d => { const dl = all.filter(l => l.day === d), cl = clashSpans(dl);
+    return `<div class="day-sep ${d === wd ? 'on' : ''}">${WDN(d)}${d === wd ? ' · hôm nay' : ''}</div>${cl.map(c => `<div class="clash">⚠️ ${esc(c)}</div>`).join('')}${dl.map(l => lessonItem(l, true)).join('')}`; }).join('')}</div></section>`;
+  return h;
+}
+// "Sa và Su cùng học 17:30 – 19:30" cho từng cặp buổi chồng giờ trong một ngày.
+function clashSpans(dayList) {
+  const out = [];
+  dayList.forEach((a, i) => dayList.slice(i + 1).forEach(b => {
+    if (a.kid === b.kid) return;
+    const s = Math.max(toMin(a.s), toMin(b.s)), e = Math.min(toMin(a.e), toMin(b.e));
+    const [x, y] = (S.kids[a.kid].order ?? 0) <= (S.kids[b.kid].order ?? 0) ? [a, b] : [b, a];
+    if (s < e) out.push(`${kidName(x.kid)} và ${kidName(y.kid)} cùng học ${hm(s)} – ${hm(e)}`);
+  }));
+  return out;
+}
+function lessonItem(l, who = false) {
+  const k = S.kids[l.kid] ? { id: l.kid, ...S.kids[l.kid] } : null;
+  return `<div class="item">${who && k ? ava(k, 'sm') : `<span class="ico">${lessonIcon(l.name)}</span>`}<div class="txt"><div class="t">${who && k ? `${esc(k.name)} · ` : ''}${esc(l.name)}</div><div class="s num">${esc(l.s)} – ${esc(l.e)} · ${durTxt(lessonMin(l))}</div></div>
+    <div class="acts"><button class="btn ghost sm" data-act="lesson-form" data-id="${l.id}">Sửa</button></div></div>`;
 }
 
 function viewRewards() {
@@ -370,14 +443,16 @@ function drawKidMode() {
   }
   const list = choresFor(k.id, t), n = list.filter(c => isDone(t, k.id, c.id)).length;
   const sc = schoolNow(k, t, true);
-  const school = sc ? `<div class="km-school"><div class="t">${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}</div><div class="sj-list">${subjChips(sc.subjects)}</div></div>` : '';
+  const lt = lessonsOn(k.id, t.getDay()).filter(l => toMin(l.e) > nowMin());
+  const school = (sc ? `<div class="km-school"><div class="t">${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}</div><div class="sj-list">${subjChips(sc.subjects)}</div></div>` : '')
+    + (lt.length ? `<div class="km-school"><div class="t">📚 Học thêm hôm nay</div><div class="sj-list">${lessonChips(lt)}</div></div>` : '');
   el.innerHTML = `<div class="wrap"><div class="km-top"><button class="btn quiet" data-act="km-kid" data-kid="">← Đổi bạn</button>${hold}</div>
   <div class="kid-head">${ava(k)}<div><div class="kid-name" style="font-size:32px">${isBirthday(k, t) ? `Chúc mừng sinh nhật ${esc(k.name)}! 🎂` : `Chào ${esc(k.name)}!`}</div><div class="muted">${WD[t.getDay()]}, ${t.getDate()} tháng ${t.getMonth() + 1}</div></div><span class="stars num" style="margin-left:auto;font-size:30px">${STAR}${balance(k.id)}</span></div>
   ${list.length ? `<div class="prog"><div class="bar ${n === list.length ? 'full' : ''}"><b style="width:${Math.round(n / list.length * 100)}%"></b></div><span class="num">${n} / ${list.length}</span></div>` : ''}
   ${school}
   ${list.length && n === list.length ? `<div class="cheer">Giỏi quá! Hôm nay con làm xong hết rồi 🎉</div>` : ''}
   <div class="big-list">${list.length ? list.map(c => { const on = isDone(t, k.id, c.id); return `<button class="big-item ${on ? 'done' : ''}" data-act="tick" data-kid="${k.id}" data-chore="${c.id}" data-km="1" aria-pressed="${on}"><span class="ico">${esc(c.icon || '✅')}</span><span><span class="t">${esc(c.name)}</span><br><span class="s">${c.stars || 1} sao</span></span><span class="stamp ${on ? 'on' : ''}">${STAR}</span></button>`; }).join('')
-    : `<div class="card empty"><div class="big">🎈</div><h2>Hôm nay con được nghỉ!</h2></div>`}</div></div>`;
+    : `<div class="card empty"><div class="big">🎈</div><h2>${school ? 'Hôm nay con không có việc nhà nào.' : 'Hôm nay con được nghỉ!'}</h2></div>`}</div></div>`;
 }
 
 // ---------- printable sheet ----------
@@ -408,7 +483,8 @@ function printTkb(kidId) {
   printHtml(`<h1 style="font-family:var(--display);margin:0;text-align:center;font-size:34px">Thời khoá biểu</h1>
     <div style="text-align:center;font-size:18px;margin-bottom:12px">${esc(k.avatar)} ${esc(k.name)}${t.cls ? ' · ' + esc(t.cls) : ''}${t.year ? ' · Năm học ' + esc(t.year) : ''}</div>
     ${tkbTable(t)}
-    ${st.periods ? `<div style="margin-top:10px;font-size:13px">Mỗi tuần ${st.periods} tiết, ngồi trong lớp ${durTxt(st.inClass)}, ở trường ${durTxt(st.atSchool)}.</div>` : ''}`, 'landscape');
+    ${st.periods ? `<div style="margin-top:10px;font-size:13px">Mỗi tuần ${st.periods} tiết, ngồi trong lớp ${durTxt(st.inClass)}, ở trường ${durTxt(st.atSchool)}.</div>` : ''}
+    ${lessonsOf(kidId).length ? `<h2 style="font-family:var(--display);margin:14px 0 6px;font-size:20px">Học thêm</h2><div class="print-lessons">${WEEK_ORDER.filter(d => lessonsOn(kidId, d).length).map(d => `<div><b>${WDN(d)}</b>${lessonsOn(kidId, d).map(l => `<div>${lessonIcon(l.name)} ${esc(l.s)} – ${esc(l.e)} ${esc(l.name)}</div>`).join('')}</div>`).join('')}</div>` : ''}`, 'landscape');
 }
 function printHtml(html, cls = '') {
   const pa = $('#print-area');
@@ -525,6 +601,23 @@ function readTkbForm() {
   };
 }
 
+function lessonForm(id, kidPre) {
+  const l = id ? S.lessons[id] : null, kids = kidsList();
+  if (!kids.length) return;
+  const kid = l?.kid || (S.kids[kidPre] ? kidPre : (S.kids[UI.tkbKid] ? UI.tkbKid : kids[0].id));
+  const names = [...new Set([...lessonsList().map(x => x.name), ...LESSON_NAMES])];
+  const day = l ? Number(l.day) : null;
+  openModal(`<h2>${l ? 'Sửa buổi học thêm' : 'Thêm buổi học thêm'}</h2>
+  <div class="field"><span class="lbl">Con</span><div class="seg">${kids.map(k => `<label><input type="radio" name="lkid" value="${k.id}" ${k.id === kid ? 'checked' : ''}><span>${esc(k.avatar)} ${esc(k.name)}</span></label>`).join('')}</div></div>
+  <div class="field"><label for="lname">Học gì</label><input id="lname" class="input" list="lesson-list" maxlength="40" value="${esc(l?.name || '')}" placeholder="Ví dụ: Tiếng Anh cô Huyền">
+    <datalist id="lesson-list">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
+  <div class="field"><span class="lbl">${l ? 'Ngày' : 'Những ngày (cùng giờ)'}</span><div class="seg">${WEEK_ORDER.map(d => `<label><input type="${l ? 'radio' : 'checkbox'}" name="lday" value="${d}" ${d === day ? 'checked' : ''}><span>${WDS[d]}</span></label>`).join('')}</div></div>
+  <div class="row2"><div class="field"><label for="ls">Từ</label><input id="ls" class="input num" type="time" value="${esc(l?.s || '17:30')}"></div>
+    <div class="field"><label for="le">Đến</label><input id="le" class="input num" type="time" value="${esc(l?.e || '19:30')}"></div></div>
+  ${l ? '' : '<span class="muted small">Cùng một lớp mà mỗi ngày học một giờ khác nhau thì thêm từng ngày một.</span>'}
+  <div class="foot">${l ? `<button class="btn danger left" data-act="lesson-del" data-id="${id}">Xoá</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="lesson-save" data-id="${id || ''}">Lưu</button></div>`);
+}
+
 function tradeForm(id) {
   const r = S.rewards[id]; if (!r) return;
   openModal(`<h2>${esc(r.icon)} ${esc(r.name)}</h2><p class="muted" style="margin:-8px 0 0">Cần ${r.cost} sao. Con nào muốn đổi?</p>
@@ -542,13 +635,37 @@ function exportBackup() {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
+// Con trong file nhập mà trùng tên với con đã có (khác mã) thì gộp vào con đó,
+// không tạo thêm một con nữa. Đổi mã con ở mọi nhóm dữ liệu trong file. Trả về tên các con đã gộp.
+function matchKidsByName(data) {
+  const norm = v => String(v || '').trim().toLowerCase();
+  const byName = {};
+  for (const [id, k] of Object.entries(S.kids)) byName[norm(k.name)] ??= id;
+  const map = {};
+  for (const [id, k] of Object.entries(data.kids)) if (!S.kids[id] && byName[norm(k.name)]) map[id] = byName[norm(k.name)];
+  if (!Object.keys(map).length) return [];
+  const m = id => map[id] || id;
+  for (const id of Object.keys(map)) delete data.kids[id]; // giữ thông tin con đang có
+  for (const c of Object.values(data.chores || {})) if (Array.isArray(c.kids)) c.kids = c.kids.map(m);
+  for (const day of Object.values(data.done || {})) for (const id of Object.keys(day || {})) if (map[id]) { day[map[id]] = { ...(day[map[id]] || {}), ...day[id] }; delete day[id]; }
+  for (const l of Object.values(data.ledger || {})) if (l) l.kid = m(l.kid);
+  for (const l of Object.values(data.lessons || {})) if (l) l.kid = m(l.kid);
+  if (data.paid) data.paid = Object.fromEntries(Object.entries(data.paid).map(([id, p]) => { const [kid, w] = id.split('_'); return [m(kid) + '_' + w, { ...p, kid: m(p.kid) }]; }));
+  if (data.timetables) data.timetables = Object.fromEntries(Object.entries(data.timetables).map(([id, t]) => [m(id), t]));
+  return [...new Set(Object.values(map))].map(kidName);
+}
 async function importBackup(file) {
   try {
     const j = JSON.parse(await file.text());
     const data = j && j.data;
     if (!data || typeof data !== 'object' || !data.kids) throw new Error('bad');
+    const matched = matchKidsByName(data);
     await store.importAll(data);
-    toast(`Đã nhập ${Object.keys(data.kids).length} con, ${Object.keys(data.chores || {}).length} việc nhà.`);
+    const n = Object.keys(data.kids).length, parts = [];
+    if (n) parts.push(`${n} con mới`);
+    if (matched.length) parts.push(`gộp vào ${matched.join(', ')}`);
+    for (const [c, label] of [['chores', 'việc nhà'], ['timetables', 'thời khoá biểu'], ['lessons', 'buổi học thêm']]) { const m = Object.keys(data[c] || {}).length; if (m) parts.push(`${m} ${label}`); }
+    toast(`Đã nhập: ${parts.join(', ') || 'không có gì mới'}.`);
   } catch (e) {
     console.error(e);
     toast('File này không phải bản sao lưu của Bé Chăm Ngoan.');
@@ -621,6 +738,21 @@ document.addEventListener('click', e => {
     return toast(`Đã lưu thời khoá biểu của ${kidName(kidId)}.`);
   }
   if (a === 'tkb-del') { if (!armed(b, 'Bấm lần nữa để xoá')) return; closeModal(); del('timetables', id); return toast('Đã xoá thời khoá biểu.'); }
+  if (a === 'lesson-form') return lessonForm(id, b.dataset.kid);
+  if (a === 'lesson-save') {
+    const name = $('#lname').value.trim(); if (!name) { $('#lname').focus(); return toast('Nhập tên lớp học thêm nhé.'); }
+    const kid = radioVal('lkid'), days = [...document.querySelectorAll('#modal input[name=lday]:checked')].map(x => Number(x.value));
+    const ls = $('#ls').value, le = $('#le').value;
+    if (!kid || !S.kids[kid]) return toast('Chọn con nhé.');
+    if (!days.length) return toast('Chọn ít nhất một ngày.');
+    if (toMin(ls) === null || toMin(le) === null) return toast('Nhập đủ giờ bắt đầu và kết thúc.');
+    if (toMin(le) <= toMin(ls)) return toast('Giờ kết thúc phải sau giờ bắt đầu.');
+    closeModal();
+    if (id) put('lessons', id, { kid, day: days[0], s: ls, e: le, name });
+    else days.forEach(d => put('lessons', uid(), { kid, day: d, s: ls, e: le, name }));
+    return toast(id ? 'Đã lưu.' : `Đã thêm ${days.length} buổi học thêm cho ${kidName(kid)}.`);
+  }
+  if (a === 'lesson-del') { if (!armed(b, 'Bấm lần nữa để xoá')) return; closeModal(); del('lessons', id); return toast('Đã xoá buổi học thêm.'); }
   if (a === 'km-open') { const ks = kidsList(); UI.km = { on: true, kid: ks.length === 1 ? ks[0].id : null }; return render(); }
   if (a === 'km-kid') { UI.km.kid = b.dataset.kid || null; return render(); }
   if (a === 'sheet-open') { UI.sheet = true; return render(); }
@@ -664,6 +796,7 @@ document.addEventListener('click', e => {
     if (!armed(b, 'Bấm lần nữa để xoá')) return;
     closeModal(); del('kids', id);
     if (S.timetables[id]) del('timetables', id);
+    for (const l of Object.entries(S.lessons || {})) if (l[1].kid === id) del('lessons', l[0]);
     for (const c of choresList()) if ((c.kids || []).includes(id)) { const { id: cid, ...rest } = c; put('chores', cid, { ...rest, kids: rest.kids.filter(x => x !== id) }); }
     return toast('Đã xoá.');
   }
