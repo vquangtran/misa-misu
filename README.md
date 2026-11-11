@@ -4,7 +4,8 @@ Bảng việc nhà cho các con, bằng tiếng Việt:
 
 - **Hôm nay:** mỗi con đóng dấu sao cho việc đã làm. Nếu con có thời khoá biểu thì hiện luôn giờ ở trường và các môn hôm nay; sau giờ tan học đổi thành các môn cần soạn cặp cho buổi học tiếp theo.
 - **Lịch học:** thời khoá biểu ở trường của từng con (lớp, năm học, giờ từng tiết, nghỉ trưa, có thể học cả Thứ Bảy). Tô sáng ngày hôm nay và tiết đang học, đếm số tiết mỗi môn và số giờ con ở trường mỗi tuần, in khổ ngang để dán bàn học.
-- **Học thêm:** các buổi học thêm, gia sư, thể thao của từng con theo ngày trong tuần, ghi học ở nhà hay đi học, ai đưa đi và ai đón về (Bố, Mẹ, Grab, tự đi...). Mục **Cả nhà** xếp lịch đưa đón theo từng ngày, đếm số chuyến mỗi tuần của từng người, và cảnh báo khi một buổi chưa có người đưa/đón hoặc một người có hai chuyến cách nhau dưới 20 phút.
+- **Các con ở đâu:** mỗi thứ trong tuần, ban ngày và buổi tối các con ở nhà nào (nhà bố, nhà mẹ, nhà ông bà...). App đánh dấu ngày đổi nhà, báo ở màn Hôm nay ("Đổi nhà: tối nay về nhà bố") và cho con thấy trong chế độ cho bé.
+- **Học thêm:** các buổi học thêm, gia sư, thể thao của từng con theo ngày trong tuần, ghi học ở đâu, học ngay tại nhà con đang ở hay phải đưa đón, ai đưa đi và ai đón về (Bố, Mẹ, Grab, tự đi...). Mục **Cả nhà** xếp lịch đưa đón theo từng ngày, đếm số chuyến mỗi tuần của từng người, và cảnh báo khi một buổi chưa có người đưa/đón hoặc một người có hai chuyến cách nhau dưới 20 phút.
 - **Chế độ cho bé:** chữ và nút to để con tự đánh dấu. Muốn thoát thì giữ nút 1 giây.
 - **Phần thưởng:** đổi sao lấy quà, thưởng thêm hoặc trừ sao, có lịch sử.
 - **Tiền tiêu vặt:** tính theo tuần, theo việc đã làm hoặc nhận đủ. Bố mẹ đánh dấu "Đã trả".
@@ -37,7 +38,7 @@ Khi `js/config.js` để `null`, dữ liệu chỉ lưu trên trình duyệt c�
 
 1. Vào https://console.firebase.google.com, bấm **Create a project**, đặt tên (ví dụ `misa-misu`). Có thể tắt Google Analytics.
 2. **Build → Firestore Database → Create database**. Chọn vùng `asia-southeast1` (Singapore), chế độ **production**.
-3. Trong Firestore, mở tab **Rules**, dán toàn bộ nội dung file `firestore.rules`, bấm **Publish**. Mỗi khi app có thêm nhóm dữ liệu mới (ví dụ `timetables` và `lessons` cho Lịch học), dán lại file này một lần nữa, nếu không phần mới sẽ không lưu được.
+3. Trong Firestore, mở tab **Rules**, dán toàn bộ nội dung file `firestore.rules`, bấm **Publish**. Mỗi khi app có thêm nhóm dữ liệu mới (ví dụ `timetables`, `lessons` và `stays` cho Lịch học), dán lại file này một lần nữa, nếu không phần mới sẽ không lưu được.
 4. **Build → Authentication → Get started → Sign-in method**, bật **Anonymous**.
 5. **Authentication → Settings → Authorized domains**, thêm `vquangtran.github.io`.
 6. **Project settings** (bánh răng) → **Your apps** → bấm biểu tượng web `</>`, đặt tên rồi bấm **Register app**. Firebase hiện ra đoạn `firebaseConfig`.
