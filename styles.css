@@ -351,7 +351,8 @@ select.input{appearance:auto}
 .stay.on{background:var(--accent-soft)}
 .stay.on b{color:var(--accent)}
 .stay .sd{min-height:15px;font-size:10.5px;line-height:1.3;color:var(--muted);white-space:nowrap;max-width:100%}
-.stay .sn{border-radius:8px;padding:4px 1px;width:100%;font-weight:700;white-space:nowrap;color:var(--ink)}
+.stay .sn{border-radius:8px;padding:4px 1px;width:100%;font-weight:700;color:var(--ink);line-height:1.15}
+.stay .sn.long{font-size:10px;letter-spacing:-.02em}
 .stay.moved .sn{box-shadow:inset 0 0 0 2px var(--accent)}
 .stay-chip{margin-left:8px;font-family:var(--body);font-size:12px;font-weight:600;color:var(--muted)}
 .stay-chip.moved{color:var(--accent)}

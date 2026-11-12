@@ -416,7 +416,7 @@ const WHO_NAMES = ['Bố', 'Mẹ', 'Ông bà', 'Grab', 'Tự đi'];
 const isRide = w => /grab|taxi|xe buýt|xe bus|tự đi|tự về|be\b|xanh/i.test(String(w || ''));
 const whoIcon = w => /grab|taxi|be\b|xanh/i.test(w) ? '🚕' : /tự/i.test(w) ? '🚶' : /buýt|bus/i.test(w) ? '🚌' : '🚗';
 function tripText(t) {
-  const k = kidName(t.l.kid), w = String(t.who || '').trim(), at = t.l.at ? ` (${String(t.l.at).toLowerCase()})` : '';
+  const k = kidName(t.l.kid), w = String(t.who || '').trim(), at = t.l.at ? ` (${placeLow(t.l.at)})` : '';
   if (!w) return t.kind === 'go' ? `Chưa có người đưa ${k} đi ${t.l.name}` : `Chưa có người đón ${k} (${t.l.name})`;
   if (/^tự/i.test(w)) return t.kind === 'go' ? `${k} tự đi ${t.l.name}` : `${k} tự về`;
   if (isRide(w)) return t.kind === 'go' ? `${k} đi ${w} tới ${t.l.name}${at}` : `${k} về bằng ${w}`;
@@ -442,50 +442,59 @@ function tripWarnings(trips) {
   }));
   return out;
 }
-const placeTxt = l => l.home === true ? `🏠 ${esc(l.at || 'Ở nhà')}` : l.home === false
-  ? `${l.at ? '📍 ' + esc(l.at) + ' · ' : ''}${l.go ? whoIcon(l.go) + ' Đi: ' + esc(l.go) : '⚠️ Chưa có người đưa'} · ${l.back ? 'Về: ' + esc(l.back) : '⚠️ chưa có người đón'}` : (l.at ? '📍 ' + esc(l.at) : '');
+const placeTxt = l => l.home === true ? `🏠 ${esc(placeName(l.at) || 'Ở nhà')}` : l.home === false
+  ? `${l.at ? '📍 ' + esc(placeName(l.at)) + ' · ' : ''}${l.go ? whoIcon(l.go) + ' Đi: ' + esc(l.go) : '⚠️ Chưa có người đưa'} · ${l.back ? 'Về: ' + esc(l.back) : '⚠️ chưa có người đón'}` : (l.at ? '📍 ' + esc(placeName(l.at)) : '');
 // ---------- các con ở đâu ----------
 // stays: id = thứ ("0".."6"), { day: ban ngày ở đâu (bỏ trống = đi học / như buổi tối), night: tối ngủ ở đâu }.
-const PLACE_NAMES = ['Nhà bố', 'Nhà mẹ', 'Nhà ông bà'];
+const PLACE_NAMES = ['Nhà bố', '6th Element', 'Nhà ông bà'];
+// Tên cũ được hiện bằng tên mới (dữ liệu cũ ghi "Nhà mẹ").
+const PLACE_ALIAS = { 'nhà mẹ': '6th Element' };
+const placeName = p => { const v = String(p || '').trim(); return PLACE_ALIAS[v.toLowerCase()] || v; };
+// Viết thường chữ "nhà" ở giữa câu, giữ nguyên tên riêng ("6th Element").
+const placeLow = p => placeName(p).replace(/^nhà(?=\s)/i, 'nhà');
 const placeNames = () => [...new Set([...PLACE_NAMES, ...Object.values(S.stays || {}).flatMap(x => [x.day, x.night]), ...lessonsList().map(l => l.at)]
-  .map(v => String(v || '').trim()).filter(Boolean))];
+  .map(placeName).filter(Boolean))];
 const stayOf = wd => { const x = (S.stays || {})[String(wd)]; return x && (x.day || x.night) ? x : null; };
 const hasStays = () => [0, 1, 2, 3, 4, 5, 6].some(stayOf);
-const shortPlace = p => String(p || '').replace(/^nhà\s+/i, '').replace(/^./, c => c.toUpperCase());
+const shortPlace = p => placeName(p).replace(/^nhà\s+/i, '').replace(/^./, c => c.toUpperCase());
 // Thông tin trong ngày: ban ngày, buổi tối, và có đổi nhà so với tối hôm trước không.
 function stayInfo(wd) {
   const x = stayOf(wd); if (!x) return null;
-  const prev = stayOf((wd + 6) % 7), night = String(x.night || '').trim(), day = String(x.day || '').trim();
-  const moved = night && prev?.night && prev.night.trim().toLowerCase() !== night.toLowerCase();
-  return { day, night, moved, from: prev?.night || '' };
+  const prev = stayOf((wd + 6) % 7), night = placeName(x.night), day = placeName(x.day), from = placeName(prev?.night);
+  const moved = !!(night && from && from.toLowerCase() !== night.toLowerCase());
+  return { day, night, moved, from };
 }
-function stayLine(wd, kid = false) {
+// Con đang ở đâu lúc này: tối (từ 17:00) ở chỗ ngủ đêm nay, ban ngày ở chỗ ghi ban ngày, nếu không ghi thì vẫn ở chỗ ngủ đêm qua.
+function stayNow(wd) {
+  const st = stayInfo(wd); if (!st) return null;
+  const evening = nowMin() >= 17 * 60, here = evening ? st.night || st.day : st.day || st.from || st.night;
+  return here ? { here, next: !evening && st.night && st.night.toLowerCase() !== here.toLowerCase() ? st.night : '' } : null;
+}
+// Hôm nay: "📍 Đang ở 6th Element · tối nay về nhà ông bà". Ngày khác: "📍 Ở 6th Element", ngày đổi nhà "🔁 Về nhà ông bà".
+function stayLine(wd, isToday = false) {
   const st = stayInfo(wd); if (!st) return '';
-  const parts = [];
-  if (st.day) parts.push(`ban ngày ở ${st.day.toLowerCase()}`);
-  if (st.night) parts.push(st.moved ? `tối nay về ${st.night.toLowerCase()}` : `tối ở ${st.night.toLowerCase()}`);
-  if (!parts.length) return '';
-  const txt = parts.join(', ');
-  return kid ? txt.replace(/^./, c => c.toUpperCase()) : (st.moved ? `🔁 Đổi nhà: ${txt}` : `🏠 ${txt.replace(/^./, c => c.toUpperCase())}`);
+  if (isToday) { const n = stayNow(wd); return n ? `📍 Đang ở ${placeLow(n.here)}${n.next ? ` · tối nay về ${placeLow(n.next)}` : ''}` : ''; }
+  const where = st.night || st.day; if (!where) return '';
+  return `${st.moved ? '🔁 Về' : '📍 Ở'} ${placeLow(where)}${st.day && st.night && st.day.toLowerCase() !== st.night.toLowerCase() ? ` (ban ngày ở ${placeLow(st.day)})` : ''}`;
 }
 function stayStrip() {
   const wd = today().getDay();
   return `<div class="stay-strip">${WEEK_ORDER.map(d => { const st = stayInfo(d);
-    return `<div class="stay ${d === wd ? 'on' : ''} ${st?.moved ? 'moved' : ''}"><b>${WDS[d]}</b><span class="sd">${st?.day ? esc(shortPlace(st.day)) : ''}</span><span class="sn sj${st?.night ? subjTint(st.night) : ''}">${st?.night ? esc(shortPlace(st.night)) : '—'}</span></div>`; }).join('')}</div>`;
+    return `<div class="stay ${d === wd ? 'on' : ''} ${st?.moved ? 'moved' : ''}"><b>${WDS[d]}</b><span class="sd">${st?.day ? esc(shortPlace(st.day)) : ''}</span><span class="sn sj${st?.night ? subjTint(st.night) : ''} ${shortPlace(st?.night).length > 6 ? 'long' : ''}">${st?.night ? esc(shortPlace(st.night)) : '—'}</span></div>`; }).join('')}</div>`;
 }
 function stayForm() {
   const names = placeNames();
   openModal(`<h2>Các con ở đâu</h2><p class="muted" style="margin:-8px 0 0">Mỗi thứ trong tuần, ban ngày và buổi tối các con ở nhà nào. Ban ngày bỏ trống nếu con đi học bình thường.</p>
   <div class="stay-rows"><div></div><span class="lbl">Ban ngày</span><span class="lbl">Buổi tối</span>
   ${WEEK_ORDER.map(d => { const x = (S.stays || {})[String(d)] || {}; return `<b>${WDN(d)}</b>
-    <input class="input" list="place-list" maxlength="24" data-sd="${d}" value="${esc(x.day || '')}" placeholder="Đi học" aria-label="${WDN(d)} ban ngày">
-    <input class="input" list="place-list" maxlength="24" data-sn="${d}" value="${esc(x.night || '')}" placeholder="Chưa ghi" aria-label="${WDN(d)} buổi tối">`; }).join('')}</div>
+    <input class="input" list="place-list" maxlength="24" data-sd="${d}" value="${esc(placeName(x.day))}" placeholder="Đi học" aria-label="${WDN(d)} ban ngày">
+    <input class="input" list="place-list" maxlength="24" data-sn="${d}" value="${esc(placeName(x.night))}" placeholder="Chưa ghi" aria-label="${WDN(d)} buổi tối">`; }).join('')}</div>
   <datalist id="place-list">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
   <span class="muted small">Gõ vài chữ đầu để chọn: ${names.map(esc).join(', ')}.</span>
   <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="stay-save">Lưu</button></div>`);
 }
 
-const lessonChips = list => list.map(l => `<span class="sj-chip sj${subjTint(l.name)}">${lessonIcon(l.name)} ${esc(l.s)} ${esc(l.name)}${l.home === true ? ` · ${esc(String(l.at || 'ở nhà').toLowerCase())}` : l.home === false && l.go ? ` · ${whoIcon(l.go)} ${esc(/^tự/i.test(l.go) ? 'tự đi' : isRide(l.go) ? 'đi ' + l.go : l.go + ' đưa')}` : ''}</span>`).join('');
+const lessonChips = list => list.map(l => `<span class="sj-chip sj${subjTint(l.name)}">${lessonIcon(l.name)} ${esc(l.s)} ${esc(l.name)}${l.home === true ? ` · ${esc(l.at ? placeLow(l.at) : 'ở nhà')}` : l.home === false && l.go ? ` · ${whoIcon(l.go)} ${esc(/^tự/i.test(l.go) ? 'tự đi' : isRide(l.go) ? 'đi ' + l.go : l.go + ' đưa')}` : ''}</span>`).join('');
 
 // Dòng ngắn "hôm nay ở trường" cho màn Hôm nay và chế độ cho bé.
 function schoolNow(k, d, isToday) {
@@ -652,7 +661,7 @@ function viewToday() {
   <div class="row"><button class="btn primary" data-act="km-open" ${kids.length ? '' : 'disabled'}>Chế độ cho bé</button><button class="btn ghost" data-act="sheet-open" ${kids.length ? '' : 'disabled'}>In kế hoạch tuần</button></div>`;
   if (!kids.length) return h + noKids();
   if (future) h += `<div class="note">Đây là ngày chưa tới, các con chưa thể đóng dấu.</div>`;
-  if (stayLine(d.getDay())) h += `<a class="stay-note ${stayInfo(d.getDay()).moved ? 'moved' : ''}" href="#lich-hoc" data-act="tkb-go" data-kid="all">${esc(stayLine(d.getDay()))}</a>`;
+  if (stayLine(d.getDay(), isT)) h += `<a class="stay-note ${stayInfo(d.getDay()).moved ? 'moved' : ''}" href="#lich-hoc" data-act="tkb-go" data-kid="all">${esc(stayLine(d.getDay(), isT))}</a>`;
   for (const k of kids) {
     const list = mustFor(k.id, d), plan = dayPlan(k.id, d);
     const n = list.filter(c => isDone(d, k.id, c.id)).length;
@@ -876,8 +885,8 @@ function weekTotals(k, t, ls) {
 
 function staysCard(wd) {
   return hasStays()
-    ? `<section class="card"><div class="kid-head"><h2 style="font-size:19px;flex:1">Các con ở đâu</h2><button class="btn ghost sm" data-act="stay-form">Sửa</button></div>${stayStrip()}<div class="muted small" style="margin-top:4px">Dòng trên: ban ngày (nếu không đi học). Ô màu: buổi tối ngủ ở đâu. Viền đậm: ngày đổi nhà.</div>${stayLine(wd) ? `<div class="muted small" style="margin-top:8px">Hôm nay: ${esc(stayLine(wd).replace(/^\S+\s/, ''))}</div>` : ''}</section>`
-    : `<section class="card"><div class="kid-head"><span style="font-size:26px">🏠</span><div class="txt" style="flex:1"><b>Các con ở đâu</b><div class="muted small">Ghi ngày nào các con ở nhà bố, nhà mẹ hay ông bà.</div></div><button class="btn ghost sm" data-act="stay-form">Ghi lịch</button></div></section>`;
+    ? `<section class="card"><div class="kid-head"><h2 style="font-size:19px;flex:1">Các con ở đâu</h2><button class="btn ghost sm" data-act="stay-form">Sửa</button></div>${stayStrip()}<div class="muted small" style="margin-top:4px">Dòng trên: ban ngày (nếu không đi học). Ô màu: buổi tối ngủ ở đâu. Viền đậm: ngày đổi nhà.</div>${stayLine(wd, true) ? `<div class="muted small" style="margin-top:8px">Hôm nay: ${esc(stayLine(wd, true).replace(/^\S+\s/, ''))}</div>` : ''}</section>`
+    : `<section class="card"><div class="kid-head"><span style="font-size:26px">🏠</span><div class="txt" style="flex:1"><b>Các con ở đâu</b><div class="muted small">Ghi ngày nào các con ở nhà bố, 6th Element hay nhà ông bà.</div></div><button class="btn ghost sm" data-act="stay-form">Ghi lịch</button></div></section>`;
 }
 // Cả nhà: lịch học thêm của các con theo từng ngày, kèm lịch đưa đón và cảnh báo.
 function familyWeek(kids) {
@@ -1147,8 +1156,8 @@ function drawKidMode() {
   }
   const list = mustFor(k.id, t), n = list.filter(c => isDone(t, k.id, c.id)).length, plan = dayPlan(k.id, t), cur = slotAt(nowMin());
   const sc = schoolNow(k, t, true);
-  const kst = stayInfo(t.getDay());
-  const home = kst?.night ? `<div class="km-school km-home ${kst.moved ? 'moved' : ''}"><div class="t">${kst.moved ? '🔁' : '🏠'} ${esc(kst.moved ? `Tối nay con về ${kst.night.toLowerCase()}` : `Tối nay con ở ${kst.night.toLowerCase()}`)}</div>${kst.day ? `<div class="muted">Ban ngày con ở ${esc(kst.day.toLowerCase())}.</div>` : ''}</div>` : '';
+  const kst = stayNow(t.getDay());
+  const home = kst ? `<div class="km-school km-home ${kst.next ? 'moved' : ''}"><div class="t">📍 Con đang ở ${esc(placeLow(kst.here))}</div>${kst.next ? `<div class="muted">Tối nay con về ${esc(placeLow(kst.next))}.</div>` : ''}</div>` : '';
   const kts = tasksSoon(k.id), g1 = goalProgress(k.id)[0];
   const goal = g1 ? `<div class="km-goal"><div class="t">${esc(g1.icon || '🎁')} Con đang để dành mua <b>${esc(g1.name)}</b></div>${coins(g1, true)}<div class="muted">${g1.need ? `Còn thiếu ${money(g1.need)}` : 'Đủ tiền rồi! Nhờ bố mẹ mua cho con nhé 🎉'}</div></div>` : '';
   const school = skipNote(k, t) + goal + home + eventLines(k, 'km-event') + (kts.length ? `<div class="km-slot">📝 Bài cần nộp</div>${kts.map(t => taskRow(t, false, true)).join('')}` : '') + (sc ? `<div class="km-school"><div class="t">${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}</div><div class="sj-list">${subjChips(sc.subjects)}</div></div>` : '');
@@ -1378,7 +1387,7 @@ function lessonForm(id, kidPre) {
   <div class="field"><span class="lbl">Có phải đi lại không</span><div class="seg">
     <label><input type="radio" name="lwhere" value="home" ${l?.home === true ? 'checked' : ''}><span>🏠 Học ngay tại nhà con đang ở</span></label>
     <label><input type="radio" name="lwhere" value="out" ${l?.home === false ? 'checked' : ''}><span>🚗 Phải đưa đón</span></label></div></div>
-  <div class="field"><label for="lat">Học ở đâu (không bắt buộc)</label><input id="lat" class="input" list="place-list" maxlength="30" value="${esc(l?.at || '')}" placeholder="Ví dụ: Nhà mẹ, CLB bóng rổ">
+  <div class="field"><label for="lat">Học ở đâu (không bắt buộc)</label><input id="lat" class="input" list="place-list" maxlength="30" value="${esc(placeName(l?.at))}" placeholder="Ví dụ: 6th Element, CLB bóng rổ">
     <datalist id="place-list">${placeNames().map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
   <div class="lgo" ${l?.home === false ? '' : 'hidden'}>${[['lgo', 'Ai đưa đi', l?.go], ['lback', 'Ai đón về', l?.back]].map(([fid, lbl, v]) => `<div class="field"><label for="${fid}">${lbl}</label>
     <input id="${fid}" class="input" list="who-list" maxlength="20" value="${esc(v || '')}" placeholder="Ví dụ: Bố, Grab">
