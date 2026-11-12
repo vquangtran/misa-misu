@@ -604,7 +604,7 @@ function noKids() {
 }
 
 // ---------- bảng tuần (lưới việc × ngày) ----------
-const modeSeg = () => `<div class="seg"><label><input type="radio" name="tmode" value="day" ${UI.todayMode !== 'week' ? 'checked' : ''}><span>📋 Từng ngày</span></label><label><input type="radio" name="tmode" value="week" ${UI.todayMode === 'week' ? 'checked' : ''}><span>🗓️ Cả tuần</span></label></div>`;
+const modeSeg = () => `<div class="seg modes"><label><input type="radio" name="tmode" value="day" ${UI.todayMode !== 'week' ? 'checked' : ''}><span>📋 Từng ngày</span></label><label><input type="radio" name="tmode" value="week" ${UI.todayMode === 'week' ? 'checked' : ''}><span>🗓️ Cả tuần</span></label></div>`;
 const skipNote = (k, d) => { const e = skipEntry(k.id, d); return e ? `<div class="skip-note">🎟️ ${key(d) === key(today()) ? 'Hôm nay' : 'Ngày này'} ${esc(k.name)} dùng phiếu “Một ngày không làm việc nhà”: việc phải làm được miễn, làm thì vẫn có tiền.</div>` : ''; };
 function viewWeekGrid() {
   const kids = kidsList(), t = today(), ws = UI.gridWs || weekStart(t), days = Array.from({ length: 7 }, (_, i) => addDays(ws, i));
@@ -680,7 +680,7 @@ function viewToday() {
     const list = mustFor(k.id, d), plan = dayPlan(k.id, d);
     const n = list.filter(c => isDone(d, k.id, c.id)).length;
     const pct = list.length ? Math.round(n / list.length * 100) : 0;
-    h += `<section class="card kid-card"><div class="kid-hero" style="--tint:${tintOf(k)}">${ava(k)}<div class="kid-hi"><div class="kid-name">${esc(k.name)}</div><div class="row" style="gap:6px">${streakChip(k)}${bdayChip(k, d)}</div></div><a href="#tai-khoan" class="acct-link" data-act="acct-go" data-kid="${k.id}">${moneyChip(k)}</a></div>`;
+    h += `<section class="card kid-card" style="--tint:${tintOf(k)}"><div class="kid-hero">${ava(k)}<div class="kid-hi"><div class="kid-name">${esc(k.name)}</div><div class="row" style="gap:6px">${streakChip(k)}${bdayChip(k, d)}</div></div><a href="#tai-khoan" class="acct-link" data-act="acct-go" data-kid="${k.id}">${moneyChip(k)}</a></div>`;
     const sc = schoolNow(k, d, isT);
     if (sc) h += `<a class="school-line" href="#lich-hoc" data-act="tkb-go" data-tab="tkb" data-kid="${k.id}"><b>${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}:</b> ${esc(sc.subjects.join(', '))}</a>`;
     h += eventLines(k) + skipNote(k, d);
@@ -689,12 +689,16 @@ function viewToday() {
     if (!plan.length) { h += `<p class="muted" style="margin:12px 0 0">Hôm nay ${esc(k.name)} không có việc nào. Nghỉ ngơi thôi!</p></section>`; continue; }
     if (list.length) h += progBox(n, list.length, n === list.length ? '🎉 Xong hết việc phải làm!' : `⭐ Việc phải làm · còn ${list.length - n} việc`);
     const cur = isT ? slotAt(nowMin()) : null;
-    h += `<div class="list">`;
+    // Mỗi buổi là một khối có màu riêng (sáng cam, chiều xanh trời, tối tím, lúc nào cũng được xanh lá nhạt) cho dễ tách.
+    h += `<div class="slots">`;
     for (const g of plan) {
       if (g.extra) {
         const nd = g.items.filter(x => isDone(d, k.id, x.c.id)).length;
-        h += `<details class="extra-g" data-kid="${k.id}" ${nd || UI.extraOpen[k.id] ? 'open' : ''}><summary class="slot-h extra">${g.icon} ${g.label} <span class="muted small">(${g.items.length} việc${nd ? `, đã làm ${nd}` : ''})</span></summary>`;
-      } else h += `<div class="slot-h ${g.id && g.id === cur ? 'now' : ''}">${g.icon} ${g.label}${g.id && g.id === cur ? '<span class="nowpill">bây giờ</span>' : ''}</div>`;
+        h += `<details class="slot s-them extra-g" data-kid="${k.id}" ${nd || UI.extraOpen[k.id] ? 'open' : ''}><summary class="slot-h extra">${g.icon} ${g.label} <span class="slot-n">${g.items.length} việc${nd ? `, đã làm ${nd}` : ''}</span></summary><div class="list">`;
+      } else {
+        const mine = g.items.filter(x => x.type === 'chore' && !isFun(x.c)), nd = mine.filter(x => isDone(d, k.id, x.c.id)).length;
+        h += `<section class="slot s-${g.id || 'any'} ${g.id && g.id === cur ? 'now' : ''}"><div class="slot-h">${g.icon} ${g.label}${g.id && g.id === cur ? '<span class="nowpill">bây giờ</span>' : ''}${mine.length ? `<span class="slot-n num">${nd}/${mine.length}</span>` : ''}</div><div class="list">`;
+      }
       for (const x of g.items) {
         if (x.type !== 'chore') { h += markRow(x); continue; }
         const c = x.c, on = isDone(d, k.id, c.id), steps = (c.steps || []).filter(Boolean), mask = stepMask(d, k.id, c.id);
@@ -703,7 +707,7 @@ function viewToday() {
         h += `<div class="item ${on ? 'done' : ''} ${isFun(c) ? 'fun' + (x.locked ? ' locked' : '') : ''}"><span class="ico">${esc(c.icon || '✅')}</span><div class="txt"><div class="t">${esc(c.name)}</div><div class="s">${choreMeta(c, k.id, d, isT)}</div>
           ${steps.length && !isFun(c) ? `<div class="steps">${steps.map((st, i) => { const ok = on || (mask >> i) & 1; return `<button class="step ${ok ? 'on' : ''}" data-act="step" data-kid="${k.id}" data-chore="${c.id}" data-i="${i}" ${future ? 'disabled' : ''} aria-pressed="${!!ok}">${ok ? '☑' : '☐'} ${esc(st)}</button>`; }).join('')}</div>` : ''}</div>${right}</div>`;
       }
-      if (g.extra) h += `</details>`;
+      h += g.extra ? `</div></details>` : `</div></section>`;
     }
     h += `</div></section>`;
   }
