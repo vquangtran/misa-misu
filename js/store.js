@@ -7,16 +7,17 @@
 //   chores   việc nhà       { name, icon, money (đồng), kind: must|extra|fun, kids: [kidId], days: [0..6], order }
 //   rewards  bảng giá       { name, icon, kind: penalty|fee|gift, price (đồng; fee là đồng/giờ), all }
 //   done     việc đã xong   id = "YYYY-MM-DD", { [kidId]: { [choreId]: số tiền nhận được (0 = chưa) } }
-//   ledger   sổ tài khoản   { kid, amount (đồng), kind: bonus|penalty|fee|spend|reward, note, icon, at }
+//   ledger   sổ tài khoản   { kid, amount (đồng), kind: bonus|penalty|fee|spend|reward, note, icon, at, skip: ngày được miễn việc }
 //   paid     (cũ, không dùng nữa) tiền tiêu vặt đã trả theo tuần
 //   Dữ liệu cũ tính bằng sao (chores.stars, rewards.cost, ledger.delta, done < 100) được quy đổi 1 sao = 5.000đ.
 //   timetables thời khoá biểu  id = kidId, { cls, year, days: [1..6], lunch, rows: [{ s, e, d: { [thứ]: môn } }] }
 //   lessons  học thêm       { kid, day: 0..6, s: "HH:MM", e: "HH:MM", name, at, home, go, back }
 //   stays    các con ở đâu  id = thứ "0".."6", { day, night }
 //   tasks    bài tập        { kid, title, kind: bt|on|da, subj, due, notes, steps: [{ t, done }], done, doneAt }
+//   goals    mục tiêu tiết kiệm { kid, name, icon, price (đồng), order, done, doneAt }
 //   events   mốc năm học    { name, icon, kind: exam|holiday|meeting|event, from, to, kids: [] = cả nhà }
 
-export const COLS = ['kids', 'chores', 'rewards', 'done', 'ledger', 'paid', 'timetables', 'lessons', 'stays', 'events', 'tasks'];
+export const COLS = ['kids', 'chores', 'rewards', 'done', 'ledger', 'paid', 'timetables', 'lessons', 'stays', 'events', 'tasks', 'goals'];
 const FIREBASE_VERSION = '10.12.2';
 const FB = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/`;
 

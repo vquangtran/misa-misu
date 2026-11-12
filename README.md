@@ -10,8 +10,12 @@ Lịch học, việc nhà và tiền tiêu vặt cho các con, bằng tiếng Vi
 - **Mốc năm học:** khai giảng, các đợt kiểm tra, nghỉ Tết, họp phụ huynh, bế giảng; một ngày hoặc nhiều ngày, của một con hay cả nhà. Có sẵn khung thời gian năm học 2026 – 2027 (khối 4, Hà Nội). Màn Hôm nay nhắc trước (kiểm tra trước 14 ngày, các mốc khác 7 ngày); những ngày nghỉ học thì app không báo giờ ở trường mà nhắc soạn cặp cho ngày đi học lại.
 - **Các con ở đâu:** mỗi thứ trong tuần, ban ngày và buổi tối các con ở nhà nào (nhà bố, nhà mẹ, nhà ông bà...). App đánh dấu ngày đổi nhà, báo ở màn Hôm nay ("Đổi nhà: tối nay về nhà bố") và cho con thấy trong chế độ cho bé.
 - **Học thêm:** các buổi học thêm, gia sư, thể thao của từng con theo ngày trong tuần, ghi học ở đâu, học ngay tại nhà con đang ở hay phải đưa đón, ai đưa đi và ai đón về (Bố, Mẹ, Grab, tự đi...). Mục **Cả nhà** xếp lịch đưa đón theo từng ngày, đếm số chuyến mỗi tuần của từng người, và cảnh báo khi một buổi chưa có người đưa/đón hoặc một người có hai chuyến cách nhau dưới 20 phút.
+- **Cả tuần:** ở màn Hôm nay chọn *Cả tuần* để xem bảng lưới: mỗi việc một dòng, mỗi ngày một cột, bấm ô để đánh dấu. Có dòng ⭐ ngày đủ việc, đếm số lần từng việc và còn bao nhiêu việc nữa là đủ thưởng tuần.
+- **Kế hoạch tuần (in):** mỗi con một trang A4 mang tên con: việc theo buổi sáng, chiều, tối; lưới ô đánh dấu từng ngày; lịch tuần (kiểm tra, giờ ở trường, học thêm, bài phải nộp); việc làm thêm có tiền; mục tiêu tiết kiệm với các đồng xu để tô; chỗ ghi chú. In được tuần này hoặc tuần sau.
 - **Chế độ cho bé:** chữ và nút to để con tự đánh dấu. Muốn thoát thì giữ nút 1 giây.
 - **Tài khoản:** số tiền hiện có của từng con. Việc nhà tự cộng tiền; làm đủ việc phải làm cả tuần được thưởng thêm (mặc định 25.000đ, sửa ở thông tin của con). Bố mẹ bấm một lần để ghi phạt (nổi nóng, trì hoãn...), phí sử dụng điện thoại, tivi theo giờ, thưởng thêm, chi tiêu hoặc đổi quà. Lịch sử ghi mọi khoản, bấm nhầm thì Huỷ.
+- **Mục tiêu tiết kiệm:** con đặt mục tiêu (xe đạp 500.000đ...), có thanh tiến độ và các đồng xu được tô dần. Tiền trong tài khoản chia cho các mục tiêu theo thứ tự ưu tiên. App tính còn thiếu bao nhiêu, khoảng mấy tuần nữa, hoặc làm thêm mấy lần việc gì. Đủ tiền thì bấm Mua.
+- **Phiếu thưởng:** chọn phim, chọn món ăn sáng, tráng miệng, thức khuya 30 phút, mời bạn đến chơi, một ngày không làm việc nhà. Con đổi bằng tiền trong tài khoản; phiếu "Một ngày không làm việc nhà" miễn việc phải làm của ngày được chọn mà vẫn giữ thưởng đủ tuần. In được tờ phiếu cắt rời.
 - **Bảng giá:** mỗi việc được bao nhiêu tiền, phạt bao nhiêu, phí sử dụng mỗi giờ, quà đổi bao nhiêu. Có sẵn bảng mẫu (“Cách cho con tiền tiêu vặt đúng cách”, bảng nhiệm vụ tuần, checklist trước khi đi ngủ), bố mẹ thêm, sửa, xoá tuỳ ý và in ra để dán.
 - **Gia đình:** thêm con, giao việc theo ngày, in bảng dán tủ lạnh, sao lưu và nhập dữ liệu.
 
@@ -44,7 +48,7 @@ Khi `js/config.js` để `null`, dữ liệu chỉ lưu trên trình duyệt c�
 
 1. Vào https://console.firebase.google.com, bấm **Create a project**, đặt tên (ví dụ `misa-misu`). Có thể tắt Google Analytics.
 2. **Build → Firestore Database → Create database**. Chọn vùng `asia-southeast1` (Singapore), chế độ **production**.
-3. Trong Firestore, mở tab **Rules**, dán toàn bộ nội dung file `firestore.rules`, bấm **Publish**. Mỗi khi app có thêm nhóm dữ liệu mới (ví dụ `timetables`, `lessons`, `stays`, `events` và `tasks` cho trang Học tập), dán lại file này một lần nữa, nếu không phần mới sẽ không lưu được.
+3. Trong Firestore, mở tab **Rules**, dán toàn bộ nội dung file `firestore.rules`, bấm **Publish**. Mỗi khi app có thêm nhóm dữ liệu mới (ví dụ `timetables`, `lessons`, `stays`, `events`, `tasks` và `goals`), dán lại file này một lần nữa, nếu không phần mới sẽ không lưu được.
 4. **Build → Authentication → Get started → Sign-in method**, bật **Anonymous**.
 5. **Authentication → Settings → Authorized domains**, thêm `vquangtran.github.io`.
 6. **Project settings** (bánh răng) → **Your apps** → bấm biểu tượng web `</>`, đặt tên rồi bấm **Register app**. Firebase hiện ra đoạn `firebaseConfig`.
