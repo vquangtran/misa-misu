@@ -1,5 +1,6 @@
 import { firebaseConfig } from './config.js';
 import { COLS, localStore, firebaseStore } from './store.js';
+import { AVATAR_SETS, avatarPick, isSvgAvatar } from './avatars.js';
 
 // ---------- helpers ----------
 const $ = (s, r = document) => r.querySelector(s);
@@ -18,7 +19,7 @@ const money = n => (Number(n) < 0 ? '−' : '') + Math.abs(Math.round(Number(n) 
 const signed = n => (Number(n) > 0 ? '+' : '') + money(n);
 const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
 const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.85 5.9 6.5.85-4.75 4.5 1.2 6.45L12 17.2l-5.8 3.1 1.2-6.45L2.65 9.35l6.5-.85z"/></svg>';
-const AVATARS = ['🦊', '🐯', '🐼', '🐨', '🦁', '🐸', '🐵', '🦄', '🐲', '🦖', '🐰', '🐱', '🐶', '🐧', '🐳', '🦋'];
+const AVATARS = ['🐔', '🐓', '🐣', '🐤', '🐥', '🐴', '🐎', '🦓', '🎠', '🦊', '🐯', '🐼', '🐨', '🦁', '🐸', '🐵', '🦄', '🐲', '🦖', '🐰', '🐱', '🐶', '🐧', '🐳', '🦋'];
 const CHORE_ICONS = ['🛏️', '🪥', '🧸', '🍽️', '🪴', '📚', '🎒', '👕', '🧹', '🧽', '🗑️', '📦', '🛋️', '🧦', '👟', '🧺', '🛁', '🥢', '🐶', '🐟', '🍚', '✏️', '🎹', '🏃', '🪢', '🏫', '🎧', '🪑', '🤝', '🌙', '🎬', '🎮', '📺', '🧩', '🗣️'];
 const PRICE_ICONS = {
   gift: ['🎁', '🎟️', '🍿', '🌙', '🧹', '🥞', '👫', '🍰', '🎬', '🎮', '🍦', '🧋', '🍕', '🧁', '📖', '🎡', '🛝', '🚲', '🏊'],
@@ -232,9 +233,17 @@ const kidName = id => S.kids[id]?.name || 'Bé';
 const tintOf = k => 'var(--t' + ((Number(k.tint) || 0) % 6) + ')';
 // Ảnh của con (data URL nhỏ, lưu trong dữ liệu của gia đình), không có thì dùng emoji.
 const photoOf = k => /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(k?.photo || '') ? k.photo : '';
-const ava = (k, cls = '') => photoOf(k) ? `<span class="ava photo ${cls}" style="background:${tintOf(k)}"><img src="${photoOf(k)}" alt=""></span>`
-  : `<span class="ava ${cls}" style="background:${tintOf(k)}">${esc(k.avatar || '🙂')}</span>`;
-const mini = k => photoOf(k) ? `<img class="mini" src="${photoOf(k)}" alt="">` : esc(k.avatar || '🙂');
+// Su mặc định là bộ gà, Sa là bộ ngựa (mỗi ngày một kiểu), cho tới khi bố mẹ chọn hình khác trong thông tin của con.
+const AV_DEFAULT = { misu: 'set:ga', su: 'set:ga', misa: 'set:ngua', sa: 'set:ngua' };
+const avatarOf = k => k?.avatarChosen || isSvgAvatar(k?.avatar) ? (k.avatar || '🙂') : AV_DEFAULT[String(k?.name || '').trim().toLowerCase()] || k?.avatar || '🙂';
+// Nội dung bên trong khung tròn cho một giá trị hình đại diện (SVG hoặc emoji).
+const avInner = v => { const p = avatarPick(v); return p ? p.svg : esc(v || '🙂'); };
+const ava = (k, cls = '') => {
+  if (photoOf(k)) return `<span class="ava photo ${cls}" style="background:${tintOf(k)}"><img src="${photoOf(k)}" alt=""></span>`;
+  const p = avatarPick(avatarOf(k));
+  return p ? `<span class="ava svg ${cls}" style="background:${tintOf(k)}" title="${esc(p.name)}">${p.svg}</span>` : `<span class="ava ${cls}" style="background:${tintOf(k)}">${esc(avatarOf(k))}</span>`;
+};
+const mini = k => photoOf(k) ? `<img class="mini" src="${photoOf(k)}" alt="">` : avatarPick(avatarOf(k)) ? `<span class="mini">${avInner(avatarOf(k))}</span>` : esc(avatarOf(k));
 function choreSummary(c) {
   const sl = SLOTS.find(x => x[0] === choreSlot(c));
   return [isFun(c) ? '🎈 thích làm' : `${isExtra(c) ? '💪 làm thêm' : '⭐ phải làm'} ${money(choreVnd(c))}`, (c.kids || []).map(kidName).map(esc).join(', ') || 'chưa giao cho ai',
@@ -1209,7 +1218,7 @@ function weekPlan(k) {
     return p.map(x => `<div>${x}</div>`).join('');
   };
   const g = goalProgress(k.id)[0];
-  return `<section class="wp"><div class="wp-title"><div class="wp-name">Kế hoạch tuần của ${esc(k.name)} ${esc(k.avatar || '')}</div><div class="wp-sub">Tuần ${dmy(ws)} – ${dmy(addDays(ws, 6))}</div></div>
+  return `<section class="wp"><div class="wp-title"><div class="wp-name">Kế hoạch tuần của ${esc(k.name)} ${mini(k)}</div><div class="wp-sub">Tuần ${dmy(ws)} – ${dmy(addDays(ws, 6))}</div></div>
     <div class="wp-cols">${cols.map((c, i) => `<div class="wp-col c${i}"><div class="wp-h">${c.icon} ${esc(c.label)}</div><ul>${c.list.map(item).join('')}</ul></div>`).join('') || '<p>Chưa giao việc nào.</p>'}</div>
     <div class="wp-mid"><div><div class="wp-h2">Việc mỗi ngày</div><table class="wp-grid"><thead><tr><th></th>${days.map(d => `<th>${WDS[d.getDay()]}<br><span>${d.getDate()}</span></th>`).join('')}</tr></thead><tbody>
       ${must.map((c, i) => `<tr><td>${esc(c.name)}</td>${days.map(d => (c.days || []).includes(d.getDay()) ? `<td><span class="bx t${i % 6}"></span></td>` : '<td class="off"></td>').join('')}</tr>`).join('')}</tbody></table></div>
@@ -1278,6 +1287,16 @@ function photoLoad(file) {
   img.onerror = () => { URL.revokeObjectURL(url); toast('Không mở được ảnh này. Thử ảnh JPG hoặc PNG.'); };
   img.src = url;
 }
+// Ô chọn hình: bộ gà, bộ ngựa (mỗi ngày một kiểu hoặc một kiểu cố định), rồi tới emoji.
+function avatarGrid(val) {
+  const opt = (v, inner, label, cls = '') => `<label><input type="radio" name="kava" value="${esc(v)}" ${v === val ? 'checked' : ''} aria-label="${esc(label)}"><span class="${cls}" title="${esc(label)}">${inner}</span></label>`;
+  const sets = Object.entries(AVATAR_SETS);
+  let h = `<div class="av-group"><span class="av-h">🔀 Mỗi ngày một kiểu</span><div class="pick av">${sets.map(([id, st]) => opt('set:' + id, avInner('set:' + id) + '<i class="av-badge">🔀</i>', `${st.label}, mỗi ngày một kiểu`, 'rot')).join('')}</div></div>`;
+  for (const [id, st] of sets) h += `<div class="av-group"><span class="av-h">${st.icon} ${st.label}</span><div class="pick av">${st.items.map((it, i) => opt(`svg:${id}-${i}`, avInner(`svg:${id}-${i}`), it[0])).join('')}</div></div>`;
+  h += `<div class="av-group"><span class="av-h">😀 Emoji</span><div class="pick">${AVATARS.map(e => opt(e, e, e)).join('')}</div></div>`;
+  if (!val) h = h.replace('name="kava" value="set:ga"', 'name="kava" value="set:ga" checked');
+  return h;
+}
 function kidForm(id) {
   const k = id ? S.kids[id] : null;
   photoEdit = { img: null, out: undefined };
@@ -1285,11 +1304,11 @@ function kidForm(id) {
   <div class="field"><label for="kname">Tên</label><input id="kname" class="input" maxlength="30" value="${esc(k?.name || '')}" placeholder="Ví dụ: Bin"></div>
   <div class="field"><label for="kbday">Ngày sinh</label><input id="kbday" class="input" type="date" value="${esc(k?.birthday || '')}"></div>
   <div class="field"><span class="lbl">Ảnh của con</span>
-    <div class="photo-pick"><span class="ava photo-prev" style="background:${k ? tintOf(k) : 'var(--t3)'}">${photoOf(k) ? `<img src="${photoOf(k)}" alt="">` : esc(k?.avatar || '📷')}</span>
+    <div class="photo-pick"><span class="ava photo-prev" style="background:${k ? tintOf(k) : 'var(--t3)'}">${photoOf(k) ? `<img src="${photoOf(k)}" alt="">` : k ? avInner(avatarOf(k)) : '📷'}</span>
       <div class="col"><div class="row"><label class="btn ghost sm file-btn">📷 Chọn ảnh<input type="file" id="kphoto" accept="image/*"></label><button class="btn quiet sm" data-act="photo-del" ${photoOf(k) ? '' : 'hidden'}>Bỏ ảnh</button></div>
       <div class="photo-adj" hidden><label class="small">🔍 Phóng to<input type="range" id="pzoom" min="1" max="4" step="0.05" value="2"></label><label class="small">↕️ Lên xuống<input type="range" id="py" min="0" max="1" step="0.01" value="0.4"></label><label class="small">↔️ Trái phải<input type="range" id="px" min="0" max="1" step="0.01" value="0.5"></label></div>
       <span class="muted small">Ảnh được thu nhỏ và chỉ lưu trong dữ liệu của gia đình. Không có ảnh thì dùng hình emoji bên dưới.</span></div></div></div>
-  <div class="field"><span class="lbl">Hình đại diện (emoji)</span>${pickGrid('kava', AVATARS, k?.avatar)}</div>
+  <div class="field"><span class="lbl">Hình đại diện</span>${avatarGrid(k ? avatarOf(k) : '')}</div>
   <div class="field"><label for="kwb">Thưởng thêm khi làm đủ việc phải làm cả tuần (đồng)</label><input id="kwb" class="input num" type="number" min="0" step="5000" inputmode="numeric" value="${k ? weekBonusOf(k) : WEEK_BONUS}">
     <span class="muted small">Xong hết việc phải làm từ Thứ Hai đến Chủ nhật thì app tự cộng tiền này vào tài khoản. Để 0 nếu không thưởng.</span></div>
   <div class="foot">${k ? `<button class="btn danger left" data-act="kid-del" data-id="${id}">Xoá</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="kid-save" data-id="${id || ''}">Lưu</button></div>`);
@@ -1767,7 +1786,7 @@ document.addEventListener('click', e => {
   if (a === 'sheet-open') { UI.sheet = true; return render(); }
   if (a === 'print') return printSheet();
   if (a === 'kid-form') return kidForm(id);
-  if (a === 'photo-del') { photoEdit = { img: null, out: '' }; const pv = $('#modal .photo-prev'); if (pv) pv.textContent = radioVal('kava') || '🙂'; b.hidden = true; $('#modal .photo-adj').hidden = true; return; }
+  if (a === 'photo-del') { photoEdit = { img: null, out: '' }; const pv = $('#modal .photo-prev'); if (pv) pv.innerHTML = avInner(radioVal('kava')); b.hidden = true; $('#modal .photo-adj').hidden = true; return; }
   if (a === 'chore-form') return choreForm(id);
   if (a === 'price-form') return priceForm(id, b.dataset.kind);
   if (a === 'prices-print') return printPrices();
@@ -1826,7 +1845,7 @@ document.addEventListener('click', e => {
     const name = $('#kname').value.trim(); if (!name) { $('#kname').focus(); return toast('Nhập tên của con nhé.'); }
     const old = id ? S.kids[id] : null;
     const data = {
-      ...(old || {}), name, birthday: $('#kbday').value || '', avatar: radioVal('kava') || '🙂',
+      ...(old || {}), name, birthday: $('#kbday').value || '', avatar: radioVal('kava') || '🙂', avatarChosen: true,
       weekBonus: Math.max(0, Math.round(Number($('#kwb').value) || 0)),
       tint: old ? (old.tint ?? 0) : Object.keys(S.kids).length % 6, order: old ? (old.order ?? 0) : Object.keys(S.kids).length,
       since: old?.since || key(today()),
@@ -1928,6 +1947,7 @@ document.addEventListener('change', e => {
   if ((e.target.id === 'tsat' || e.target.id === 'tlunch' || e.target.name === 'tday') && tkbDraft && !$('#modal').hidden) tkbForm(tkbDraft.kid, { ...readTkbForm(), keep: true });
   if (e.target.id === 'import-file' && e.target.files[0]) importBackup(e.target.files[0]);
   if (e.target.id === 'kphoto' && e.target.files[0]) photoLoad(e.target.files[0]);
+  if (e.target.name === 'kava' && !photoEdit.img && !(photoEdit.out ?? photoOf(S.kids[$('#modal [data-act=kid-save]')?.dataset.id]))) { const pv = $('#modal .photo-prev'); if (pv) pv.innerHTML = avInner(e.target.value); }
 });
 document.addEventListener('input', e => { if (['pzoom', 'px', 'py'].includes(e.target.id)) photoRender(); });
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
