@@ -29,7 +29,7 @@ const PRICE_ICONS = {
 const PRICE_KINDS = [['penalty', 'Phạt', '⚠️'], ['fee', 'Phí sử dụng', '📱'], ['gift', 'Đổi quà', '🎁']];
 const NAV = [
   { id: 'hom-nay', label: 'Hôm nay', svg: '<path d="M20 6 9 17l-5-5"/>' },
-  { id: 'lich-hoc', label: 'Lịch học', svg: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>' },
+  { id: 'lich-hoc', label: 'Học tập', svg: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>' },
   { id: 'tai-khoan', label: 'Tài khoản', svg: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.2"/><path d="M6 12h.01M18 12h.01"/>' },
   { id: 'bang-gia', label: 'Bảng giá', svg: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><path d="M7.5 7.5h.01"/>' },
   { id: 'gia-dinh', label: 'Gia đình', svg: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>' },
@@ -91,7 +91,7 @@ const SAMPLE_PERIODS = [['08:00', '08:35'], ['08:45', '09:20'], ['09:40', '10:15
 
 // ---------- state ----------
 let S = Object.fromEntries(COLS.map(c => [c, {}]));
-const UI = { view: 'hom-nay', date: today(), acctKid: null, acctKind: 'penalty', histAll: false, extraOpen: {}, tkbKid: null, km: { on: false, kid: null }, sheet: false };
+const UI = { view: 'hom-nay', date: today(), acctKid: null, acctKind: 'penalty', histAll: false, extraOpen: {}, learn: 'sap-toi', agDate: null, taskDone: false, tkbKid: null, km: { on: false, kid: null }, sheet: false };
 let store = null, loaded = false, stale = false, family = null;
 const FAMILY_KEY = 'be-cham-ngoan-family';
 const getFamily = () => { try { return localStorage.getItem(FAMILY_KEY); } catch (e) { return null; } };
@@ -295,7 +295,7 @@ function eventWhen(e) {
 }
 // Mốc sắp tới cần nhắc ở màn Hôm nay: đang diễn ra, hoặc sắp bắt đầu (kiểm tra báo trước 14 ngày, còn lại 7 ngày).
 const eventsSoon = kidId => eventsOf(kidId).filter(e => { const w = eventWhen(e); return !w.past && (w.now || daysTo(e.from) <= (e.kind === 'exam' ? 14 : 7)); });
-const eventLines = (k, cls = 'event-line') => eventsSoon(k.id).map(e => `<a class="${cls} ${esc(e.kind)}" href="#lich-hoc" data-act="tkb-go" data-kid="${k.id}"><b>${esc(e.icon || '📌')} ${esc(eventWhen(e).txt)}:</b> ${esc(e.name)} <span class="muted">(${esc(eventRange(e))})</span></a>`).join('');
+const eventLines = (k, cls = 'event-line') => eventsSoon(k.id).map(e => `<a class="${cls} ${esc(e.kind)}" href="#lich-hoc" data-act="tkb-go" data-tab="moc" data-kid="${k.id}"><b>${esc(e.icon || '📌')} ${esc(eventWhen(e).txt)}:</b> ${esc(e.name)} <span class="muted">(${esc(eventRange(e))})</span></a>`).join('');
 function missingYear() {
   const have = new Set(eventsList().map(e => norm(e.name) + e.from));
   return SAMPLE_YEAR.items.filter(e => !have.has(norm(e.name) + e.from));
@@ -572,8 +572,10 @@ function viewToday() {
     const pct = list.length ? Math.round(n / list.length * 100) : 0;
     h += `<section class="card"><div class="kid-head">${ava(k)}<div class="kid-name">${esc(k.name)}</div>${bdayChip(k, d)}<a href="#tai-khoan" class="acct-link" data-act="acct-go" data-kid="${k.id}">${moneyChip(k)}</a></div>`;
     const sc = schoolNow(k, d, isT);
-    if (sc) h += `<a class="school-line" href="#lich-hoc" data-act="tkb-go" data-kid="${k.id}"><b>${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}:</b> ${esc(sc.subjects.join(', '))}</a>`;
+    if (sc) h += `<a class="school-line" href="#lich-hoc" data-act="tkb-go" data-tab="tkb" data-kid="${k.id}"><b>${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}:</b> ${esc(sc.subjects.join(', '))}</a>`;
     h += eventLines(k);
+    const ts = isT ? tasksSoon(k.id) : [];
+    if (ts.length) h += `<div class="today-tasks"><a class="ag-h" href="#lich-hoc" data-act="tkb-go" data-tab="bai-tap" data-kid="${k.id}">📝 Bài cần nộp (${ts.length})</a><div class="list">${ts.map(t => taskRow(t, false)).join('')}</div></div>`;
     if (!plan.length) { h += `<p class="muted" style="margin:12px 0 0">Hôm nay ${esc(k.name)} không có việc nào. Nghỉ ngơi thôi!</p></section>`; continue; }
     if (list.length) h += `<div class="prog"><div class="bar ${n === list.length ? 'full' : ''}"><b style="width:${pct}%"></b></div><span class="num">${n} / ${list.length} việc phải làm</span></div>`;
     const cur = isT ? slotAt(nowMin()) : null;
@@ -598,20 +600,145 @@ function viewToday() {
   return h;
 }
 
+const LEARN_TABS = [['sap-toi', '📅 Sắp tới'], ['bai-tap', '📝 Bài tập'], ['tkb', '🏫 Thời khoá biểu'], ['moc', '🚩 Mốc năm học'], ['hoc-them', '🚗 Học thêm']];
 function viewSchedule() {
   const kids = kidsList();
-  let h = `<div class="head"><h1>Lịch học</h1><p>Lịch ở trường và lịch học thêm, phần chiếm nhiều thời gian nhất trong tuần của các con.</p></div>`;
+  let h = `<div class="head"><h1>Học tập</h1><p>Lịch ở trường, bài tập, các đợt kiểm tra và học thêm của các con, xếp theo từng ngày.</p></div>`;
   if (!kids.length) return h + noKids();
   // Nhiều con thì mặc định xem cả nhà, để thấy ngay giờ nào cần đưa đón hai nơi.
   const all = kids.length > 1 && (UI.tkbKid === 'all' || !S.kids[UI.tkbKid]);
   const k = all ? null : kids.find(x => x.id === UI.tkbKid) || kids[0];
+  const tab = LEARN_TABS.some(x => x[0] === UI.learn) ? UI.learn : 'sap-toi';
   if (kids.length > 1) h += `<div class="seg"><label><input type="radio" name="tkbkid" value="all" ${all ? 'checked' : ''}><span>👨‍👩‍👧 Cả nhà</span></label>${kids.map(x => `<label><input type="radio" name="tkbkid" value="${x.id}" ${x.id === k?.id ? 'checked' : ''}><span>${esc(x.avatar)} ${esc(x.name)}</span></label>`).join('')}</div>`;
-  return h + (all ? familyWeek(kids) : kidSchedule(k));
+  h += `<div class="tabbar" role="tablist">${LEARN_TABS.map(([v, l]) => `<button role="tab" aria-selected="${v === tab}" class="${v === tab ? 'on' : ''}" data-act="learn-tab" data-v="${v}">${l}${v === 'bai-tap' && openTasks(k?.id).length ? ` <i class="cnt num">${openTasks(k?.id).length}</i>` : ''}</button>`).join('')}</div>`;
+  const ks = all ? kids : [k];
+  if (tab === 'sap-toi') return h + viewAgenda(ks);
+  if (tab === 'bai-tap') return h + tasksView(ks);
+  if (tab === 'moc') return h + eventsCard(all ? null : k.id);
+  if (tab === 'tkb') return h + ks.map(x => (all ? `<div class="sec-title">${esc(x.avatar)} ${esc(x.name)}</div>` : '') + kidSchedule(x, 'tkb')).join('');
+  return h + (all ? familyWeek(kids) : kidSchedule(k, 'lessons'));
 }
 
-function kidSchedule(k) {
+// ---------- bài tập ----------
+// tasks: { kid, title, kind: bt|on|da, subj, due: "YYYY-MM-DD", notes, steps: [{ t, done }], done, doneAt }
+const TASK_KINDS = [['bt', 'Bài tập về nhà', '📝'], ['on', 'Ôn kiểm tra', '📖'], ['da', 'Dự án, thuyết trình', '🧪']];
+const tasksList = () => Object.entries(S.tasks || {}).map(([id, t]) => ({ id, ...t, steps: Array.isArray(t.steps) ? t.steps : [] }))
+  .filter(t => S.kids[t.kid]).sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999') || String(a.title).localeCompare(String(b.title), 'vi'));
+const openTasks = kidId => tasksList().filter(t => !t.done && (!kidId || t.kid === kidId));
+// Bài cần nhắc ở màn Hôm nay: quá hạn, hạn hôm nay hoặc ngày mai.
+const tasksSoon = kidId => openTasks(kidId).filter(t => t.due && daysTo(t.due) <= 1);
+// Ngày học tới có môn này (theo thời khoá biểu, bỏ qua ngày nghỉ).
+function nextSubjectDay(kidId, subj, from = today()) {
+  if (!tkbOf(kidId) || !subj) return null;
+  for (let i = 1; i <= 31; i++) { const x = addDays(from, i), info = schoolOn(kidId, x); if (info && info.subjects.some(s => norm(s) === norm(subj))) return x; }
+  return null;
+}
+function dueLabel(dk) {
+  const n = daysTo(dk), d = parse(dk);
+  if (n < 0) return `quá hạn ${-n} ngày`;
+  if (n === 0) return 'hôm nay';
+  if (n === 1) return 'ngày mai';
+  return n < 7 ? `${WDN(d.getDay())} ${dm(d)}` : `${WDN(d.getDay())} ${dm(d)} (còn ${n} ngày)`;
+}
+const subjDot = s => s ? `<i class="dot sj${subjTint(s)}"></i>` : '';
+function taskRow(t, showKid, big = false) {
+  const nd = t.steps.filter(x => x.done).length, over = !t.done && t.due && daysTo(t.due) < 0, kind = TASK_KINDS.find(x => x[0] === t.kind) || TASK_KINDS[0];
+  const meta = [t.subj ? `${subjDot(t.subj)}${esc(t.subj)}` : '', t.done ? `xong ${t.doneAt ? dm(parse(t.doneAt)) : ''}` : t.due ? `<span class="${over ? 'late' : ''}">${over ? '' : 'hạn '}${esc(dueLabel(t.due))}</span>` : 'chưa có hạn',
+    t.steps.length ? `${nd}/${t.steps.length} bước` : '', showKid ? esc(kidName(t.kid)) : ''].filter(Boolean).join(' · ');
+  const steps = !t.done && t.steps.length ? `<div class="steps">${t.steps.map((x, i) => `<button class="step ${x.done ? 'on' : ''}" data-act="task-step" data-id="${t.id}" data-i="${i}" aria-pressed="${!!x.done}">${x.done ? '☑' : '☐'} ${esc(x.t)}</button>`).join('')}</div>` : '';
+  return `<div class="${big ? 'big-item task' : 'item task'} ${t.done ? 'done' : ''}"><button class="check ${t.done ? 'on' : ''}" data-act="task-done" data-id="${t.id}" aria-pressed="${!!t.done}" aria-label="${t.done ? 'Chưa xong' : 'Xong'}: ${esc(t.title)}">✓</button>
+    <div class="txt"><div class="t">${kind[2]} ${esc(t.title)}</div><div class="s">${meta}</div>${t.notes && !big ? `<div class="s snip">${esc(String(t.notes).slice(0, 120))}</div>` : ''}${steps}</div>
+    ${big ? '' : `<div class="acts"><button class="btn ghost sm" data-act="task-form" data-id="${t.id}">Sửa</button></div>`}</div>`;
+}
+function tasksView(ks) {
+  const ids = ks.map(k => k.id), multi = ks.length > 1, tk = key(today());
+  const mine = tasksList().filter(t => ids.includes(t.kid)), open = mine.filter(t => !t.done), done = mine.filter(t => t.done);
+  let h = `<div class="row"><button class="btn primary" data-act="task-form" data-kid="${multi ? '' : ids[0]}">Thêm bài tập</button>
+    <div class="seg"><label><input type="radio" name="tview" value="0" ${UI.taskDone ? '' : 'checked'}><span>Chưa xong <i class="cnt num">${open.length}</i></span></label><label><input type="radio" name="tview" value="1" ${UI.taskDone ? 'checked' : ''}><span>Đã xong</span></label></div></div>`;
+  if (UI.taskDone) {
+    if (!done.length) return h + `<p class="muted" style="margin:0">Bài tập làm xong sẽ được lưu ở đây.</p>`;
+    const list = done.sort((a, b) => String(b.doneAt || '').localeCompare(String(a.doneAt || ''))).slice(0, UI.histAll ? 500 : 40);
+    return h + `<section class="card"><div class="list">${list.map(t => taskRow(t, multi)).join('')}</div>${done.length > list.length ? `<div class="row" style="margin-top:8px"><button class="btn quiet sm" data-act="hist-all">Xem thêm ${done.length - list.length} bài</button></div>` : ''}</section>`;
+  }
+  if (!open.length) return h + `<section class="card empty"><div class="big">📝</div><h2>Không còn bài tập nào phải làm</h2><p class="muted">Ghi bài tập cô giao: môn gì, hạn nộp ngày nào, cần làm mấy bước. App xếp theo hạn nộp và nhắc ở màn Hôm nay.</p></section>`;
+  const groups = [['Quá hạn', t => t.due && t.due < tk], ['Hôm nay', t => t.due === tk], ['Ngày mai', t => t.due && daysTo(t.due) === 1],
+    ['Tuần này', t => t.due && daysTo(t.due) > 1 && t.due <= key(addDays(weekStart(today()), 6))], ['Sau đó', t => t.due && t.due > key(addDays(weekStart(today()), 6))], ['Chưa có hạn', t => !t.due]];
+  // Tiến độ tuần này: bài có hạn trong tuần, đã xong / tổng.
+  const ws = key(weekStart(today())), we = key(addDays(weekStart(today()), 6)), wk = mine.filter(t => t.due && t.due >= ws && t.due <= we), wd = wk.filter(t => t.done).length;
+  if (wk.length) h += `<section class="card"><div class="muted small" style="font-weight:700;letter-spacing:.04em">BÀI TẬP TUẦN NÀY</div><div class="big-num num">${wd} / ${wk.length} bài đã xong</div><div class="bar ${wd === wk.length ? 'full' : ''}"><b style="width:${Math.round(wd / wk.length * 100)}%"></b></div></section>`;
+  for (const [label, f] of groups) {
+    const list = open.filter(f); if (!list.length) continue;
+    h += `<div class="sec-title ${label === 'Quá hạn' ? 'late' : ''}">${label} <span class="muted small">${list.length} bài</span></div><section class="card"><div class="list">${list.map(t => taskRow(t, multi)).join('')}</div></section>`;
+  }
+  return h;
+}
+function taskForm(id, kidPre) {
+  const t = id ? S.tasks[id] : null, kids = kidsList();
+  const kid = t?.kid || (S.kids[kidPre] ? kidPre : S.kids[UI.tkbKid] ? UI.tkbKid : kids[0]?.id); if (!kid) return;
+  const subs = [...new Set(kids.flatMap(k => tkbOf(k.id) ? tkbStats(tkbOf(k.id)).subjects.map(x => x[0]) : []))];
+  const kind = t?.kind || 'bt';
+  openModal(`<h2>${t ? 'Sửa bài tập' : 'Thêm bài tập'}</h2>
+  ${kids.length > 1 ? `<div class="field"><span class="lbl">Con</span><div class="seg">${kids.map(k => `<label><input type="radio" name="tkid" value="${k.id}" ${k.id === kid ? 'checked' : ''}><span>${esc(k.avatar)} ${esc(k.name)}</span></label>`).join('')}</div></div>` : `<input type="hidden" name="tkid" value="${kid}">`}
+  <div class="field"><label for="ttitle">Bài gì</label><input id="ttitle" class="input" maxlength="80" value="${esc(t?.title || '')}" placeholder="Ví dụ: Bài 3, 4 trang 45 vở bài tập"></div>
+  <div class="field"><span class="lbl">Loại</span><div class="seg">${TASK_KINDS.map(([v, l, ic]) => `<label><input type="radio" name="tkind" value="${v}" ${v === kind ? 'checked' : ''}><span>${ic} ${l}</span></label>`).join('')}</div></div>
+  <div class="field"><label for="tsubj">Môn</label><input id="tsubj" class="input" list="tsubj-list" maxlength="24" value="${esc(t?.subj || '')}" placeholder="Ví dụ: Toán">
+    <datalist id="tsubj-list">${[...new Set([...subs, ...SUBJECTS])].map(x => `<option value="${esc(x)}">`).join('')}</datalist>
+    ${subs.length ? `<div class="row">${subs.map(x => `<button class="btn quiet sm" data-act="task-subj" data-v="${esc(x)}">${subjDot(x)}${esc(x)}</button>`).join('')}</div><span class="muted small">Chọn môn thì hạn nộp tự đặt vào buổi học tới của môn đó.</span>` : ''}</div>
+  <div class="field"><label for="tdue">Hạn nộp</label><input id="tdue" class="input num" type="date" value="${esc(t?.due || '')}">
+    <div class="row"><button class="btn quiet sm" data-act="task-due" data-v="next">Buổi học tới của môn</button><button class="btn quiet sm" data-act="task-due" data-v="1">Ngày mai</button><button class="btn quiet sm" data-act="task-due" data-v="mon">Thứ Hai tới</button><button class="btn quiet sm" data-act="task-due" data-v="">Không có hạn</button></div></div>
+  <div class="field"><label for="tsteps">Các bước (mỗi dòng một bước, không bắt buộc)</label><textarea id="tsteps" class="input" rows="3" placeholder="Đọc đề&#10;Làm nháp&#10;Chép vào vở">${esc((t?.steps || []).map(x => x.t).join('\n'))}</textarea></div>
+  <div class="field"><label for="tnotes">Ghi chú</label><textarea id="tnotes" class="input" rows="3" maxlength="1000" placeholder="Cô dặn gì, cần mang gì...">${esc(t?.notes || '')}</textarea></div>
+  <div class="foot">${t ? `<button class="btn danger left" data-act="task-del" data-id="${id}">Xoá</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="task-save" data-id="${id || ''}">Lưu</button></div>`);
+}
+
+// ---------- sắp tới (lịch dạng tuần) ----------
+// Những gì có trong ngày d của một con: mốc, giờ ở trường, học thêm, bài phải nộp.
+function dayAgenda(kidId, d) {
+  const dk = key(d), isT = dk === key(today());
+  return {
+    events: eventsOf(kidId).filter(e => e.from <= dk && dk <= e.to),
+    hol: holidayOn(kidId, d),
+    school: schoolOn(kidId, d),
+    lessons: lessonsOn(kidId, d.getDay()),
+    tasks: tasksList().filter(t => t.kid === kidId && (t.due === dk || (isT && !t.done && t.due && t.due < dk))),
+  };
+}
+function viewAgenda(ks) {
+  const t = today(), sel = UI.agDate || t, ws = weekStart(sel), multi = ks.length > 1;
+  const days = Array.from({ length: 7 }, (_, i) => addDays(ws, i));
+  const dots = d => {
+    const a = ks.map(k => dayAgenda(k.id, d)), out = [];
+    if (a.some(x => x.events.some(e => e.kind === 'exam'))) out.push('exam');
+    else if (a.some(x => x.events.length)) out.push('ev');
+    if (a.some(x => x.tasks.some(t => !t.done))) out.push('task');
+    if (a.some(x => x.lessons.length)) out.push('lesson');
+    return out.map(c => `<i class="ad ${c}"></i>`).join('');
+  };
+  let h = `<section class="card week-strip"><div class="ws-head"><button class="iconbtn" data-act="ag-week" data-n="-7" aria-label="Tuần trước"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+    <b>Tháng ${sel.getMonth() + 1}, ${sel.getFullYear()}</b>${key(sel) === key(t) ? '' : '<button class="chip" style="border:0" data-act="ag-day" data-d="">Hôm nay</button>'}
+    <button class="iconbtn" data-act="ag-week" data-n="7" aria-label="Tuần sau"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div>
+    <div class="ws-days">${days.map(d => `<button class="ws-day ${key(d) === key(sel) ? 'on' : ''} ${key(d) === key(t) ? 'today' : ''}" data-act="ag-day" data-d="${key(d)}" aria-pressed="${key(d) === key(sel)}"><span>${WDS[d.getDay()]}</span><b class="num">${d.getDate()}</b><span class="ads">${dots(d)}</span></button>`).join('')}</div>
+    <div class="ws-legend muted small"><span><i class="ad exam"></i>Kiểm tra</span><span><i class="ad ev"></i>Mốc</span><span><i class="ad task"></i>Bài phải nộp</span><span><i class="ad lesson"></i>Học thêm</span></div></section>`;
+  const dd = key(sel) === key(t) ? 'Hôm nay' : key(sel) === key(addDays(t, 1)) ? 'Ngày mai' : key(sel) === key(addDays(t, -1)) ? 'Hôm qua' : '';
+  h += `<div class="sec-title">${dd ? dd + ', ' : ''}${WD[sel.getDay()].toLowerCase().replace(/^./, c => c.toUpperCase())} ${dm(sel)}</div>`;
+  for (const k of ks) {
+    const a = dayAgenda(k.id, sel);
+    let b = '';
+    const part = (title, body) => body ? `<div class="ag-sec"><div class="ag-h">${title}</div>${body}</div>` : '';
+    b += part('Kiểm tra và mốc', a.events.map(e => `<div class="item event"><span class="ico">${esc(e.icon || '📌')}</span><div class="txt"><div class="t">${esc(e.name)}</div><div class="s">${esc(eventRange(e))}</div></div></div>`).join(''));
+    b += part('Ở trường', a.hol ? `<p class="muted small" style="margin:4px 0">Nghỉ: ${esc(a.hol.name)}</p>` : a.school ? `<div class="periods">${a.school.list.map(p => `<div class="period"><span class="num">${esc(p.s)}</span>${subjDot(p.subj)}<span>${esc(p.subj)}</span></div>`).join('')}</div>` : '');
+    b += part('Học thêm', a.lessons.map(l => `<div class="period"><span class="num">${esc(l.s)}</span><i class="dot lesson"></i><span>${esc(l.name)}${l.at ? ` <span class="muted small">· ${esc(l.at)}</span>` : ''}</span></div>`).join(''));
+    b += part('Bài phải nộp', a.tasks.length ? `<div class="list">${a.tasks.map(x => taskRow(x, false)).join('')}</div>` : '');
+    h += `<section class="card">${multi ? `<div class="kid-head">${ava(k, 'sm')}<div class="kid-name" style="font-size:19px">${esc(k.name)}</div></div>` : ''}${b || `<p class="muted" style="margin:${multi ? '8px' : '0'} 0 0">Ngày này ${esc(k.name)} không có lịch học, bài tập hay kiểm tra nào.</p>`}</section>`;
+  }
+  return h;
+}
+
+// part: 'tkb' (ở trường và số giờ mỗi tuần) hoặc 'lessons' (học thêm).
+function kidSchedule(k, part) {
   const t = tkbOf(k.id), td = today(), wd = td.getDay(), now = nowMin();
-  let h = kidsList().length === 1 ? staysCard(wd) : '';
+  let h = '';
+  if (part === 'lessons') return (kidsList().length === 1 ? staysCard(wd) : '') + kidLessons(k);
   if (!t && lessonsOf(k.id).length) {
     h += `<section class="card"><div class="kid-head"><span class="ico" style="font-size:28px">🏫</span><div class="txt" style="flex:1"><b>Lịch ở trường</b><div class="muted small">Chưa có thời khoá biểu ở trường của ${esc(k.name)}.</div></div><button class="btn ghost sm" data-act="tkb-form" data-kid="${k.id}">Tạo</button></div></section>`;
   } else if (!t) {
@@ -633,15 +760,20 @@ function kidSchedule(k) {
       <div class="tkb-today">${line}</div>
       ${tkbTable(t, info ? wd : null)}</section>`;
   }
-  h += eventsCard(k.id);
-  // Học thêm
   const ls = lessonsOf(k.id);
-  h += `<div class="sec-title">Học thêm</div><div class="row"><button class="btn primary" data-act="lesson-form" data-kid="${k.id}">Thêm buổi học thêm</button></div>`;
+  return h + weekTotals(k, t, ls);
+}
+function kidLessons(k) {
+  const wd = today().getDay(), ls = lessonsOf(k.id);
+  let h = `<div class="sec-title">Học thêm</div><div class="row"><button class="btn primary" data-act="lesson-form" data-kid="${k.id}">Thêm buổi học thêm</button></div>`;
   if (ls.length) {
     h += `<section class="card"><div class="list">${WEEK_ORDER.filter(d => ls.some(l => l.day === d)).map(d =>
       `<div class="day-sep ${d === wd ? 'on' : ''}">${WDN(d)}${d === wd ? ' · hôm nay' : ''}</div>${ls.filter(l => l.day === d).map(l => lessonItem(l)).join('')}`).join('')}</div></section>`;
   } else h += `<p class="muted" style="margin:0">Chưa có buổi học thêm nào. Ví dụ: Tiếng Anh, Thứ 2 từ 17:30 đến 19:30.</p>`;
-  // Thống kê tuần
+  return h;
+}
+function weekTotals(k, t, ls) {
+  let h = '';
   const st = t ? tkbStats(t) : { periods: 0, inClass: 0, atSchool: 0, subjects: [] };
   const lm = ls.reduce((a, l) => a + lessonMin(l), 0);
   if (st.periods || ls.length) {
@@ -663,7 +795,7 @@ function staysCard(wd) {
 // Cả nhà: lịch học thêm của các con theo từng ngày, kèm lịch đưa đón và cảnh báo.
 function familyWeek(kids) {
   const wd = today().getDay(), all = lessonsList();
-  let h = staysCard(wd) + eventsCard(null) + `<div class="sec-title">Học thêm</div>`;
+  let h = staysCard(wd) + `<div class="sec-title">Học thêm</div>`;
   h += `<div class="row"><button class="btn primary" data-act="lesson-form">Thêm buổi học thêm</button></div>`;
   if (!all.length) return h + `<section class="card empty"><div class="big">📚</div><h2>Chưa có lịch học thêm</h2><p class="muted">Thêm các buổi học thêm của từng con, ghi học ở nhà hay đi học và ai đưa đón. App sẽ xếp lịch đưa đón theo từng ngày.</p></section>`;
   const days = WEEK_ORDER.filter(d => all.some(l => l.day === d));
@@ -856,7 +988,8 @@ function drawKidMode() {
   const sc = schoolNow(k, t, true);
   const kst = stayInfo(t.getDay());
   const home = kst?.night ? `<div class="km-school km-home ${kst.moved ? 'moved' : ''}"><div class="t">${kst.moved ? '🔁' : '🏠'} ${esc(kst.moved ? `Tối nay con về ${kst.night.toLowerCase()}` : `Tối nay con ở ${kst.night.toLowerCase()}`)}</div>${kst.day ? `<div class="muted">Ban ngày con ở ${esc(kst.day.toLowerCase())}.</div>` : ''}</div>` : '';
-  const school = home + eventLines(k, 'km-event') + (sc ? `<div class="km-school"><div class="t">${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}</div><div class="sj-list">${subjChips(sc.subjects)}</div></div>` : '');
+  const kts = tasksSoon(k.id);
+  const school = home + eventLines(k, 'km-event') + (kts.length ? `<div class="km-slot">📝 Bài cần nộp</div>${kts.map(t => taskRow(t, false, true)).join('')}` : '') + (sc ? `<div class="km-school"><div class="t">${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}</div><div class="sj-list">${subjChips(sc.subjects)}</div></div>` : '');
   const bigChore = (x, g) => {
     const c = x.c, on = isDone(t, k.id, c.id), steps = (c.steps || []).filter(Boolean), mask = stepMask(t, k.id, c.id);
     const sub = `<span class="s">${choreMeta(c, k.id, t, true)}</span>`;
@@ -1097,6 +1230,7 @@ function matchKidsByName(data) {
   for (const day of Object.values(data.done || {})) for (const id of Object.keys(day || {})) if (map[id]) { day[map[id]] = { ...(day[map[id]] || {}), ...day[id] }; delete day[id]; }
   for (const l of Object.values(data.ledger || {})) if (l) l.kid = m(l.kid);
   for (const l of Object.values(data.lessons || {})) if (l) l.kid = m(l.kid);
+  for (const t of Object.values(data.tasks || {})) if (t) t.kid = m(t.kid);
   for (const ev of Object.values(data.events || {})) if (ev && Array.isArray(ev.kids)) ev.kids = ev.kids.map(m);
   if (data.paid) data.paid = Object.fromEntries(Object.entries(data.paid).map(([id, p]) => { const [kid, w] = id.split('_'); return [m(kid) + '_' + w, { ...p, kid: m(p.kid) }]; }));
   if (data.timetables) data.timetables = Object.fromEntries(Object.entries(data.timetables).map(([id, t]) => [m(id), t]));
@@ -1119,7 +1253,7 @@ async function importData(j, quiet = false) {
     const n = Object.keys(data.kids).length, parts = [];
     if (n) parts.push(`${n} con mới`);
     if (matched.length) parts.push(`gộp vào ${matched.join(', ')}`);
-    for (const [c, label] of [['chores', 'việc nhà'], ['timetables', 'thời khoá biểu'], ['lessons', 'buổi học thêm'], ['stays', 'ngày trong lịch ở nhà nào'], ['events', 'mốc năm học']]) { const m = Object.keys(data[c] || {}).length; if (m) parts.push(`${m} ${label}`); }
+    for (const [c, label] of [['chores', 'việc nhà'], ['timetables', 'thời khoá biểu'], ['lessons', 'buổi học thêm'], ['stays', 'ngày trong lịch ở nhà nào'], ['events', 'mốc năm học'], ['tasks', 'bài tập']]) { const m = Object.keys(data[c] || {}).length; if (m) parts.push(`${m} ${label}`); }
     if (!quiet) toast(`Đã nhập: ${parts.join(', ') || 'không có gì mới'}.`);
   }
 }
@@ -1241,7 +1375,50 @@ document.addEventListener('click', e => {
     setDone(key(d), kid, cid + '~s', mask);
     return;
   }
-  if (a === 'tkb-go') { UI.tkbKid = b.dataset.kid; return; } // link tự chuyển sang #lich-hoc
+  if (a === 'tkb-go') { UI.tkbKid = b.dataset.kid; if (b.dataset.tab) UI.learn = b.dataset.tab; return; } // link tự chuyển sang #lich-hoc
+  if (a === 'learn-tab') { UI.learn = b.dataset.v; UI.histAll = false; return render(); }
+  if (a === 'ag-day') { UI.agDate = b.dataset.d ? parse(b.dataset.d) : null; return render(); }
+  if (a === 'ag-week') { UI.agDate = addDays(UI.agDate || today(), Number(b.dataset.n)); return render(); }
+  if (a === 'task-form') return taskForm(id, b.dataset.kid);
+  if (a === 'task-subj') {
+    $('#tsubj').value = b.dataset.v;
+    const nx = nextSubjectDay(radioVal('tkid') || document.querySelector('#modal input[name=tkid]')?.value, b.dataset.v);
+    if (nx && !$('#tdue').value) $('#tdue').value = key(nx);
+    return toast(nx ? `Buổi ${b.dataset.v} tới: ${WDN(nx.getDay())} ${dm(nx)}.` : `Không thấy ${b.dataset.v} trong thời khoá biểu.`);
+  }
+  if (a === 'task-due') {
+    const v = b.dataset.v, t = today(), kid = radioVal('tkid') || document.querySelector('#modal input[name=tkid]')?.value;
+    let d = null;
+    if (v === 'next') { d = nextSubjectDay(kid, $('#tsubj').value.trim()); if (!d) return toast($('#tsubj').value.trim() ? 'Không thấy môn này trong thời khoá biểu.' : 'Chọn môn trước nhé.'); }
+    else if (v === '1') d = addDays(t, 1);
+    else if (v === 'mon') d = addDays(weekStart(t), 7);
+    $('#tdue').value = d ? key(d) : ''; return;
+  }
+  if (a === 'task-save') {
+    const title = $('#ttitle').value.trim(); if (!title) { $('#ttitle').focus(); return toast('Nhập tên bài nhé.'); }
+    const kid = radioVal('tkid') || document.querySelector('#modal input[name=tkid]')?.value; if (!S.kids[kid]) return;
+    const old = id ? S.tasks[id] : null, prev = old?.steps || [];
+    const steps = $('#tsteps').value.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 15).map(x => ({ t: x, done: !!prev.find(p => p.t === x)?.done }));
+    const data = { kid, title, kind: radioVal('tkind') || 'bt', subj: $('#tsubj').value.trim(), due: $('#tdue').value || '', notes: $('#tnotes').value.trim(), steps,
+      done: !!old?.done, doneAt: old?.doneAt || '' };
+    closeModal(); put('tasks', id || uid(), data); UI.learn = UI.view === 'lich-hoc' ? 'bai-tap' : UI.learn;
+    return toast(data.due ? `Đã lưu. Hạn nộp: ${dueLabel(data.due)}.` : 'Đã lưu bài tập.');
+  }
+  if (a === 'task-del') { if (!armed(b, 'Bấm lần nữa để xoá')) return; closeModal(); del('tasks', id); return toast('Đã xoá bài tập.'); }
+  if (a === 'task-done') {
+    const t = S.tasks[id]; if (!t) return;
+    const on = !t.done;
+    put('tasks', id, { ...t, done: on, doneAt: on ? key(today()) : '', steps: (t.steps || []).map(x => ({ ...x, done: on ? true : x.done })) });
+    if (on) { const left = openTasks(t.kid).filter(x => x.id !== id && x.due && daysTo(x.due) <= 1).length; if (!left) confetti(); return toast(left ? `Xong “${t.title}”. Còn ${left} bài cần nộp sớm.` : `Xong “${t.title}”! 🎉`); }
+    return;
+  }
+  if (a === 'task-step') {
+    const t = S.tasks[id]; if (!t) return;
+    const steps = (t.steps || []).map((x, i) => i === Number(b.dataset.i) ? { ...x, done: !x.done } : x), all = steps.every(x => x.done);
+    put('tasks', id, { ...t, steps, done: all, doneAt: all ? key(today()) : '' });
+    if (all) { confetti(); toast(`Xong hết các bước của “${t.title}”!`); }
+    return;
+  }
   if (a === 'tkb-form') return tkbForm(b.dataset.kid);
   if (a === 'tkb-print') return printTkb(b.dataset.kid);
   if (a === 'tkb-row-add' || a === 'tkb-row-del') {
@@ -1385,6 +1562,7 @@ document.addEventListener('click', e => {
     closeModal(); del('kids', id);
     if (S.timetables[id]) del('timetables', id);
     for (const l of Object.entries(S.lessons || {})) if (l[1].kid === id) del('lessons', l[0]);
+    for (const [tid, t] of Object.entries(S.tasks || {})) if (t.kid === id) del('tasks', tid);
     for (const [eid, ev] of Object.entries(S.events || {})) if ((ev.kids || []).includes(id)) put('events', eid, { ...ev, kids: ev.kids.filter(x => x !== id) });
     for (const c of choresList()) if ((c.kids || []).includes(id)) { const { id: cid, ...rest } = c; put('chores', cid, { ...rest, kids: rest.kids.filter(x => x !== id) }); }
     return toast('Đã xoá.');
@@ -1456,6 +1634,7 @@ document.addEventListener('click', e => {
 document.addEventListener('change', e => {
   if (e.target.name === 'akid') { UI.acctKid = e.target.value; UI.histAll = false; render(); }
   if (e.target.name === 'akind') { UI.acctKind = e.target.value; render(); }
+  if (e.target.name === 'tview') { UI.taskDone = e.target.value === '1'; UI.histAll = false; render(); }
   if (e.target.name === 'ckind') { const f = $('#modal .cmoney-f'); if (f) f.hidden = e.target.value === 'fun'; }
   if (e.target.name === 'pkind') { const f = $('#modal .pall-f'); if (f) f.hidden = e.target.value !== 'penalty'; }
   if (e.target.name === 'lwhere') { const g = $('#modal .lgo'); if (g) g.hidden = e.target.value !== 'out'; }

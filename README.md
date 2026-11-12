@@ -4,6 +4,8 @@ Lịch học, việc nhà và tiền tiêu vặt cho các con, bằng tiếng Vi
 
 - **Hôm nay:** dòng thời gian trong ngày của từng con, chia Buổi sáng / chiều / tối: việc nhà, giờ vào học và tan học, các buổi học thêm. Mỗi con đóng dấu cho việc đã làm và được cộng tiền vào tài khoản.
 - **Việc nhà linh hoạt:** việc *phải làm* (có tiền, tính vào thưởng đủ tuần), việc *làm thêm* (rửa bát, đổ rác..., không bắt buộc, làm lúc nào được tiền lúc đó) và việc *thích làm* (xem phim, chơi Lego..., không có tiền, bị khoá cho tới khi xong việc phải làm của buổi đó); giờ hoặc hạn giờ ("tắm trước 19:00", báo quá giờ, báo khi giờ đó con đang ở trường hay đang học thêm); số phút; danh sách con ("Chuẩn bị trước khi ngủ": cặp sách, quần áo...); X lần mỗi tuần, ngày nào cũng được; nội dung xen kẽ ("hôm nay: tiếng Anh"); việc chung cả nhà. Nếu con có thời khoá biểu thì hiện luôn giờ ở trường và các môn hôm nay; sau giờ tan học đổi thành các môn cần soạn cặp cho buổi học tiếp theo.
+- **Học tập:** chia tab *Sắp tới*, *Bài tập*, *Thời khoá biểu*, *Mốc năm học*, *Học thêm*. Tab *Sắp tới* là lịch tuần dạng dải ngày có chấm màu (kiểm tra, mốc, bài phải nộp, học thêm); chọn ngày để xem giờ ở trường từng tiết, học thêm và bài phải nộp hôm đó.
+- **Bài tập:** tên bài, môn, hạn nộp, các bước nhỏ, ghi chú. Chọn môn thì hạn nộp tự đặt vào buổi học tới của môn đó theo thời khoá biểu. Xếp theo Quá hạn / Hôm nay / Ngày mai / Tuần này / Sau đó, có tiến độ bài tập tuần này và mục Đã xong. Màn Hôm nay và chế độ cho bé nhắc bài quá hạn và bài phải nộp hôm nay, ngày mai.
 - **Lịch học:** thời khoá biểu ở trường của từng con (lớp, năm học, giờ từng tiết, nghỉ trưa, có thể học cả Thứ Bảy). Tô sáng ngày hôm nay và tiết đang học, đếm số tiết mỗi môn và số giờ con ở trường mỗi tuần, in khổ ngang để dán bàn học.
 - **Mốc năm học:** khai giảng, các đợt kiểm tra, nghỉ Tết, họp phụ huynh, bế giảng; một ngày hoặc nhiều ngày, của một con hay cả nhà. Có sẵn khung thời gian năm học 2026 – 2027 (khối 4, Hà Nội). Màn Hôm nay nhắc trước (kiểm tra trước 14 ngày, các mốc khác 7 ngày); những ngày nghỉ học thì app không báo giờ ở trường mà nhắc soạn cặp cho ngày đi học lại.
 - **Các con ở đâu:** mỗi thứ trong tuần, ban ngày và buổi tối các con ở nhà nào (nhà bố, nhà mẹ, nhà ông bà...). App đánh dấu ngày đổi nhà, báo ở màn Hôm nay ("Đổi nhà: tối nay về nhà bố") và cho con thấy trong chế độ cho bé.
@@ -42,7 +44,7 @@ Khi `js/config.js` để `null`, dữ liệu chỉ lưu trên trình duyệt c�
 
 1. Vào https://console.firebase.google.com, bấm **Create a project**, đặt tên (ví dụ `misa-misu`). Có thể tắt Google Analytics.
 2. **Build → Firestore Database → Create database**. Chọn vùng `asia-southeast1` (Singapore), chế độ **production**.
-3. Trong Firestore, mở tab **Rules**, dán toàn bộ nội dung file `firestore.rules`, bấm **Publish**. Mỗi khi app có thêm nhóm dữ liệu mới (ví dụ `timetables`, `lessons`, `stays` và `events` cho Lịch học), dán lại file này một lần nữa, nếu không phần mới sẽ không lưu được.
+3. Trong Firestore, mở tab **Rules**, dán toàn bộ nội dung file `firestore.rules`, bấm **Publish**. Mỗi khi app có thêm nhóm dữ liệu mới (ví dụ `timetables`, `lessons`, `stays`, `events` và `tasks` cho trang Học tập), dán lại file này một lần nữa, nếu không phần mới sẽ không lưu được.
 4. **Build → Authentication → Get started → Sign-in method**, bật **Anonymous**.
 5. **Authentication → Settings → Authorized domains**, thêm `vquangtran.github.io`.
 6. **Project settings** (bánh răng) → **Your apps** → bấm biểu tượng web `</>`, đặt tên rồi bấm **Register app**. Firebase hiện ra đoạn `firebaseConfig`.

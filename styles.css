@@ -408,3 +408,46 @@ textarea.input{resize:vertical;font:inherit}
 .km-event{display:block;margin-top:10px;padding:12px 16px;border-radius:18px;background:var(--accent-soft);color:var(--ink);text-decoration:none;font-size:18px}
 .item.event.now .t{color:var(--accent)}
 .item.event.past{opacity:.6}
+
+/* học tập: tab, bài tập, lịch tuần */
+.tabbar{display:flex;flex-wrap:wrap;gap:4px;background:var(--surface-2);border-radius:22px;padding:4px}
+.tabbar::-webkit-scrollbar{display:none}
+.tabbar button{flex:none;border:0;background:transparent;border-radius:999px;padding:8px 14px;font:inherit;font-weight:600;font-size:14px;color:var(--muted);white-space:nowrap;cursor:pointer}
+.tabbar button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.tabbar .cnt{font-style:normal;font-size:11px;font-weight:800;background:var(--accent);color:var(--on-accent);border-radius:999px;padding:0 6px;line-height:16px;display:inline-block}
+.check{width:34px;height:34px;flex:none;border-radius:50%;border:2px solid var(--line);background:transparent;color:transparent;font-weight:800;font-size:16px;display:grid;place-items:center;cursor:pointer}
+.check:hover{border-color:var(--accent)}
+.check.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.item.task.done .t{color:var(--muted);text-decoration:line-through}
+.item.task .snip{margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.big-item.task{align-items:flex-start}
+.big-item.task .check{width:46px;height:46px;font-size:22px}
+.big-item.task .t{font-size:19px;font-weight:700}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:baseline;box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.18);font-style:normal}
+.dot.lesson{background:var(--good)}
+.sec-title.late{color:var(--bad)}
+.big-num{font-family:var(--display);font-weight:800;font-size:24px;margin:2px 0 8px}
+.today-tasks{margin-top:10px;background:var(--surface-2);border-radius:14px;padding:8px 12px}
+.today-tasks .ag-h{text-decoration:none;color:var(--ink)}
+.today-tasks .item{padding:8px 0}
+.today-tasks .list>.item:first-child{border-top:0}
+.week-strip{padding:12px}
+.ws-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.ws-head b{flex:1;text-align:center;font-family:var(--display);font-size:17px}
+.ws-days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.ws-day{border:0;background:transparent;border-radius:14px;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:2px;font:inherit;color:var(--ink);cursor:pointer}
+.ws-day span:first-child{font-size:11px;font-weight:700;color:var(--accent)}
+.ws-day b{font-size:17px;width:34px;height:34px;display:grid;place-items:center;border-radius:12px}
+.ws-day.today b{box-shadow:inset 0 0 0 2px var(--accent)}
+.ws-day.on b{background:var(--accent);color:var(--on-accent)}
+.ads{display:flex;gap:3px;height:6px}
+.ad{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--muted)}
+.ad.exam{background:var(--bad)} .ad.ev{background:var(--star)} .ad.task{background:var(--accent)} .ad.lesson{background:var(--good)}
+.ws-legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;justify-content:center}
+.ws-legend .ad{margin-right:4px}
+.ag-sec+.ag-sec{margin-top:12px}
+.ag-h{display:block;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.periods{display:flex;flex-direction:column}
+.period{display:flex;align-items:center;gap:10px;padding:4px 0;font-size:15px}
+.period .num{width:46px;text-align:right;color:var(--muted);font-size:13px}
+.period .dot{margin-right:0}
