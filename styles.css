@@ -334,3 +334,39 @@ select.input{appearance:auto}
 .stay-rows{display:grid;grid-template-columns:auto 1fr 1fr;gap:6px 8px;align-items:center}
 .stay-rows .input{padding:7px 9px;font-size:14px}
 .stay-rows b{font-size:14px;white-space:nowrap}
+/* dòng thời gian trong ngày */
+.slot-h{font-family:var(--display);font-weight:800;font-size:15px;color:var(--muted);padding:14px 0 2px;border-top:1px solid var(--line)}
+.list>.slot-h:first-child{border-top:0;padding-top:6px}
+.slot-h.now{color:var(--accent)}
+.slot-h+.item{border-top:0}
+.item.mark{padding:6px 0;border-top:0}
+.item.mark .ico{font-size:18px}
+.item.mark .t{font-weight:600;font-size:14px;color:var(--muted)}
+.item.fun.locked .t{color:var(--muted)}
+.fun-badge{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.fun-badge.open{background:var(--good-soft);color:var(--good)}
+.late{color:var(--bad);font-weight:700}
+.steps{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.step{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 10px;font-size:13px;font-weight:600}
+.step.on{background:var(--good-soft);border-color:transparent;color:var(--good)}
+.km-slot{font-family:var(--display);font-weight:800;font-size:20px;color:var(--muted);margin-top:8px}
+.km-slot.now{color:var(--accent)}
+.big-mark{display:flex;align-items:center;gap:12px;padding:4px 10px;color:var(--muted)}
+.big-mark .ico{font-size:24px;width:56px;text-align:center}
+.big-mark .t{font-weight:700;font-size:17px;color:var(--ink)}
+.big-mark .s{font-size:14px}
+.big-item.fun{cursor:default}
+.big-item.fun.locked{background:var(--surface-2);box-shadow:none}
+.big-item.fun.locked .ico,.big-item.fun.locked .t{opacity:.55}
+.big-item.fun.open{background:var(--good-soft)}
+.big-item .lockic{margin-left:auto;font-size:40px}
+.big-item.has-steps{flex-direction:column;align-items:stretch;gap:12px}
+.big-top{display:flex;align-items:center;gap:16px}
+.big-steps{display:flex;flex-wrap:wrap;gap:8px;padding-left:72px}
+.big-steps .step{font-size:17px;padding:8px 14px}
+@media (max-width:520px){.big-steps{padding-left:0}}
+details.adv{border:1.5px solid var(--line);border-radius:14px;padding:10px 14px;display:flex;flex-direction:column;gap:14px}
+details.adv[open]{padding-bottom:14px}
+details.adv>summary{cursor:pointer;font-weight:700}
+details.adv>*+*{margin-top:14px}
+textarea.input{resize:vertical;font:inherit}
