@@ -19,7 +19,7 @@ const signed = n => (Number(n) > 0 ? '+' : '') + money(n);
 const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
 const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.85 5.9 6.5.85-4.75 4.5 1.2 6.45L12 17.2l-5.8 3.1 1.2-6.45L2.65 9.35l6.5-.85z"/></svg>';
 const AVATARS = ['🦊', '🐯', '🐼', '🐨', '🦁', '🐸', '🐵', '🦄', '🐲', '🦖', '🐰', '🐱', '🐶', '🐧', '🐳', '🦋'];
-const CHORE_ICONS = ['🛏️', '🪥', '🧸', '🍽️', '🪴', '📚', '🎒', '👕', '🧹', '🧽', '🗑️', '📦', '🛋️', '🧦', '👟', '🧺', '🛁', '🥢', '🐶', '🐟', '🍚', '✏️', '🎹', '🏃', '🪢', '🎬', '🎮', '📺', '🧩', '🗣️'];
+const CHORE_ICONS = ['🛏️', '🪥', '🧸', '🍽️', '🪴', '📚', '🎒', '👕', '🧹', '🧽', '🗑️', '📦', '🛋️', '🧦', '👟', '🧺', '🛁', '🥢', '🐶', '🐟', '🍚', '✏️', '🎹', '🏃', '🪢', '🏫', '🎧', '🪑', '🤝', '🌙', '🎬', '🎮', '📺', '🧩', '🗣️'];
 const PRICE_ICONS = {
   gift: ['🎁', '🎬', '🎮', '🍦', '🧋', '🍕', '🧁', '📖', '🎡', '🛝', '🚲', '🏊', '🌙'],
   penalty: ['😤', '🐢', '🤐', '🙉', '📢', '⚠️', '😠', '🙅', '🥊', '📵'],
@@ -40,11 +40,21 @@ const NAV_ALIAS = { 'phan-thuong': 'bang-gia', 'tien-tieu-vat': 'tai-khoan' };
 // kind 'must': việc phải làm mỗi ngày, tính vào thưởng đủ tuần. kind 'extra': việc làm thêm, làm thì được tiền, không bắt buộc.
 const DAILY = [0, 1, 2, 3, 4, 5, 6];
 const SAMPLE_CHORES = [
-  { name: 'Dọn giường', icon: '🛏️', money: 5000, days: DAILY, slot: 'sang' },
+  // also: tên cũ của cùng việc, nhà nào đã có thì không thêm lại.
+  { name: 'Gấp chăn, dọn giường', also: ['Dọn giường', 'Gấp chăn'], icon: '🛏️', money: 5000, days: DAILY, slot: 'sang' },
   { name: 'Không kén ăn', icon: '🍚', money: 5000, days: DAILY },
   { name: 'Tự giác hoàn thành bài tập', icon: '✏️', money: 15000, days: [1, 2, 3, 4, 5], slot: 'toi' },
   { name: 'Nhảy dây mỗi ngày', icon: '🪢', money: 15000, days: DAILY },
   { name: 'Cất đồ chơi', icon: '🧸', money: 5000, days: DAILY, slot: 'toi' },
+  // Bảng nhiệm vụ tuần của con (1 sao = 5.000đ).
+  { name: 'Hoàn thành bài tập ở lớp', icon: '🏫', money: 10000, days: [1, 2, 3, 4, 5], slot: 'chieu' },
+  { name: 'Đọc Raz-Kids, nghe audio', icon: '🎧', money: 10000, days: DAILY },
+  { name: 'Đọc sách 30 phút', also: ['Đọc sách'], icon: '📚', money: 10000, days: DAILY, slot: 'toi', minutes: 30 },
+  { name: 'Tự chuẩn bị, cất cặp', icon: '🎒', money: 5000, days: [1, 2, 3, 4, 5], slot: 'chieu' },
+  { name: 'Dọn bàn học', icon: '🪑', money: 5000, days: DAILY, slot: 'toi' },
+  { name: 'Đi bộ hoặc chạy ngoài trời', also: ['Đi bộ/chạy ngoài trời'], icon: '🏃', money: 10000, days: DAILY, perWeek: 3, minutes: 30 },
+  { name: 'Checklist trước khi đi ngủ', also: ['Chuẩn bị trước khi ngủ'], icon: '🌙', money: 5000, days: DAILY, slot: 'toi',
+    steps: ['Cặp sách đã chuẩn bị', 'Quần áo ngày mai đã chuẩn bị', 'Bàn học đã gọn', 'Sách đã cất đúng chỗ', 'Việc ngày hôm nay đã hoàn thành', 'Đã đánh răng, rửa mặt'] },
   { name: 'Quét nhà', icon: '🧹', money: 5000, kind: 'extra' },
   { name: 'Lau nhà', icon: '🧽', money: 10000, kind: 'extra' },
   { name: 'Rửa bát', icon: '🍽️', money: 10000, kind: 'extra' },
@@ -56,6 +66,7 @@ const SAMPLE_CHORES = [
   { name: 'Giặt tất', icon: '🧦', money: 5000, kind: 'extra' },
   { name: 'Dọn sofa', icon: '🛋️', money: 5000, kind: 'extra' },
   { name: 'Sắp xếp giày dép', icon: '👟', money: 5000, kind: 'extra' },
+  { name: 'Chủ động giúp bố mẹ', icon: '🤝', money: 5000, kind: 'extra' },
   { name: 'Xem phim hoặc chơi Lego', icon: '🎬', money: 0, kind: 'fun', days: DAILY, slot: 'toi', minutes: 30 },
 ].map(c => ({ days: DAILY, kind: 'must', slot: '', ...c }));
 const SAMPLE_PRICES = [
@@ -662,11 +673,11 @@ function viewAccount() {
 const norm = v => String(v || '').trim().toLowerCase();
 function missingSamples() {
   const cn = new Set(Object.values(S.chores).map(c => norm(c.name))), pn = new Set(Object.values(S.rewards).map(r => norm(r.name)));
-  return { chores: SAMPLE_CHORES.filter(c => !cn.has(norm(c.name))), prices: SAMPLE_PRICES.filter(r => !pn.has(norm(r.name))) };
+  return { chores: SAMPLE_CHORES.filter(c => ![c.name, ...(c.also || [])].some(n => cn.has(norm(n)))), prices: SAMPLE_PRICES.filter(r => !pn.has(norm(r.name))) };
 }
 function addSamples(kidIds) {
   const m = missingSamples(); let order = Object.keys(S.chores).length;
-  m.chores.forEach(c => put('chores', uid(), { ...c, kids: kidIds, order: order++ }));
+  m.chores.forEach(({ also, ...c }) => put('chores', uid(), { ...c, kids: kidIds, order: order++ }));
   m.prices.forEach(r => put('rewards', uid(), r));
   return m.chores.length + m.prices.length;
 }
@@ -675,7 +686,7 @@ function viewPrices() {
   let h = `<div class="head"><h1>Bảng giá</h1><p>Mỗi việc được bao nhiêu tiền, lỗi nào bị phạt bao nhiêu, dùng điện thoại hay xem tivi mất bao nhiêu. Bố mẹ thêm, sửa, xoá được hết.</p></div>
   <div class="row"><button class="btn primary" data-act="chore-form" ${kids.length ? '' : 'disabled'}>Thêm việc có tiền</button><button class="btn primary" data-act="price-form">Thêm mục phạt, phí, quà</button><button class="btn ghost" data-act="prices-print">In bảng giá</button></div>`;
   const miss = missingSamples(), n = miss.chores.length + miss.prices.length;
-  if (n && kids.length) h += `<div class="note">Có ${n} mục trong bảng mẫu “Cách cho con tiền tiêu vặt” chưa có ở đây${miss.chores.length ? ` (${miss.chores.length} việc, ${miss.prices.length} mục phạt và phí)` : ''}. <button class="btn quiet sm" data-act="seed-prices">Thêm vào</button></div>`;
+  if (n && kids.length) h += `<div class="note">Có ${n} mục trong bảng mẫu (tiền tiêu vặt, nhiệm vụ tuần, checklist trước khi ngủ) chưa có ở đây${miss.chores.length ? ` (${miss.chores.length} việc, ${miss.prices.length} mục phạt và phí)` : ''}. <button class="btn quiet sm" data-act="seed-prices">Thêm vào</button></div>`;
   const choreRow = c => `<div class="item"><span class="ico">${esc(c.icon || '✅')}</span><div class="txt"><div class="t">${esc(c.name)}</div><div class="s">${esc((c.kids || []).map(kidName).join(', ') || 'chưa giao cho ai')} · ${daysLabel(c.days)}</div></div>
     <span class="delta num plus">+${money(choreVnd(c))}</span><div class="acts"><button class="btn ghost sm" data-act="chore-form" data-id="${c.id}">Sửa</button></div></div>`;
   const must = chores.filter(isMust), extra = chores.filter(isExtra);
@@ -717,7 +728,7 @@ function viewFamily() {
     : `<p class="muted" style="margin:0">Chưa có con nào.</p>`;
   h += `<div class="sec-title">Việc nhà</div><div class="row"><button class="btn primary" data-act="chore-form" ${kids.length ? '' : 'disabled'}>Thêm việc</button><button class="btn ghost" data-act="sheet-open" ${kids.length ? '' : 'disabled'}>Bảng dán tủ lạnh</button></div>`;
   if (chores.length) h += `<section class="card"><div class="list">${chores.map(c => `<div class="item"><span class="ico">${esc(c.icon || '✅')}</span><div class="txt"><div class="t">${esc(c.name)}</div><div class="s">${choreSummary(c)}</div></div><div class="acts"><button class="btn ghost sm" data-act="chore-form" data-id="${c.id}">Sửa</button></div></div>`).join('')}</div></section>`;
-  else if (kids.length) h += `<section class="card"><p class="muted" style="margin:0 0 10px">Chưa có việc nào. Bắt đầu nhanh với bảng mẫu “Cách cho con tiền tiêu vặt”: ${SAMPLE_CHORES.length} việc có tiền, ${SAMPLE_PRICES.length} mục phạt và phí sử dụng. Sửa lại sau cũng được.</p><button class="btn quiet" data-act="seed">Dùng việc nhà mẫu</button></section>`;
+  else if (kids.length) h += `<section class="card"><p class="muted" style="margin:0 0 10px">Chưa có việc nào. Bắt đầu nhanh với bảng mẫu: ${SAMPLE_CHORES.length} việc có tiền, ${SAMPLE_PRICES.length} mục phạt và phí sử dụng. Sửa lại sau cũng được.</p><button class="btn quiet" data-act="seed">Dùng việc nhà mẫu</button></section>`;
   else h += `<p class="muted" style="margin:0">Chưa có việc nào. Thêm con trước rồi giao việc.</p>`;
 
   h += `<div class="sec-title">Chia sẻ và sao lưu</div><section class="card" style="display:flex;flex-direction:column;gap:14px">`;

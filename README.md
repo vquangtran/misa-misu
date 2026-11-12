@@ -9,7 +9,7 @@ Lịch học, việc nhà và tiền tiêu vặt cho các con, bằng tiếng Vi
 - **Học thêm:** các buổi học thêm, gia sư, thể thao của từng con theo ngày trong tuần, ghi học ở đâu, học ngay tại nhà con đang ở hay phải đưa đón, ai đưa đi và ai đón về (Bố, Mẹ, Grab, tự đi...). Mục **Cả nhà** xếp lịch đưa đón theo từng ngày, đếm số chuyến mỗi tuần của từng người, và cảnh báo khi một buổi chưa có người đưa/đón hoặc một người có hai chuyến cách nhau dưới 20 phút.
 - **Chế độ cho bé:** chữ và nút to để con tự đánh dấu. Muốn thoát thì giữ nút 1 giây.
 - **Tài khoản:** số tiền hiện có của từng con. Việc nhà tự cộng tiền; làm đủ việc phải làm cả tuần được thưởng thêm (mặc định 25.000đ, sửa ở thông tin của con). Bố mẹ bấm một lần để ghi phạt (nổi nóng, trì hoãn...), phí sử dụng điện thoại, tivi theo giờ, thưởng thêm, chi tiêu hoặc đổi quà. Lịch sử ghi mọi khoản, bấm nhầm thì Huỷ.
-- **Bảng giá:** mỗi việc được bao nhiêu tiền, phạt bao nhiêu, phí sử dụng mỗi giờ, quà đổi bao nhiêu. Có sẵn bảng mẫu “Cách cho con tiền tiêu vặt đúng cách”, bố mẹ thêm, sửa, xoá tuỳ ý và in ra để dán.
+- **Bảng giá:** mỗi việc được bao nhiêu tiền, phạt bao nhiêu, phí sử dụng mỗi giờ, quà đổi bao nhiêu. Có sẵn bảng mẫu (“Cách cho con tiền tiêu vặt đúng cách”, bảng nhiệm vụ tuần, checklist trước khi đi ngủ), bố mẹ thêm, sửa, xoá tuỳ ý và in ra để dán.
 - **Gia đình:** thêm con, giao việc theo ngày, in bảng dán tủ lạnh, sao lưu và nhập dữ liệu.
 
 App là web tĩnh, không cần bước build: HTML, CSS và JavaScript thuần. Chạy trên GitHub Pages.
