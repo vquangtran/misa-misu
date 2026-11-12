@@ -230,7 +230,7 @@ function bestStreak(kidId) {
 }
 const streakChip = k => { const n = streakOf(k.id); return n ? `<span class="streak" title="Số ngày liên tiếp làm đủ việc phải làm">🔥 ${n} ngày</span>` : ''; };
 const kidName = id => S.kids[id]?.name || 'Bé';
-// Màu nền thẻ của con: theo bộ hình (Su vàng, Sa be) nếu dùng bộ gà, ngựa; không thì theo màu đã chọn.
+// Màu riêng của con (nền hình đại diện và khung chào trong chế độ cho bé): theo bộ hình (Su vàng, Sa be) nếu dùng bộ gà, ngựa; không thì theo màu đã chọn.
 const tintOf = k => { const p = avatarPick(avatarOf(k)); return p ? `var(--tint-${p.set})` : 'var(--t' + ((Number(k.tint) || 0) % 6) + ')'; };
 // Ảnh của con (data URL nhỏ, lưu trong dữ liệu của gia đình), không có thì dùng emoji.
 const photoOf = k => /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(k?.photo || '') ? k.photo : '';
@@ -270,7 +270,7 @@ function ageOf(k, at = today()) {
   return a >= 0 ? a : null;
 }
 const isBirthday = (k, d) => { if (!k.birthday) return false; const b = parse(k.birthday); return b.getDate() === d.getDate() && b.getMonth() === d.getMonth(); };
-const bdayChip = (k, d) => isBirthday(k, d) ? `<span class="chip" style="background:var(--star-soft);color:var(--ink)">🎂 Sinh nhật ${ageOf(k, d)} tuổi</span>` : '';
+const bdayChip = (k, d) => isBirthday(k, d) ? `<span class="streak">🎂 Sinh nhật ${ageOf(k, d)} tuổi</span>` : '';
 
 // ---------- thời khoá biểu ----------
 const toMin = s => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(s || '')); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
@@ -624,7 +624,7 @@ function viewWeekGrid() {
     const cell = (c, d, ri) => {
       const on = isDone(d, k.id, c.id), sched = (c.days || []).includes(d.getDay()), fut = d > t, skip = isMust(c) && skipOn(k.id, d);
       const lbl = `${esc(c.name)}, ${WDN(d.getDay())} ${dm(d)}`;
-      if (on) return `<td><button class="gc on sj${ri % 6}" data-act="grid-tick" data-kid="${k.id}" data-chore="${c.id}" data-d="${key(d)}" aria-pressed="true" aria-label="Bỏ dấu: ${lbl}">✓</button></td>`;
+      if (on) return `<td><button class="gc on" data-act="grid-tick" data-kid="${k.id}" data-chore="${c.id}" data-d="${key(d)}" aria-pressed="true" aria-label="Bỏ dấu: ${lbl}">✓</button></td>`;
       if (skip) return `<td><span class="gc skip" title="Dùng phiếu nghỉ">🎟️</span></td>`;
       if (fut) return `<td><span class="gc ${sched ? 'fut' : 'off'}"></span></td>`;
       return `<td><button class="gc ${sched ? '' : 'off'}" data-act="grid-tick" data-kid="${k.id}" data-chore="${c.id}" data-d="${key(d)}" aria-pressed="false" aria-label="Đánh dấu: ${lbl}"></button></td>`;
@@ -680,7 +680,7 @@ function viewToday() {
     const list = mustFor(k.id, d), plan = dayPlan(k.id, d);
     const n = list.filter(c => isDone(d, k.id, c.id)).length;
     const pct = list.length ? Math.round(n / list.length * 100) : 0;
-    h += `<section class="card kid-card" style="--tint:${tintOf(k)}"><div class="kid-hero">${ava(k)}<div class="kid-hi"><div class="kid-name">${esc(k.name)}</div><div class="row" style="gap:6px">${streakChip(k)}${bdayChip(k, d)}</div></div><a href="#tai-khoan" class="acct-link" data-act="acct-go" data-kid="${k.id}">${moneyChip(k)}</a></div>`;
+    h += `<section class="card kid-card"><div class="kid-hero">${ava(k)}<div class="kid-hi"><div class="kid-name">${esc(k.name)}</div><div class="row" style="gap:6px">${streakChip(k)}${bdayChip(k, d)}</div></div><a href="#tai-khoan" class="acct-link" data-act="acct-go" data-kid="${k.id}">${moneyChip(k)}</a></div>`;
     const sc = schoolNow(k, d, isT);
     if (sc) h += `<a class="school-line" href="#lich-hoc" data-act="tkb-go" data-tab="tkb" data-kid="${k.id}"><b>${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}:</b> ${esc(sc.subjects.join(', '))}</a>`;
     h += eventLines(k) + skipNote(k, d);
@@ -689,7 +689,7 @@ function viewToday() {
     if (!plan.length) { h += `<p class="muted" style="margin:12px 0 0">Hôm nay ${esc(k.name)} không có việc nào. Nghỉ ngơi thôi!</p></section>`; continue; }
     if (list.length) h += progBox(n, list.length, n === list.length ? '🎉 Xong hết việc phải làm!' : `⭐ Việc phải làm · còn ${list.length - n} việc`);
     const cur = isT ? slotAt(nowMin()) : null;
-    // Mỗi buổi là một khối có màu riêng (sáng cam, chiều xanh trời, tối tím, lúc nào cũng được xanh lá nhạt) cho dễ tách.
+    // Mỗi buổi là một khối nền trung tính, nhận ra nhờ tiêu đề; buổi đang diễn ra có viền đậm và nhãn "bây giờ".
     h += `<div class="slots">`;
     for (const g of plan) {
       if (g.extra) {
@@ -1057,7 +1057,7 @@ function earnPlan(kidId, need) {
 function coinUnit(price) { for (const u of [5000, 10000, 20000, 50000, 100000, 200000, 500000]) if (price / u <= 40) return u; return 1000000; }
 function coins(g, big = false) {
   const u = coinUnit(g.price), n = Math.ceil(g.price / u), on = Math.floor(g.have / u);
-  return `<div class="coins ${big ? 'big' : ''}" aria-label="Đã để dành ${on} trên ${n} xu, mỗi xu ${money(u)}">${Array.from({ length: n }, (_, i) => `<i class="${i < on ? 'on sj' + (i % 6) : ''}"></i>`).join('')}</div>
+  return `<div class="coins ${big ? 'big' : ''}" aria-label="Đã để dành ${on} trên ${n} xu, mỗi xu ${money(u)}">${Array.from({ length: n }, (_, i) => `<i class="${i < on ? 'on' : ''}"></i>`).join('')}</div>
     <div class="muted small">Mỗi xu là ${money(u)}. Đã tô ${on}/${n} xu.</div>`;
 }
 function goalsCard(kidId) {
@@ -1111,18 +1111,18 @@ function viewPrices() {
   const miss = missingSamples(), n = miss.chores.length + miss.prices.length;
   if (n && kids.length) h += `<div class="note">Có ${n} mục trong bảng mẫu (tiền tiêu vặt, nhiệm vụ tuần, checklist trước khi ngủ, phiếu thưởng) chưa có ở đây${miss.chores.length ? ` (${miss.chores.length} việc, ${miss.prices.length} mục phạt, phí và phiếu thưởng)` : ''}. <button class="btn quiet sm" data-act="seed-prices">Thêm vào</button></div>`;
   const choreRow = c => `<div class="item"><span class="ico">${esc(c.icon || '✅')}</span><div class="txt"><div class="t">${esc(c.name)}</div><div class="s">${esc((c.kids || []).map(kidName).join(', ') || 'chưa giao cho ai')} · ${daysLabel(c.days)}</div></div>
-    <span class="delta num plus">+${money(choreVnd(c))}</span><div class="acts"><button class="btn ghost sm" data-act="chore-form" data-id="${c.id}">Sửa</button></div></div>`;
+    <span class="delta num">+${money(choreVnd(c))}</span><div class="acts"><button class="btn ghost sm" data-act="chore-form" data-id="${c.id}">Sửa</button></div></div>`;
   const must = chores.filter(isMust), extra = chores.filter(isExtra);
   h += `<div class="sec-title">⭐ Thưởng: việc phải làm</div>`;
   h += `<section class="card"><div class="list">${must.map(choreRow).join('') || '<p class="muted small" style="margin:0">Chưa có việc phải làm nào.</p>'}
     ${kids.map(k => `<div class="item"><span class="ico">🏆</span><div class="txt"><div class="t">Làm đủ việc phải làm cả tuần${kids.length > 1 ? ` · ${esc(k.name)}` : ''}</div><div class="s">Tự cộng vào tài khoản khi xong hết việc phải làm từ Thứ Hai đến Chủ nhật</div></div>
-      <span class="delta num plus">${weekBonusOf(k) ? '+' + money(weekBonusOf(k)) : '—'}</span><div class="acts"><button class="btn ghost sm" data-act="kid-form" data-id="${k.id}">Sửa</button></div></div>`).join('')}</div></section>`;
+      <span class="delta num">${weekBonusOf(k) ? '+' + money(weekBonusOf(k)) : '—'}</span><div class="acts"><button class="btn ghost sm" data-act="kid-form" data-id="${k.id}">Sửa</button></div></div>`).join('')}</div></section>`;
   h += `<div class="sec-title">💪 Thưởng: việc làm thêm</div><section class="card">${extra.length ? `<div class="list">${extra.map(choreRow).join('')}</div>` : '<p class="muted small" style="margin:0">Việc không bắt buộc, làm lúc nào được tiền lúc đó. Ví dụ: rửa bát, đổ rác.</p>'}</section>`;
   for (const [kind, label, icon] of PRICE_KINDS) {
     const list = pricesList(kind);
     h += `<div class="sec-title">${icon} ${label}</div><section class="card">`;
     h += list.length ? `<div class="list">${list.map(r => `<div class="item"><span class="ico">${esc(r.icon || icon)}</span><div class="txt"><div class="t">${esc(r.name)}</div>${r.all ? '<div class="s">Trừ hết số tiền đang có trong tài khoản</div>' : ''}</div>
-      <span class="delta num ${kind === 'gift' ? '' : 'minus'}">${priceTag(r)}</span><div class="acts"><button class="btn ghost sm" data-act="price-form" data-id="${r.id}">Sửa</button></div></div>`).join('')}</div>`
+      <span class="delta num">${priceTag(r)}</span><div class="acts"><button class="btn ghost sm" data-act="price-form" data-id="${r.id}">Sửa</button></div></div>`).join('')}</div>`
       : `<p class="muted small" style="margin:0">Chưa có mục nào. <button class="btn quiet sm" data-act="price-form" data-kind="${kind}">Thêm</button></p>`;
     h += `</section>`;
   }
@@ -1318,7 +1318,7 @@ function kidForm(id) {
   <div class="field"><label for="kname">Tên</label><input id="kname" class="input" maxlength="30" value="${esc(k?.name || '')}" placeholder="Ví dụ: Bin"></div>
   <div class="field"><label for="kbday">Ngày sinh</label><input id="kbday" class="input" type="date" value="${esc(k?.birthday || '')}"></div>
   <div class="field"><span class="lbl">Ảnh của con</span>
-    <div class="photo-pick"><span class="ava photo-prev" style="background:${k ? tintOf(k) : 'var(--t3)'}">${photoOf(k) ? `<img src="${photoOf(k)}" alt="">` : k ? avInner(avatarOf(k)) : '📷'}</span>
+    <div class="photo-pick"><span class="ava photo-prev" style="background:${k ? tintOf(k) : 'var(--surface-2)'}">${photoOf(k) ? `<img src="${photoOf(k)}" alt="">` : k ? avInner(avatarOf(k)) : '📷'}</span>
       <div class="col"><div class="row"><label class="btn ghost sm file-btn">📷 Chọn ảnh<input type="file" id="kphoto" accept="image/*"></label><button class="btn quiet sm" data-act="photo-del" ${photoOf(k) ? '' : 'hidden'}>Bỏ ảnh</button></div>
       <div class="photo-adj" hidden><label class="small">🔍 Phóng to<input type="range" id="pzoom" min="1" max="4" step="0.05" value="2"></label><label class="small">↕️ Lên xuống<input type="range" id="py" min="0" max="1" step="0.01" value="0.4"></label><label class="small">↔️ Trái phải<input type="range" id="px" min="0" max="1" step="0.01" value="0.5"></label></div>
       <span class="muted small">Ảnh được thu nhỏ và chỉ lưu trong dữ liệu của gia đình. Không có ảnh thì dùng hình emoji bên dưới.</span></div></div></div>

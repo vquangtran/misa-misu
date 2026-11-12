@@ -19,7 +19,7 @@ Lịch học, việc nhà và tiền tiêu vặt cho các con, bằng tiếng Vi
 - **Mục tiêu tiết kiệm:** con đặt mục tiêu (xe đạp 500.000đ...), có thanh tiến độ và các đồng xu được tô dần. Tiền trong tài khoản chia cho các mục tiêu theo thứ tự ưu tiên. App tính còn thiếu bao nhiêu, khoảng mấy tuần nữa, hoặc làm thêm mấy lần việc gì. Đủ tiền thì bấm Mua.
 - **Phiếu thưởng:** chọn phim, chọn món ăn sáng, tráng miệng, thức khuya 30 phút, mời bạn đến chơi, một ngày không làm việc nhà. Con đổi bằng tiền trong tài khoản; phiếu "Một ngày không làm việc nhà" miễn việc phải làm của ngày được chọn mà vẫn giữ thưởng đủ tuần. In được tờ phiếu cắt rời.
 - **Bảng giá:** mỗi việc được bao nhiêu tiền, phạt bao nhiêu, phí sử dụng mỗi giờ, quà đổi bao nhiêu. Có sẵn bảng mẫu (“Cách cho con tiền tiêu vặt đúng cách”, bảng nhiệm vụ tuần, checklist trước khi đi ngủ), bố mẹ thêm, sửa, xoá tuỳ ý và in ra để dán.
-- **Hình đại diện:** ngoài emoji có bộ 12 kiểu gà tông vàng (Su) và 12 kiểu ngựa tông be, nâu (Sa), vẽ cùng phong cách với app: viền nâu đậm, khối tròn có bóng, nền tia nắng. Chọn một kiểu cố định hoặc *Mỗi ngày một kiểu* để hình tự đổi theo ngày. Su mặc định là bộ gà, Sa là bộ ngựa, mỗi ngày một kiểu, cho tới khi bố mẹ chọn hình khác. Thẻ của con dùng màu nền theo bộ hình.
+- **Hình đại diện:** ngoài emoji có bộ 12 kiểu gà tông vàng (Su) và 12 kiểu ngựa tông be, nâu (Sa), vẽ cùng phong cách với app: viền nâu đậm, khối tròn có bóng, nền tia nắng. Chọn một kiểu cố định hoặc *Mỗi ngày một kiểu* để hình tự đổi theo ngày. Su mặc định là bộ gà, Sa là bộ ngựa, mỗi ngày một kiểu, cho tới khi bố mẹ chọn hình khác. Khung chào trong chế độ cho bé dùng màu nền theo bộ hình.
 - **Ảnh của con:** trong thông tin của con, bấm *Chọn ảnh*, kéo thanh Phóng to / Lên xuống / Trái phải để căn mặt vào khung tròn. Ảnh được cắt vuông, thu về 320px và lưu trong dữ liệu của gia đình (trên máy hoặc Firebase), không đưa lên repo.
 - **Gia đình:** thêm con, giao việc theo ngày, in bảng dán tủ lạnh, sao lưu và nhập dữ liệu.
 
@@ -30,7 +30,7 @@ App là web tĩnh, không cần bước build: HTML, CSS và JavaScript thuần.
 | File | Nội dung |
 | --- | --- |
 | `index.html` | Khung trang |
-| `styles.css` | Giao diện tông vàng ấm, nút và thẻ "nổi" (màu nằm trong `:root`, có chế độ tối) |
+| `styles.css` | Giao diện nền kem ấm, nút và thẻ "nổi". Màu nằm trong `:root`, mỗi màu một việc: trung tính cho nền và chữ, vàng cho thứ bấm được, xanh/đỏ cho trạng thái xong/thiếu; có chế độ tối |
 | `js/app.js` | Toàn bộ màn hình và thao tác |
 | `js/avatars.js` | Hình đại diện vẽ bằng SVG: bộ gà, bộ ngựa |
 | `js/store.js` | Lưu dữ liệu: trên máy (localStorage) hoặc Firebase |
