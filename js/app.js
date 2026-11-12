@@ -230,7 +230,8 @@ function bestStreak(kidId) {
 }
 const streakChip = k => { const n = streakOf(k.id); return n ? `<span class="streak" title="Số ngày liên tiếp làm đủ việc phải làm">🔥 ${n} ngày</span>` : ''; };
 const kidName = id => S.kids[id]?.name || 'Bé';
-const tintOf = k => 'var(--t' + ((Number(k.tint) || 0) % 6) + ')';
+// Màu nền thẻ của con: theo bộ hình (Su vàng, Sa be) nếu dùng bộ gà, ngựa; không thì theo màu đã chọn.
+const tintOf = k => { const p = avatarPick(avatarOf(k)); return p ? `var(--tint-${p.set})` : 'var(--t' + ((Number(k.tint) || 0) % 6) + ')'; };
 // Ảnh của con (data URL nhỏ, lưu trong dữ liệu của gia đình), không có thì dùng emoji.
 const photoOf = k => /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(k?.photo || '') ? k.photo : '';
 // Su mặc định là bộ gà, Sa là bộ ngựa (mỗi ngày một kiểu), cho tới khi bố mẹ chọn hình khác trong thông tin của con.
@@ -931,7 +932,7 @@ function lessonItem(l, who = false) {
 // ---------- tài khoản ----------
 const LEDGER_KIND = {
   bonus: ['Thưởng', '⭐'], penalty: ['Phạt', '⚠️'], fee: ['Phí sử dụng', '📱'], spend: ['Chi tiêu', '💸'],
-  reward: ['Đổi quà', '🎁'], week: ['Thưởng đủ tuần', '🏆'], chores: ['Việc nhà', '🧹'],
+  reward: ['Đổi quà', '🎁'], week: ['Thưởng đủ tuần', '🏆'], chores: ['Việc nhà', '🧹'], adjust: ['Khớp số dư', '🏦'],
 };
 const ACCT_KINDS = [['penalty', '⚠️ Phạt'], ['fee', '📱 Phí sử dụng'], ['bonus', '⭐ Thưởng thêm'], ['spend', '💸 Chi tiêu']];
 const priceTag = r => priceKind(r) === 'penalty' ? (r.all ? 'Mất hết tiền' : '−' + money(priceVnd(r)))
@@ -963,7 +964,8 @@ function viewAccount() {
       <span class="bal num ${b < 0 ? 'neg' : ''}">${money(b)}</span>
       <span class="muted small">Tuần này kiếm được <b class="num">${money(wk)}</b> · việc phải làm <span class="num">${st.done}/${st.possible}</span></span>
       ${wbTxt ? `<span class="muted small">${wbTxt}</span>` : ''}</button>`;
-  }).join('')}</div>`;
+  }).join('')}</div>
+  <div class="row"><button class="btn ghost sm" data-act="bal-form">🏦 Khớp số dư với tài khoản ngân hàng</button></div>`;
 
   const kidName1 = esc(kidName(ak));
   h += `<section class="card acct-form"><h2>Ghi vào tài khoản</h2>
@@ -1004,6 +1006,14 @@ function viewAccount() {
     <div class="acts"><span class="delta num ${plus ? 'plus' : 'minus'}">${signed(l.vnd)}</span>${l.id ? `<button class="btn ghost sm" data-act="ledger-undo" data-id="${l.id}">Huỷ</button>` : ''}</div></div>`;
   }).join('')}</div>${rows.length > shown.length ? `<div class="row" style="margin-top:8px"><button class="btn quiet sm" data-act="hist-all">Xem thêm ${rows.length - shown.length} dòng</button></div>` : ''}`;
   return h + `</section>`;
+}
+
+// Khớp số dư: bố mẹ gõ số tiền thật của từng con, app ghi một khoản "Khớp số dư" bằng phần chênh lệch.
+function balForm() {
+  openModal(`<h2>Khớp số dư</h2><p class="muted" style="margin:-8px 0 0">Gõ số tiền thật đang có của từng con (ví dụ theo tài khoản ngân hàng). App ghi một khoản điều chỉnh bằng phần chênh lệch, lịch sử cũ giữ nguyên. Bỏ trống nếu không đổi.</p>
+  ${kidsList().map(k => `<div class="field"><label for="bal-${k.id}">${mini(k)} ${esc(k.name)} <span class="muted small">· trong app: ${money(balance(k.id))}</span></label>
+    <input id="bal-${k.id}" class="input num" type="number" step="1" inputmode="numeric" data-bal="${k.id}" placeholder="Ví dụ: ${Math.max(0, balance(k.id))}"></div>`).join('')}
+  <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="bal-save">Lưu số dư</button></div>`);
 }
 
 // ---------- mục tiêu tiết kiệm ----------
@@ -1931,6 +1941,19 @@ document.addEventListener('click', e => {
     put('ledger', uid(), { kid, ...e, at });
     if (e.amount > 0) confetti();
     return toast(`${e.amount > 0 ? 'Đã cộng' : 'Đã trừ'} ${money(Math.abs(e.amount))} ${e.amount > 0 ? 'vào' : 'của'} ${who} (${e.note}). Còn ${money(bal + e.amount)}.`);
+  }
+  if (a === 'bal-form') return balForm();
+  if (a === 'bal-save') {
+    const at = new Date().toISOString(), done = [];
+    for (const inp of document.querySelectorAll('#modal [data-bal]')) {
+      const kid = inp.dataset.bal, v = inp.value.trim(); if (!v || !S.kids[kid]) continue;
+      const target = Math.round(Number(v)); if (!Number.isFinite(target)) { inp.focus(); return toast('Số tiền chưa đúng.'); }
+      const diff = target - balance(kid); if (!diff) continue;
+      put('ledger', uid(), { kid, amount: diff, kind: 'adjust', icon: '🏦', note: `Khớp với tài khoản ngân hàng: ${money(target)}`, at });
+      done.push(`${kidName(kid)} ${money(target)}`);
+    }
+    closeModal();
+    return toast(done.length ? `Đã khớp số dư: ${done.join(', ')}.` : 'Số dư đã đúng, không cần đổi.');
   }
   if (a === 'ledger-undo') { if (!armed(b, 'Chắc chưa?')) return; del('ledger', id); return toast('Đã huỷ mục này.'); }
 });

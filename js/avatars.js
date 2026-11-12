@@ -1,95 +1,112 @@
-// Hình đại diện vẽ bằng SVG: bộ gà (Su) và bộ ngựa (Sa), mỗi bộ nhiều kiểu.
+// Hình đại diện vẽ bằng SVG, cùng phong cách với app: viền nâu đậm dày, khối tròn có bóng và điểm sáng như đồ chơi, nền tia nắng.
+// Bộ gà (Su, thích màu vàng) và bộ ngựa (Sa, thích màu be, nâu), mỗi bộ 12 kiểu.
 // Giá trị lưu ở kids.avatar: "svg:ga-3" (một kiểu cố định) hoặc "set:ga" (mỗi ngày một kiểu).
 const O = '#3A2810';
-const ln = `stroke="${O}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"`;
+const ln = (w = 3) => `stroke="${O}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
+const SHADE = 'rgba(58,40,16,.13)';
 
-const eyes = (y, l = 40, r = 60, happy = false) => happy
-  ? `<path d="M${l - 4} ${y + 1}q4-5 8 0M${r - 4} ${y + 1}q4-5 8 0" fill="none" ${ln} stroke-width="2.8"/>`
-  : `<circle cx="${l}" cy="${y}" r="4.3" fill="${O}"/><circle cx="${r}" cy="${y}" r="4.3" fill="${O}"/>
-     <circle cx="${l + 1.4}" cy="${y - 1.5}" r="1.5" fill="#fff"/><circle cx="${r + 1.4}" cy="${y - 1.5}" r="1.5" fill="#fff"/>`;
-const cheeks = y => `<ellipse cx="32" cy="${y}" rx="5.5" ry="3.4" fill="#FF7E98" opacity=".5"/><ellipse cx="68" cy="${y}" rx="5.5" ry="3.4" fill="#FF7E98" opacity=".5"/>`;
+// Nền: màu của bộ + tia nắng như màn chúc mừng.
+function bg(base, ray) {
+  let s = `<rect width="100" height="100" fill="${base}"/>`;
+  for (let i = 0; i < 12; i++) {
+    const a1 = (i * 30 - 90) * Math.PI / 180, a2 = (i * 30 - 75) * Math.PI / 180, p = (a, r) => `${(50 + r * Math.cos(a)).toFixed(1)} ${(58 + r * Math.sin(a)).toFixed(1)}`;
+    s += `<path d="M50 58L${p(a1, 90)}L${p(a2, 90)}z" fill="${ray}"/>`;
+  }
+  return s;
+}
+const eyes = (y, happy) => happy
+  ? `<path d="M36 ${y + 1}q4-5.5 8 0M56 ${y + 1}q4-5.5 8 0" fill="none" ${ln(3.2)}/>`
+  : `<ellipse cx="40" cy="${y}" rx="4.4" ry="5" fill="${O}"/><ellipse cx="60" cy="${y}" rx="4.4" ry="5" fill="${O}"/><circle cx="41.6" cy="${y - 1.8}" r="1.7" fill="#fff"/><circle cx="61.6" cy="${y - 1.8}" r="1.7" fill="#fff"/>`;
+const cheeks = y => `<ellipse cx="31" cy="${y}" rx="5.5" ry="3.4" fill="#FF8A7A" opacity=".45"/><ellipse cx="69" cy="${y}" rx="5.5" ry="3.4" fill="#FF8A7A" opacity=".45"/>`;
+const shine = (x, y) => `<ellipse cx="${x}" cy="${y}" rx="6" ry="3.4" transform="rotate(-35 ${x} ${y})" fill="#fff" opacity=".75"/>`;
 
-// Phụ kiện. e = độ cao mắt, t = đỉnh đầu, b = chỗ cài nơ/hoa.
-function acc(kind, { e, t, b = [68, 30], l = 40, r = 60 }) {
+// Phụ kiện, tô bằng màu của bộ (p). e = độ cao mắt, t = đỉnh đầu, b = chỗ cài nơ/hoa.
+function acc(kind, p, { e, t, b }) {
+  const lip = (d, fill) => `<path d="${d}" fill="${fill}" ${ln()}/>`;
   switch (kind) {
-    case 'glasses': return `<circle cx="${l}" cy="${e}" r="7.5" fill="#fff" fill-opacity=".25" ${ln}/><circle cx="${r}" cy="${e}" r="7.5" fill="#fff" fill-opacity=".25" ${ln}/><path d="M${l + 7.5} ${e}h${r - l - 15}" ${ln}/>`;
-    case 'shades': return `<rect x="${l - 8.5}" y="${e - 6}" width="17" height="12" rx="5" fill="#26232E" ${ln}/><rect x="${r - 8.5}" y="${e - 6}" width="17" height="12" rx="5" fill="#26232E" ${ln}/><path d="M${l + 8.5} ${e - 2}h${r - l - 17}" ${ln}/><path d="M${l - 4} ${e - 2.5}l3-1M${r - 4} ${e - 2.5}l3-1" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>`;
-    case 'bow': { const [x, y] = b; return `<path d="M${x} ${y}l-11-7v14zM${x} ${y}l11-7v14z" fill="#FF6FA8" ${ln} stroke-width="2.2"/><circle cx="${x}" cy="${y}" r="3.6" fill="#FF8FBE" ${ln} stroke-width="2"/>`; }
-    case 'flower': { const [x, y] = b; return [0, 72, 144, 216, 288].map(a => `<circle cx="${(x + 5.2 * Math.cos(a * Math.PI / 180)).toFixed(1)}" cy="${(y + 5.2 * Math.sin(a * Math.PI / 180)).toFixed(1)}" r="4.4" fill="#FFFFFF" ${ln} stroke-width="1.8"/>`).join('') + `<circle cx="${x}" cy="${y}" r="3.4" fill="#FFC633" ${ln} stroke-width="1.8"/>`; }
-    case 'crown': return `<path d="M36 ${t + 4}l2-15 7 7 5-11 5 11 7-7 2 15z" fill="#FFC633" ${ln}/><circle cx="50" cy="${t - 2}" r="2.2" fill="#FF4D6D"/><circle cx="41" cy="${t + 1}" r="1.8" fill="#4DA8FF"/><circle cx="59" cy="${t + 1}" r="1.8" fill="#4DA8FF"/>`;
-    case 'party': return `<path d="M40 ${t + 3}L55 ${t - 15}L62 ${t + 3}z" fill="#7C6BFF" ${ln}/><path d="M45 ${t - 3}l12 2M49 ${t - 9}l8 1" stroke="#FFC633" stroke-width="3" stroke-linecap="round"/><circle cx="55" cy="${t - 16}" r="3.6" fill="#FF6FA8" ${ln} stroke-width="2"/>`;
-    case 'phones': return `<path d="M21 ${e + 2}C21 ${t - 8} 79 ${t - 8} 79 ${e + 2}" fill="none" stroke="#4D6BFF" stroke-width="5" stroke-linecap="round"/><rect x="13" y="${e - 6}" width="11" height="17" rx="5" fill="#4D6BFF" ${ln}/><rect x="76" y="${e - 6}" width="11" height="17" rx="5" fill="#4D6BFF" ${ln}/>`;
-    case 'stars': return `<path d="M20 20l2 5 5 2-5 2-2 5-2-5-5-2 5-2zM81 30l1.6 4 4 1.6-4 1.6-1.6 4-1.6-4-4-1.6 4-1.6z" fill="#FFC633" ${ln} stroke-width="1.6"/>`;
-    case 'band': return `<path d="M23 ${t + 12}c14-6 40-6 54 0l-2 7c-14-5-36-5-50 0z" fill="#FF5A5F" ${ln} stroke-width="2.2"/><circle cx="34" cy="${t + 14}" r="1.6" fill="#fff"/><circle cx="50" cy="${t + 11}" r="1.6" fill="#fff"/><circle cx="66" cy="${t + 14}" r="1.6" fill="#fff"/>`;
+    case 'glasses': return `<circle cx="40" cy="${e}" r="8" fill="#fff" fill-opacity=".3" ${ln(2.8)}/><circle cx="60" cy="${e}" r="8" fill="#fff" fill-opacity=".3" ${ln(2.8)}/><path d="M48 ${e}h4" ${ln(2.8)}/>`;
+    case 'shades': return `<rect x="30.5" y="${e - 6.5}" width="19" height="13" rx="6" fill="${O}" ${ln(2.6)}/><rect x="50.5" y="${e - 6.5}" width="19" height="13" rx="6" fill="${O}" ${ln(2.6)}/><path d="M35 ${e - 2.5}l4-1.5M55 ${e - 2.5}l4-1.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/>`;
+    case 'bow': { const [x, y] = b; return lip(`M${x} ${y}l-12-8c-2 5-2 11 0 16zM${x} ${y}l12-8c2 5 2 11 0 16z`, p.acc) + `<circle cx="${x}" cy="${y}" r="4" fill="${p.acc2}" ${ln(2.6)}/>`; }
+    case 'flower': { const [x, y] = b; return [0, 72, 144, 216, 288].map(a => `<circle cx="${(x + 5.6 * Math.cos(a * Math.PI / 180)).toFixed(1)}" cy="${(y + 5.6 * Math.sin(a * Math.PI / 180)).toFixed(1)}" r="4.6" fill="#FFFDF6" ${ln(2.2)}/>`).join('') + `<circle cx="${x}" cy="${y}" r="3.6" fill="#FFC633" ${ln(2.2)}/>`; }
+    case 'crown': return lip(`M35 ${t + 5}l2-16 7.5 7.5L50 ${t - 15}l5.5 11.5 7.5-7.5 2 16z`, '#FFC633') + `<path d="M36 ${t + 1}h28" stroke="#E9A20C" stroke-width="2.4"/><circle cx="50" cy="${t - 3}" r="2.4" fill="#FF6B4A"/>`;
+    case 'party': return lip(`M39 ${t + 4}L54 ${t - 15}L63 ${t + 4}z`, p.acc) + `<path d="M44 ${t - 2}l14 2M49 ${t - 9}l8 1" stroke="${p.acc2}" stroke-width="3.4" stroke-linecap="round"/><circle cx="54" cy="${t - 16}" r="4" fill="${p.acc2}" ${ln(2.4)}/>`;
+    case 'phones': return `<path d="M21 ${e + 2}C21 ${t - 9} 79 ${t - 9} 79 ${e + 2}" fill="none" stroke="${O}" stroke-width="8" stroke-linecap="round"/><path d="M21 ${e + 2}C21 ${t - 9} 79 ${t - 9} 79 ${e + 2}" fill="none" stroke="${p.acc}" stroke-width="3.6" stroke-linecap="round"/>`
+      + `<rect x="12" y="${e - 7}" width="13" height="19" rx="6" fill="${p.acc}" ${ln()}/><rect x="75" y="${e - 7}" width="13" height="19" rx="6" fill="${p.acc}" ${ln()}/>`;
+    case 'stars': return `<path d="M19 22l2.4 5.6 5.6 2.4-5.6 2.4L19 38l-2.4-5.6L11 30l5.6-2.4zM82 30l1.8 4.2 4.2 1.8-4.2 1.8L82 42l-1.8-4.2L76 36l4.2-1.8z" fill="#FFC633" ${ln(2)}/>`;
+    case 'band': return lip(`M22 ${t + 13}c15-7 41-7 56 0l-2 8c-15-6-37-6-52 0z`, p.acc) + `<circle cx="34" cy="${t + 15}" r="1.8" fill="#fff"/><circle cx="50" cy="${t + 11.5}" r="1.8" fill="#fff"/><circle cx="66" cy="${t + 15}" r="1.8" fill="#fff"/>`;
+    case 'scarf': return lip(`M27 ${e + 30}c14 6 32 6 46 0l1 7c-15 7-33 7-48 0z`, p.acc) + lip(`M60 ${e + 35}l4 12 7-3-3-11z`, p.acc);
     default: return '';
   }
 }
 
+// Gà: thân tròn như quả trứng, mào đỏ cam, mỏ cam.
+const GA = { bg: '#FFE9A6', ray: 'rgba(255,255,255,.45)', acc: '#FF9F2E', acc2: '#FFF3C9' };
 function chicken(o) {
-  let s = '';
-  if (o.tail) s += `<path d="M72 48c6-14 16-16 20-10-5 1-7 4-7 7 5-3 10-1 10 3-5 0-8 2-9 6 3-1 6 1 5 4-5-1-10 1-13 4z" fill="${o.tail}" ${ln}/>`;
-  if (o.chick) s += `<path d="M46 25c-1-6 3-9 6-6M50 26c2-7 8-7 9-3" fill="none" ${ln} stroke-width="2.6"/>`;
-  else s += `<path d="M37 31c-5-8 3-14 8-8-1-10 11-11 12-2 4-7 13-3 9 6z" fill="${o.comb}" ${ln}/>`;
-  if (!o.egg) s += `<path d="M42 87v7m-3 0h6M58 87v7m-3 0h6" stroke="#F59A12" stroke-width="2.8" stroke-linecap="round"/>`;
-  s += `<path d="M50 25c20 0 32 17 32 36 0 17-14 28-32 28S18 78 18 61c0-19 12-36 32-36z" fill="${o.body}" ${ln} stroke-width="2.6"/>`;
-  if (o.belly) s += `<ellipse cx="50" cy="78" rx="15" ry="8" fill="${o.belly}"/>`;
-  if (!o.egg) s += `<path d="M20 60c-7 2-9 11-3 14 4 2 8-2 9-6M80 60c7 2 9 11 3 14-4 2-8-2-9-6" fill="${o.wing || o.body}" ${ln}/>`;
-  s += cheeks(63) + eyes(53, 40, 60, o.happy);
-  s += `<path d="M44 58h12l-6 8z" fill="#FFA41B" ${ln} stroke-width="2.2"/>`;
-  if (!o.chick) s += `<path d="M48 66c-1 5 0 8 2 8s3-4 1-8" fill="${o.comb}" ${ln} stroke-width="2"/>`;
-  if (o.egg) s += `<path d="M16 64l8-7 8 7 9-7 9 7 9-7 9 7 8-7 8 7c0 17-15 28-34 28S16 81 16 64z" fill="#FFF8EA" ${ln}/><path d="M30 78c2 3 5 4 8 4" fill="none" stroke="#E9DCC4" stroke-width="2.4" stroke-linecap="round"/>`;
-  s += acc(o.acc, { e: 53, t: 22, b: [67, 31] });
+  let s = bg(GA.bg, GA.ray);
+  if (o.tail) s += `<path d="M72 50c6-14 16-16 20-10-5 1-7 4-7 7 5-3 10-1 10 3-5 0-8 2-9 6 3-1 6 1 5 4-5-1-10 1-13 4z" fill="${o.tail}" ${ln()}/>`;
+  if (o.chick) s += `<path d="M46 26c-1-6 3-9 6-6M50 27c2-7 8-7 9-3" fill="none" ${ln(3)}/>`;
+  else s += `<path d="M37 32c-5-8 3-14 8-8-1-10 11-11 12-2 4-7 13-3 9 6z" fill="#FF6B4A" ${ln()}/>`;
+  if (!o.egg) s += `<path d="M42 88v7m-3.5 0h7M58 88v7m-3.5 0h7" stroke="${O}" stroke-width="6" stroke-linecap="round"/><path d="M42 88v7m-3.5 0h7M58 88v7m-3.5 0h7" stroke="#FF9F1C" stroke-width="2.6" stroke-linecap="round"/>`;
+  s += `<path d="M50 26c20 0 32 17 32 36 0 17-14 28-32 28S18 79 18 62c0-19 12-36 32-36z" fill="${o.body}" ${ln(3.2)}/>`;
+  s += `<path d="M22 72c4 10 15 15 28 15s24-5 28-15c-6 6-16 9-28 9s-22-3-28-9z" fill="${SHADE}"/>`;
+  if (o.belly) s += `<ellipse cx="50" cy="77" rx="14" ry="7.5" fill="${o.belly}"/>`;
+  if (o.spots) s += `<circle cx="30" cy="48" r="2.6" fill="${o.spots}"/><circle cx="69" cy="44" r="2" fill="${o.spots}"/><circle cx="72" cy="74" r="2.6" fill="${o.spots}"/>`;
+  if (!o.egg) s += `<path d="M20 61c-7 2-9 11-3 14 4 2 8-2 9-6M80 61c7 2 9 11 3 14-4 2-8-2-9-6" fill="${o.wing || o.body}" ${ln()}/>`;
+  s += shine(34, 38) + cheeks(64) + eyes(54, o.happy);
+  s += `<path d="M43.5 59h13l-6.5 8.5z" fill="#FF9F1C" ${ln(2.6)}/>`;
+  if (!o.chick) s += `<path d="M48 67.5c-1 5 0 8 2 8s3-4 1-8" fill="#FF6B4A" ${ln(2.2)}/>`;
+  if (o.egg) s += `<path d="M16 65l8-7 8 7 9-7 9 7 9-7 9 7 8-7 8 7c0 17-15 28-34 28S16 82 16 65z" fill="#FFFDF6" ${ln()}/><path d="M22 76c4 9 15 14 28 14s24-5 28-14c-6 5-16 8-28 8s-22-3-28-8z" fill="${SHADE}"/>`;
+  s += acc(o.acc, GA, { e: 54, t: 22, b: [67, 31] });
   return s;
 }
 
+// Ngựa: đầu dài, mõm to, bờm và tóc mái.
+const NGUA = { bg: '#F1E1C8', ray: 'rgba(255,255,255,.5)', acc: '#A8693C', acc2: '#F7E9D4' };
 function horse(o) {
-  let s = '';
-  if (o.side) s += `<path d="M68 30c12 6 15 20 10 34-3-4-6-5-9-4 3-9 3-17 0-27z" fill="${o.side}" ${ln}/>`;
-  s += `<path d="M33 37L27 12l17 13zM67 37l6-25-17 13z" fill="${o.body}" ${ln}/><path d="M34 30l-3-11 7 6zM66 30l3-11-7 6z" fill="#FF9FB4"/>`;
-  s += `<ellipse cx="50" cy="50" rx="24" ry="28" fill="${o.body}" ${ln} stroke-width="2.6"/>`;
-  if (o.dapple) s += `<circle cx="38" cy="38" r="3" fill="#fff" opacity=".45"/><circle cx="62" cy="36" r="2.4" fill="#fff" opacity=".45"/><circle cx="66" cy="58" r="3.2" fill="#fff" opacity=".45"/><circle cx="33" cy="58" r="2.4" fill="#fff" opacity=".45"/>`;
-  if (o.zebra) s += `<path d="M27 42c5 1 8 4 9 8M26 54c4 0 7 2 8 5M73 42c-5 1-8 4-9 8M74 54c-4 0-7 2-8 5M44 30c2 3 2 6 1 9M56 30c-2 3-2 6-1 9" fill="none" stroke="${O}" stroke-width="3.2" stroke-linecap="round"/>`;
-  if (o.blaze) s += `<path d="M47 33h6l-1 26h-4z" fill="#FFFFFF" opacity=".9"/>`;
-  if (o.horn) s += `<path d="M45 24L50 6l5 18z" fill="#FFD54A" ${ln}/><path d="M47 18l6-2M48 12l4-1" stroke="#E9A20C" stroke-width="2" stroke-linecap="round"/>`;
-  const m = o.mane;
-  s += Array.isArray(m)
-    ? `<path d="M37 30c0-9 8-13 13-8 4-6 14-3 13 5-4-2-8-1-10 3-2-3-7-4-10-1-2-1-4 0-6 1z" fill="${m[0]}" ${ln}/><path d="M42 27c2-3 6-3 8 0" stroke="${m[1]}" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M52 26c2-3 6-3 8 0" stroke="${m[2]}" stroke-width="3" stroke-linecap="round" fill="none"/>`
-    : `<path d="M37 30c0-9 8-13 13-8 4-6 14-3 13 5-4-2-8-1-10 3-2-3-7-4-10-1-2-1-4 0-6 1z" fill="${m}" ${ln}/>`;
-  s += eyes(48, 40, 60, o.happy);
-  s += `<ellipse cx="50" cy="70" rx="19" ry="14" fill="${o.muzzle}" ${ln} stroke-width="2.6"/>` + cheeks(57);
-  s += `<ellipse cx="43" cy="68" rx="2.3" ry="3.2" fill="${O}"/><ellipse cx="57" cy="68" rx="2.3" ry="3.2" fill="${O}"/><path d="M44 77q6 5 12 0" fill="none" ${ln}/>`;
-  s += acc(o.acc, { e: 48, t: 20, b: [62, 24] });
+  let s = bg(NGUA.bg, NGUA.ray);
+  s += `<path d="M68 30c13 6 16 21 10 35-3-4-7-5-10-4 3-9 3-18 0-28z" fill="${o.mane}" ${ln()}/>`;
+  s += `<path d="M33 38L26 12l18 13zM67 38l7-26-18 13z" fill="${o.body}" ${ln()}/><path d="M34 31l-3-11 7 6zM66 31l3-11-7 6z" fill="#F4B6A6"/>`;
+  s += `<ellipse cx="50" cy="50" rx="25" ry="28" fill="${o.body}" ${ln(3.2)}/>`;
+  if (o.spots) s += `<path d="M28 44c4-4 10-3 11 2s-5 9-10 7c-2-2-2-6-1-9zM66 56c3-3 8-2 8 2 0 5-4 8-8 6-2-2-2-5 0-8z" fill="${o.spots}"/>`;
+  if (o.blaze) s += `<path d="M47 33h6l-1 25h-4z" fill="${o.blaze}"/>`;
+  if (o.horn) s += `<path d="M45 24L50 6l5 18z" fill="#FFC633" ${ln(2.6)}/><path d="M47 18l6-2M48 12l4-1" stroke="#E9A20C" stroke-width="2.2" stroke-linecap="round"/>`;
+  s += `<path d="M37 31c0-9 8-13 13-8 4-6 14-3 13 5-4-2-8-1-10 3-2-3-7-4-10-1-2-1-4 0-6 1z" fill="${o.mane}" ${ln()}/>`;
+  if (o.streak) s += `<path d="M44 26c2-3 6-3 8 0M53 25c2-2 5-2 7 0" fill="none" stroke="${o.streak}" stroke-width="3" stroke-linecap="round"/>`;
+  s += shine(36, 36) + eyes(48, o.happy);
+  s += `<ellipse cx="50" cy="70" rx="20" ry="14.5" fill="${o.muzzle}" ${ln(3.2)}/><path d="M33 75c4 6 10 9 17 9s13-3 17-9c-5 4-10 5-17 5s-12-1-17-5z" fill="${SHADE}"/>` + cheeks(57);
+  s += `<ellipse cx="43" cy="68" rx="2.5" ry="3.4" fill="${O}"/><ellipse cx="57" cy="68" rx="2.5" ry="3.4" fill="${O}"/><path d="M44 77q6 5 12 0" fill="none" ${ln(2.8)}/>`;
+  s += acc(o.acc, NGUA, { e: 48, t: 20, b: [62, 24] });
   return s;
 }
 
 export const AVATAR_SETS = {
-  ga: { label: 'Gà', icon: '🐔', items: [
-    ['Gà trống', chicken({ body: '#FFFFFF', comb: '#FF4D4D', tail: '#3FBF7F' })],
+  ga: { label: 'Gà', icon: '🐔', tint: GA.bg, items: [
     ['Gà con', chicken({ body: '#FFD84A', chick: true, happy: true })],
-    ['Gà mái nơ hồng', chicken({ body: '#E9A86A', comb: '#FF4D4D', belly: '#F6CFA0', acc: 'bow' })],
-    ['Gà ngầu', chicken({ body: '#5E5A68', comb: '#FF4D4D', wing: '#4A4655', acc: 'shades' })],
-    ['Gà hoa', chicken({ body: '#FFC6DA', comb: '#FF5C8A', happy: true, acc: 'flower' })],
-    ['Gà hoàng tử', chicken({ body: '#FFFFFF', comb: '#FF4D4D', acc: 'crown' })],
-    ['Gà mới nở', chicken({ body: '#FFE066', chick: true, egg: true, happy: true })],
-    ['Gà mọt sách', chicken({ body: '#FFEBC0', comb: '#FF6B4D', acc: 'glasses' })],
-    ['Gà đi tiệc', chicken({ body: '#FFFFFF', comb: '#FF4D4D', happy: true, acc: 'party' })],
-    ['Gà DJ', chicken({ body: '#FFB24D', comb: '#E8343A', belly: '#FFD59A', acc: 'phones' })],
-    ['Gà thể thao', chicken({ body: '#FFF4D6', comb: '#FF4D4D', tail: '#FF9F2E', acc: 'band' })],
-    ['Gà lấp lánh', chicken({ body: '#C9E8FF', comb: '#7C6BFF', happy: true, acc: 'stars' })],
+    ['Gà trống vàng', chicken({ body: '#FFE27A', tail: '#FF9F2E' })],
+    ['Gà mái nơ', chicken({ body: '#FFC633', belly: '#FFE7A0', acc: 'bow' })],
+    ['Gà kính râm', chicken({ body: '#FFB800', wing: '#F5A300', acc: 'shades' })],
+    ['Gà cài hoa', chicken({ body: '#FFEFA8', happy: true, acc: 'flower' })],
+    ['Gà vương miện', chicken({ body: '#FFF3C9', acc: 'crown' })],
+    ['Gà mới nở', chicken({ body: '#FFD84A', chick: true, egg: true, happy: true })],
+    ['Gà đeo kính', chicken({ body: '#FFE066', acc: 'glasses' })],
+    ['Gà đi tiệc', chicken({ body: '#FFD23F', happy: true, acc: 'party' })],
+    ['Gà tai nghe', chicken({ body: '#FFE27A', belly: '#FFF3C9', acc: 'phones' })],
+    ['Gà thể thao', chicken({ body: '#FFC633', tail: '#FF9F2E', acc: 'band' })],
+    ['Gà lấp lánh', chicken({ body: '#FFEFA8', spots: '#FFC633', happy: true, acc: 'stars' })],
   ] },
-  ngua: { label: 'Ngựa', icon: '🐴', items: [
-    ['Ngựa nâu', horse({ body: '#B9763F', muzzle: '#EBC79F', mane: '#4A2C17', side: '#4A2C17', blaze: true })],
-    ['Ngựa trắng nơ hồng', horse({ body: '#FFFFFF', muzzle: '#F6E8DA', mane: '#FFB3D1', side: '#FFB3D1', acc: 'bow' })],
-    ['Kỳ lân', horse({ body: '#FFFFFF', muzzle: '#FBEFF6', mane: ['#FF8FC8', '#FFD54A', '#7CC7FF'], side: '#B48CFF', horn: true, happy: true })],
-    ['Ngựa đen', horse({ body: '#3E3A45', muzzle: '#6E6878', mane: '#1E1B22', side: '#1E1B22', blaze: true, acc: 'stars' })],
-    ['Ngựa vàng', horse({ body: '#F2C46D', muzzle: '#FCE4B4', mane: '#FFF4D6', side: '#FFF4D6', happy: true, acc: 'flower' })],
-    ['Ngựa vằn', horse({ body: '#FFFFFF', muzzle: '#4A4655', mane: '#26232E', side: '#26232E', zebra: true })],
-    ['Ngựa xám', horse({ body: '#B9BECC', muzzle: '#DDE0E8', mane: '#646978', side: '#646978', dapple: true, acc: 'glasses' })],
-    ['Ngựa hoàng gia', horse({ body: '#A8552B', muzzle: '#E3A77E', mane: '#5A2A12', side: '#5A2A12', acc: 'crown' })],
-    ['Ngựa đi tiệc', horse({ body: '#D9A577', muzzle: '#F4D5B5', mane: '#8A5530', side: '#8A5530', happy: true, acc: 'party' })],
-    ['Ngựa DJ', horse({ body: '#8A5A3B', muzzle: '#D8AE8C', mane: '#2E1D12', side: '#2E1D12', acc: 'phones' })],
-    ['Ngựa ngầu', horse({ body: '#C98B5A', muzzle: '#F0CFAE', mane: '#3A2416', side: '#3A2416', blaze: true, acc: 'shades' })],
-    ['Ngựa thể thao', horse({ body: '#FFFFFF', muzzle: '#EFE3D6', mane: '#7A5B44', side: '#7A5B44', acc: 'band' })],
+  ngua: { label: 'Ngựa', icon: '🐴', tint: NGUA.bg, items: [
+    ['Ngựa be', horse({ body: '#F1DCBC', muzzle: '#FBF0DF', mane: '#6B4226', blaze: '#FFFBF3' })],
+    ['Ngựa nâu', horse({ body: '#C98B5A', muzzle: '#EFD3B4', mane: '#5A3820', blaze: '#F7E9D4' })],
+    ['Ngựa sô-cô-la', horse({ body: '#8A5634', muzzle: '#D7AE88', mane: '#3E2414', blaze: '#F1DCBC', happy: true })],
+    ['Ngựa kem thắt nơ', horse({ body: '#FFF6E8', muzzle: '#F3E2C7', mane: '#C99A6B', acc: 'bow' })],
+    ['Kỳ lân be', horse({ body: '#FBEFDD', muzzle: '#FFF8EE', mane: '#C98B5A', streak: '#FFC633', horn: true, happy: true })],
+    ['Ngựa kính râm', horse({ body: '#D9AC7E', muzzle: '#F3DDC2', mane: '#5A3820', acc: 'shades' })],
+    ['Ngựa cài hoa', horse({ body: '#EAD2AE', muzzle: '#F9EBD6', mane: '#8A5634', happy: true, acc: 'flower' })],
+    ['Ngựa vương miện', horse({ body: '#A8693C', muzzle: '#E3BB92', mane: '#4A2C17', blaze: '#F1DCBC', acc: 'crown' })],
+    ['Ngựa đeo kính', horse({ body: '#E3C49C', muzzle: '#F7E6CF', mane: '#6B4226', acc: 'glasses' })],
+    ['Ngựa đi tiệc', horse({ body: '#C98B5A', muzzle: '#EFD3B4', mane: '#5A3820', happy: true, acc: 'party' })],
+    ['Ngựa tai nghe', horse({ body: '#F1DCBC', muzzle: '#FBF0DF', mane: '#8A5634', acc: 'phones' })],
+    ['Ngựa đốm', horse({ body: '#FFF6E8', muzzle: '#F3E2C7', mane: '#6B4226', spots: '#C98B5A', acc: 'scarf' })],
   ] },
 };
 
@@ -97,10 +114,10 @@ const svg = inner => `<svg class="av-svg" viewBox="0 0 100 100" aria-hidden="tru
 const dayNo = d => Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5);
 
 export const isSvgAvatar = v => /^(svg:|set:)/.test(String(v || ''));
-// Tên kiểu hình đang hiện (để đọc cho trình đọc màn hình và hiện trong form).
+// Kiểu hình đang hiện: tên, SVG và màu nền của bộ.
 export function avatarPick(v, d = new Date()) {
   const m = String(v || '').match(/^(svg|set):([a-z]+)(?:-(\d+))?$/); if (!m) return null;
   const set = AVATAR_SETS[m[2]]; if (!set) return null;
   const i = m[1] === 'set' ? dayNo(d) % set.items.length : Math.min(set.items.length - 1, Math.max(0, Number(m[3]) || 0));
-  return { set: m[2], i, name: set.items[i][0], svg: svg(set.items[i][1]) };
+  return { set: m[2], i, name: set.items[i][0], svg: svg(set.items[i][1]), tint: set.tint };
 }
