@@ -230,7 +230,11 @@ function bestStreak(kidId) {
 const streakChip = k => { const n = streakOf(k.id); return n ? `<span class="streak" title="Số ngày liên tiếp làm đủ việc phải làm">🔥 ${n} ngày</span>` : ''; };
 const kidName = id => S.kids[id]?.name || 'Bé';
 const tintOf = k => 'var(--t' + ((Number(k.tint) || 0) % 6) + ')';
-const ava = (k, cls = '') => `<span class="ava ${cls}" style="background:${tintOf(k)}">${esc(k.avatar || '🙂')}</span>`;
+// Ảnh của con (data URL nhỏ, lưu trong dữ liệu của gia đình), không có thì dùng emoji.
+const photoOf = k => /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(k?.photo || '') ? k.photo : '';
+const ava = (k, cls = '') => photoOf(k) ? `<span class="ava photo ${cls}" style="background:${tintOf(k)}"><img src="${photoOf(k)}" alt=""></span>`
+  : `<span class="ava ${cls}" style="background:${tintOf(k)}">${esc(k.avatar || '🙂')}</span>`;
+const mini = k => photoOf(k) ? `<img class="mini" src="${photoOf(k)}" alt="">` : esc(k.avatar || '🙂');
 function choreSummary(c) {
   const sl = SLOTS.find(x => x[0] === choreSlot(c));
   return [isFun(c) ? '🎈 thích làm' : `${isExtra(c) ? '💪 làm thêm' : '⭐ phải làm'} ${money(choreVnd(c))}`, (c.kids || []).map(kidName).map(esc).join(', ') || 'chưa giao cho ai',
@@ -356,7 +360,7 @@ function eventForm(id, kidPre) {
   <div class="field"><span class="lbl">Biểu tượng</span>${pickGrid('eico', EVENT_ICONS, e?.icon)}</div>
   <div class="row2"><div class="field"><label for="efrom">Từ ngày</label><input id="efrom" class="input num" type="date" value="${esc(e?.from || '')}"></div>
     <div class="field"><label for="eto">Đến ngày (nếu kéo dài)</label><input id="eto" class="input num" type="date" value="${esc(e?.to && e.to !== e.from ? e.to : '')}"></div></div>
-  ${kids.length > 1 ? `<div class="field"><span class="lbl">Của con nào</span><div class="seg">${kids.map(k => `<label><input type="checkbox" name="ekid" value="${k.id}" ${sel.includes(k.id) ? 'checked' : ''}><span>${esc(k.avatar)} ${esc(k.name)}</span></label>`).join('')}</div>
+  ${kids.length > 1 ? `<div class="field"><span class="lbl">Của con nào</span><div class="seg">${kids.map(k => `<label><input type="checkbox" name="ekid" value="${k.id}" ${sel.includes(k.id) ? 'checked' : ''}><span>${mini(k)} ${esc(k.name)}</span></label>`).join('')}</div>
     <span class="muted small">Không chọn ai thì là mốc chung của cả nhà.</span></div>` : ''}
   <div class="foot">${e ? `<button class="btn danger left" data-act="event-del" data-id="${id}">Xoá</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="event-save" data-id="${id || ''}">Lưu</button></div>`);
 }
@@ -366,7 +370,7 @@ function yearForm() {
   openModal(`<h2>Mốc ${SAMPLE_YEAR.label}</h2>
   <p class="muted" style="margin:-8px 0 0">Khung thời gian năm học khối 4 theo hướng dẫn của Bộ GD&ĐT và Sở GD&ĐT Hà Nội: ${miss.length} mốc, từ ngày tập trung đến bế giảng. Thêm xong sửa lại tuỳ ý.</p>
   <div class="list">${miss.map(e => `<div class="item"><span class="ico">${e.icon}</span><div class="txt"><div class="t">${esc(e.name)}</div><div class="s num">${esc(eventRange({ ...e, to: e.to || e.from }))}</div></div></div>`).join('')}</div>
-  ${kids.length > 1 ? `<div class="field"><span class="lbl">Cho con nào</span><div class="seg">${kids.map(k => `<label><input type="checkbox" name="ykid" value="${k.id}" ${pre.includes(k.id) ? 'checked' : ''}><span>${esc(k.avatar)} ${esc(k.name)}</span></label>`).join('')}</div>
+  ${kids.length > 1 ? `<div class="field"><span class="lbl">Cho con nào</span><div class="seg">${kids.map(k => `<label><input type="checkbox" name="ykid" value="${k.id}" ${pre.includes(k.id) ? 'checked' : ''}><span>${mini(k)} ${esc(k.name)}</span></label>`).join('')}</div>
     <span class="muted small">Không chọn ai thì là mốc chung của cả nhà.</span></div>` : ''}
   <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="year-add">Thêm ${miss.length} mốc</button></div>`);
 }
@@ -705,13 +709,13 @@ function viewSchedule() {
   const all = kids.length > 1 && (UI.tkbKid === 'all' || !S.kids[UI.tkbKid]);
   const k = all ? null : kids.find(x => x.id === UI.tkbKid) || kids[0];
   const tab = LEARN_TABS.some(x => x[0] === UI.learn) ? UI.learn : 'sap-toi';
-  if (kids.length > 1) h += `<div class="seg"><label><input type="radio" name="tkbkid" value="all" ${all ? 'checked' : ''}><span>👨‍👩‍👧 Cả nhà</span></label>${kids.map(x => `<label><input type="radio" name="tkbkid" value="${x.id}" ${x.id === k?.id ? 'checked' : ''}><span>${esc(x.avatar)} ${esc(x.name)}</span></label>`).join('')}</div>`;
+  if (kids.length > 1) h += `<div class="seg"><label><input type="radio" name="tkbkid" value="all" ${all ? 'checked' : ''}><span>👨‍👩‍👧 Cả nhà</span></label>${kids.map(x => `<label><input type="radio" name="tkbkid" value="${x.id}" ${x.id === k?.id ? 'checked' : ''}><span>${mini(x)} ${esc(x.name)}</span></label>`).join('')}</div>`;
   h += `<div class="tabbar" role="tablist">${LEARN_TABS.map(([v, l]) => `<button role="tab" aria-selected="${v === tab}" class="${v === tab ? 'on' : ''}" data-act="learn-tab" data-v="${v}">${l}${v === 'bai-tap' && openTasks(k?.id).length ? ` <i class="cnt num">${openTasks(k?.id).length}</i>` : ''}</button>`).join('')}</div>`;
   const ks = all ? kids : [k];
   if (tab === 'sap-toi') return h + viewAgenda(ks);
   if (tab === 'bai-tap') return h + tasksView(ks);
   if (tab === 'moc') return h + eventsCard(all ? null : k.id);
-  if (tab === 'tkb') return h + ks.map(x => (all ? `<div class="sec-title">${esc(x.avatar)} ${esc(x.name)}</div>` : '') + kidSchedule(x, 'tkb')).join('');
+  if (tab === 'tkb') return h + ks.map(x => (all ? `<div class="sec-title">${mini(x)} ${esc(x.name)}</div>` : '') + kidSchedule(x, 'tkb')).join('');
   return h + (all ? familyWeek(kids) : kidSchedule(k, 'lessons'));
 }
 
@@ -774,7 +778,7 @@ function taskForm(id, kidPre) {
   const subs = [...new Set(kids.flatMap(k => tkbOf(k.id) ? tkbStats(tkbOf(k.id)).subjects.map(x => x[0]) : []))];
   const kind = t?.kind || 'bt';
   openModal(`<h2>${t ? 'Sửa bài tập' : 'Thêm bài tập'}</h2>
-  ${kids.length > 1 ? `<div class="field"><span class="lbl">Con</span><div class="seg">${kids.map(k => `<label><input type="radio" name="tkid" value="${k.id}" ${k.id === kid ? 'checked' : ''}><span>${esc(k.avatar)} ${esc(k.name)}</span></label>`).join('')}</div></div>` : `<input type="hidden" name="tkid" value="${kid}">`}
+  ${kids.length > 1 ? `<div class="field"><span class="lbl">Con</span><div class="seg">${kids.map(k => `<label><input type="radio" name="tkid" value="${k.id}" ${k.id === kid ? 'checked' : ''}><span>${mini(k)} ${esc(k.name)}</span></label>`).join('')}</div></div>` : `<input type="hidden" name="tkid" value="${kid}">`}
   <div class="field"><label for="ttitle">Bài gì</label><input id="ttitle" class="input" maxlength="80" value="${esc(t?.title || '')}" placeholder="Ví dụ: Bài 3, 4 trang 45 vở bài tập"></div>
   <div class="field"><span class="lbl">Loại</span><div class="seg">${TASK_KINDS.map(([v, l, ic]) => `<label><input type="radio" name="tkind" value="${v}" ${v === kind ? 'checked' : ''}><span>${ic} ${l}</span></label>`).join('')}</div></div>
   <div class="field"><label for="tsubj">Môn</label><input id="tsubj" class="input" list="tsubj-list" maxlength="24" value="${esc(t?.subj || '')}" placeholder="Ví dụ: Toán">
@@ -954,7 +958,7 @@ function viewAccount() {
 
   const kidName1 = esc(kidName(ak));
   h += `<section class="card acct-form"><h2>Ghi vào tài khoản</h2>
-    ${kids.length > 1 ? `<div class="field"><span class="lbl">Con</span><div class="seg">${kids.map(k => `<label><input type="radio" name="akid" value="${k.id}" ${k.id === ak ? 'checked' : ''}><span>${esc(k.avatar)} ${esc(k.name)}</span></label>`).join('')}</div></div>` : ''}
+    ${kids.length > 1 ? `<div class="field"><span class="lbl">Con</span><div class="seg">${kids.map(k => `<label><input type="radio" name="akid" value="${k.id}" ${k.id === ak ? 'checked' : ''}><span>${mini(k)} ${esc(k.name)}</span></label>`).join('')}</div></div>` : ''}
     <div class="seg">${ACCT_KINDS.map(([v, l]) => `<label><input type="radio" name="akind" value="${v}" ${v === kind ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div>`;
   const presets = list => `<div class="presets">${list.map(r => `<button class="preset ${priceKind(r)}" data-act="acct-preset" data-id="${r.id}"><span class="ico">${esc(r.icon || '•')}</span><span class="t">${esc(r.name)}</span>${r.note ? `<span class="muted small">${esc(r.note)}</span>` : ''}<b class="num">${priceTag(r)}</b></button>`).join('')}</div>`;
   const custom = (label, btn, ph) => `<div class="row2"><div class="field"><label for="aamt">${label}</label><input id="aamt" class="input num" type="number" min="0" step="1000" inputmode="numeric" placeholder="Ví dụ: 10000"></div>
@@ -1053,7 +1057,7 @@ function goalForm(id, kidPre) {
   const g = id ? S.goals[id] : null, kids = kidsList();
   const kid = g?.kid || (S.kids[kidPre] ? kidPre : kids[0]?.id); if (!kid) return;
   openModal(`<h2>${g ? 'Sửa mục tiêu' : 'Thêm mục tiêu tiết kiệm'}</h2>
-  ${kids.length > 1 ? `<div class="field"><span class="lbl">Của con</span><div class="seg">${kids.map(k => `<label><input type="radio" name="gkid" value="${k.id}" ${k.id === kid ? 'checked' : ''}><span>${esc(k.avatar)} ${esc(k.name)}</span></label>`).join('')}</div></div>` : `<input type="hidden" name="gkid" value="${kid}">`}
+  ${kids.length > 1 ? `<div class="field"><span class="lbl">Của con</span><div class="seg">${kids.map(k => `<label><input type="radio" name="gkid" value="${k.id}" ${k.id === kid ? 'checked' : ''}><span>${mini(k)} ${esc(k.name)}</span></label>`).join('')}</div></div>` : `<input type="hidden" name="gkid" value="${kid}">`}
   <div class="field"><label for="gname">Con muốn để dành mua gì</label><input id="gname" class="input" maxlength="40" value="${esc(g?.name || '')}" placeholder="Ví dụ: Xe đạp mới"></div>
   <div class="field"><span class="lbl">Biểu tượng</span>${pickGrid('gico', GOAL_ICONS, g?.icon)}</div>
   <div class="field"><label for="gprice">Giá (đồng)</label><div class="stepper"><button class="iconbtn" data-act="num-step" data-t="gprice" data-n="-50000" data-min="0" aria-label="Bớt 50.000đ">−</button><input id="gprice" class="input num" type="number" min="0" step="1000" inputmode="numeric" value="${g ? Number(g.price) || 0 : 200000}"><button class="iconbtn" data-act="num-step" data-t="gprice" data-n="50000" data-min="0" aria-label="Thêm 50.000đ">+</button></div></div>
@@ -1226,7 +1230,7 @@ function printTkb(kidId) {
   const k = S.kids[kidId], t = tkbOf(kidId); if (!k || !t) return;
   const st = tkbStats(t);
   printHtml(`<h1 style="font-family:var(--display);margin:0;text-align:center;font-size:34px">Thời khoá biểu</h1>
-    <div style="text-align:center;font-size:18px;margin-bottom:12px">${esc(k.avatar)} ${esc(k.name)}${t.cls ? ' · ' + esc(t.cls) : ''}${t.year ? ' · Năm học ' + esc(t.year) : ''}</div>
+    <div style="text-align:center;font-size:18px;margin-bottom:12px">${mini(k)} ${esc(k.name)}${t.cls ? ' · ' + esc(t.cls) : ''}${t.year ? ' · Năm học ' + esc(t.year) : ''}</div>
     ${tkbTable(t)}
     ${st.periods ? `<div style="margin-top:10px;font-size:13px">Mỗi tuần ${st.periods} tiết, ngồi trong lớp ${durTxt(st.inClass)}, ở trường ${durTxt(st.atSchool)}.</div>` : ''}
     ${lessonsOf(kidId).length ? `<h2 style="font-family:var(--display);margin:14px 0 6px;font-size:20px">Học thêm</h2><div class="print-lessons">${WEEK_ORDER.filter(d => lessonsOn(kidId, d).length).map(d => `<div><b>${WDN(d)}</b>${lessonsOn(kidId, d).map(l => `<div>${lessonIcon(l.name)} ${esc(l.s)} – ${esc(l.e)} ${esc(l.name)}</div>`).join('')}</div>`).join('')}</div>` : ''}`, 'landscape');
@@ -1256,12 +1260,36 @@ function closeModal() { $('#modal').hidden = true; $('#modal').innerHTML = ''; U
 const pickGrid = (name, list, val) => `<div class="pick" role="radiogroup">${list.map((e, i) => `<label><input type="radio" name="${name}" value="${e}" ${(val ? val === e : i === 0) ? 'checked' : ''} aria-label="${e}"><span>${e}</span></label>`).join('')}</div>`;
 const radioVal = n => { const r = document.querySelector(`#modal input[name="${n}"]:checked, #app input[name="${n}"]:checked`); return r ? r.value : null; };
 
+// Cắt ảnh vuông theo mức phóng to và vị trí đã chọn, thu về 320px JPEG (khoảng 20–40KB).
+let photoEdit = { img: null, out: undefined };
+function photoRender() {
+  const img = photoEdit.img; if (!img) return;
+  const z = Number($('#pzoom')?.value) || 1, fx = Number($('#px')?.value ?? .5), fy = Number($('#py')?.value ?? .3);
+  const side = Math.min(img.naturalWidth, img.naturalHeight) / z, sx = (img.naturalWidth - side) * fx, sy = (img.naturalHeight - side) * fy;
+  const c = document.createElement('canvas'); c.width = c.height = 320;
+  c.getContext('2d').drawImage(img, sx, sy, side, side, 0, 0, 320, 320);
+  photoEdit.out = c.toDataURL('image/jpeg', .85);
+  const pv = $('#modal .photo-prev'); if (pv) pv.innerHTML = `<img src="${photoEdit.out}" alt="">`;
+}
+function photoLoad(file) {
+  if (!file || !/^image\//.test(file.type)) return toast('Hãy chọn một file ảnh nhé.');
+  const url = URL.createObjectURL(file), img = new Image();
+  img.onload = () => { photoEdit.img = img; $('#modal .photo-adj').hidden = false; const d = $('#modal [data-act=photo-del]'); if (d) d.hidden = false; photoRender(); URL.revokeObjectURL(url); };
+  img.onerror = () => { URL.revokeObjectURL(url); toast('Không mở được ảnh này. Thử ảnh JPG hoặc PNG.'); };
+  img.src = url;
+}
 function kidForm(id) {
   const k = id ? S.kids[id] : null;
+  photoEdit = { img: null, out: undefined };
   openModal(`<h2>${k ? 'Sửa thông tin con' : 'Thêm con'}</h2>
   <div class="field"><label for="kname">Tên</label><input id="kname" class="input" maxlength="30" value="${esc(k?.name || '')}" placeholder="Ví dụ: Bin"></div>
   <div class="field"><label for="kbday">Ngày sinh</label><input id="kbday" class="input" type="date" value="${esc(k?.birthday || '')}"></div>
-  <div class="field"><span class="lbl">Hình đại diện</span>${pickGrid('kava', AVATARS, k?.avatar)}</div>
+  <div class="field"><span class="lbl">Ảnh của con</span>
+    <div class="photo-pick"><span class="ava photo-prev" style="background:${k ? tintOf(k) : 'var(--t3)'}">${photoOf(k) ? `<img src="${photoOf(k)}" alt="">` : esc(k?.avatar || '📷')}</span>
+      <div class="col"><div class="row"><label class="btn ghost sm file-btn">📷 Chọn ảnh<input type="file" id="kphoto" accept="image/*"></label><button class="btn quiet sm" data-act="photo-del" ${photoOf(k) ? '' : 'hidden'}>Bỏ ảnh</button></div>
+      <div class="photo-adj" hidden><label class="small">🔍 Phóng to<input type="range" id="pzoom" min="1" max="4" step="0.05" value="2"></label><label class="small">↕️ Lên xuống<input type="range" id="py" min="0" max="1" step="0.01" value="0.4"></label><label class="small">↔️ Trái phải<input type="range" id="px" min="0" max="1" step="0.01" value="0.5"></label></div>
+      <span class="muted small">Ảnh được thu nhỏ và chỉ lưu trong dữ liệu của gia đình. Không có ảnh thì dùng hình emoji bên dưới.</span></div></div></div>
+  <div class="field"><span class="lbl">Hình đại diện (emoji)</span>${pickGrid('kava', AVATARS, k?.avatar)}</div>
   <div class="field"><label for="kwb">Thưởng thêm khi làm đủ việc phải làm cả tuần (đồng)</label><input id="kwb" class="input num" type="number" min="0" step="5000" inputmode="numeric" value="${k ? weekBonusOf(k) : WEEK_BONUS}">
     <span class="muted small">Xong hết việc phải làm từ Thứ Hai đến Chủ nhật thì app tự cộng tiền này vào tài khoản. Để 0 nếu không thưởng.</span></div>
   <div class="foot">${k ? `<button class="btn danger left" data-act="kid-del" data-id="${id}">Xoá</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="kid-save" data-id="${id || ''}">Lưu</button></div>`);
@@ -1285,7 +1313,7 @@ function choreForm(id) {
   <div class="row2"><div class="field"><label for="ctime">Giờ (không bắt buộc)</label><input id="ctime" class="input num" type="time" value="${esc(c?.time || '')}"></div>
     <div class="field"><label for="cmin">Làm trong bao lâu (phút)</label><input id="cmin" class="input num" type="number" min="0" max="600" step="5" inputmode="numeric" value="${Number(c?.minutes) || ''}" placeholder="Ví dụ: 30"></div></div>
   <div class="seg"><label><input type="checkbox" id="cby" ${c?.by ? 'checked' : ''}><span>Phải xong trước giờ này (ví dụ: tắm trước 19:00)</span></label></div>
-  <div class="field"><span class="lbl">Giao cho</span><div class="seg">${kids.map(k => `<label><input type="checkbox" name="ckid" value="${k.id}" ${ck.includes(k.id) ? 'checked' : ''}><span>${esc(k.avatar)} ${esc(k.name)}</span></label>`).join('')}</div></div>
+  <div class="field"><span class="lbl">Giao cho</span><div class="seg">${kids.map(k => `<label><input type="checkbox" name="ckid" value="${k.id}" ${ck.includes(k.id) ? 'checked' : ''}><span>${mini(k)} ${esc(k.name)}</span></label>`).join('')}</div></div>
   <div class="field"><span class="lbl">Những ngày</span><div class="seg">${WEEK_ORDER.map(d => `<label><input type="checkbox" name="cday" value="${d}" ${days.includes(d) ? 'checked' : ''}><span>${WDS[d]}</span></label>`).join('')}</div>
     <div class="row"><button class="btn quiet sm" data-act="days" data-v="0,1,2,3,4,5,6">Mỗi ngày</button><button class="btn quiet sm" data-act="days" data-v="1,2,3,4,5">Ngày thường</button><button class="btn quiet sm" data-act="days" data-v="0,6">Cuối tuần</button></div></div>
   <details class="adv" ${adv ? 'open' : ''}><summary>Thêm tuỳ chọn</summary>
@@ -1378,7 +1406,7 @@ function lessonForm(id, kidPre) {
   const names = [...new Set([...lessonsList().map(x => x.name), ...LESSON_NAMES])];
   const day = l ? Number(l.day) : null;
   openModal(`<h2>${l ? 'Sửa buổi học thêm' : 'Thêm buổi học thêm'}</h2>
-  <div class="field"><span class="lbl">Con</span><div class="seg">${kids.map(k => `<label><input type="radio" name="lkid" value="${k.id}" ${k.id === kid ? 'checked' : ''}><span>${esc(k.avatar)} ${esc(k.name)}</span></label>`).join('')}</div></div>
+  <div class="field"><span class="lbl">Con</span><div class="seg">${kids.map(k => `<label><input type="radio" name="lkid" value="${k.id}" ${k.id === kid ? 'checked' : ''}><span>${mini(k)} ${esc(k.name)}</span></label>`).join('')}</div></div>
   <div class="field"><label for="lname">Học gì</label><input id="lname" class="input" list="lesson-list" maxlength="40" value="${esc(l?.name || '')}" placeholder="Ví dụ: Tiếng Anh cô Huyền">
     <datalist id="lesson-list">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
   <div class="field"><span class="lbl">${l ? 'Ngày' : 'Những ngày (cùng giờ)'}</span><div class="seg">${WEEK_ORDER.map(d => `<label><input type="${l ? 'radio' : 'checkbox'}" name="lday" value="${d}" ${d === day ? 'checked' : ''}><span>${WDS[d]}</span></label>`).join('')}</div></div>
@@ -1739,6 +1767,7 @@ document.addEventListener('click', e => {
   if (a === 'sheet-open') { UI.sheet = true; return render(); }
   if (a === 'print') return printSheet();
   if (a === 'kid-form') return kidForm(id);
+  if (a === 'photo-del') { photoEdit = { img: null, out: '' }; const pv = $('#modal .photo-prev'); if (pv) pv.textContent = radioVal('kava') || '🙂'; b.hidden = true; $('#modal .photo-adj').hidden = true; return; }
   if (a === 'chore-form') return choreForm(id);
   if (a === 'price-form') return priceForm(id, b.dataset.kind);
   if (a === 'prices-print') return printPrices();
@@ -1802,6 +1831,7 @@ document.addEventListener('click', e => {
       tint: old ? (old.tint ?? 0) : Object.keys(S.kids).length % 6, order: old ? (old.order ?? 0) : Object.keys(S.kids).length,
       since: old?.since || key(today()),
     };
+    if (photoEdit.out !== undefined) { if (photoEdit.out) data.photo = photoEdit.out; else delete data.photo; }
     closeModal(); put('kids', id || uid(), data); return toast(old ? 'Đã lưu.' : `Đã thêm ${name}.`);
   }
   if (a === 'kid-del') {
@@ -1897,7 +1927,9 @@ document.addEventListener('change', e => {
   if (e.target.name === 'tkbkid') { UI.tkbKid = e.target.value; render(); }
   if ((e.target.id === 'tsat' || e.target.id === 'tlunch' || e.target.name === 'tday') && tkbDraft && !$('#modal').hidden) tkbForm(tkbDraft.kid, { ...readTkbForm(), keep: true });
   if (e.target.id === 'import-file' && e.target.files[0]) importBackup(e.target.files[0]);
+  if (e.target.id === 'kphoto' && e.target.files[0]) photoLoad(e.target.files[0]);
 });
+document.addEventListener('input', e => { if (['pzoom', 'px', 'py'].includes(e.target.id)) photoRender(); });
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
 document.addEventListener('toggle', e => { if (e.target.classList?.contains('extra-g')) UI.extraOpen[e.target.dataset.kid] = e.target.open; }, true);
 document.addEventListener('keydown', e => {

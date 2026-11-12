@@ -635,3 +635,14 @@ button.gc:hover{border-color:var(--accent)}
 @keyframes jump{from{transform:translateY(0) rotate(-4deg)}to{transform:translateY(-12px) rotate(4deg)}}
 @keyframes twinkle{0%,100%{transform:scale(.8);opacity:.6}50%{transform:scale(1.2);opacity:1}}
 @media (prefers-reduced-motion:reduce){.cel-burst,.cel-ava .ava,.cel-sp,.cel-box,.km-hero .ava,.celebrate{animation:none}}
+
+/* ảnh của con */
+.ava.photo{overflow:hidden;padding:0}
+.ava img{width:100%;height:100%;object-fit:cover;display:block;border-radius:50%}
+img.mini{width:1.35em;height:1.35em;border-radius:50%;object-fit:cover;vertical-align:-.35em;display:inline-block}
+.photo-pick{display:flex;gap:14px;align-items:flex-start}
+.photo-pick .col{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0}
+.ava.photo-prev{width:92px;height:92px;font-size:46px;overflow:hidden}
+.photo-adj{display:flex;flex-direction:column;gap:2px}
+.photo-adj label{display:grid;grid-template-columns:96px 1fr;align-items:center;gap:6px;font-weight:600}
+.photo-adj input[type=range]{width:100%;accent-color:var(--sun-deep)}

@@ -19,6 +19,7 @@ Lịch học, việc nhà và tiền tiêu vặt cho các con, bằng tiếng Vi
 - **Mục tiêu tiết kiệm:** con đặt mục tiêu (xe đạp 500.000đ...), có thanh tiến độ và các đồng xu được tô dần. Tiền trong tài khoản chia cho các mục tiêu theo thứ tự ưu tiên. App tính còn thiếu bao nhiêu, khoảng mấy tuần nữa, hoặc làm thêm mấy lần việc gì. Đủ tiền thì bấm Mua.
 - **Phiếu thưởng:** chọn phim, chọn món ăn sáng, tráng miệng, thức khuya 30 phút, mời bạn đến chơi, một ngày không làm việc nhà. Con đổi bằng tiền trong tài khoản; phiếu "Một ngày không làm việc nhà" miễn việc phải làm của ngày được chọn mà vẫn giữ thưởng đủ tuần. In được tờ phiếu cắt rời.
 - **Bảng giá:** mỗi việc được bao nhiêu tiền, phạt bao nhiêu, phí sử dụng mỗi giờ, quà đổi bao nhiêu. Có sẵn bảng mẫu (“Cách cho con tiền tiêu vặt đúng cách”, bảng nhiệm vụ tuần, checklist trước khi đi ngủ), bố mẹ thêm, sửa, xoá tuỳ ý và in ra để dán.
+- **Ảnh của con:** trong thông tin của con, bấm *Chọn ảnh*, kéo thanh Phóng to / Lên xuống / Trái phải để căn mặt vào khung tròn. Ảnh được cắt vuông, thu về 320px và lưu trong dữ liệu của gia đình (trên máy hoặc Firebase), không đưa lên repo.
 - **Gia đình:** thêm con, giao việc theo ngày, in bảng dán tủ lạnh, sao lưu và nhập dữ liệu.
 
 App là web tĩnh, không cần bước build: HTML, CSS và JavaScript thuần. Chạy trên GitHub Pages.
