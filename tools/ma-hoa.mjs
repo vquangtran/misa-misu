@@ -1,4 +1,4 @@
-// Mã hoá một bản sao lưu của Bé Chăm Ngoan để đưa vào repo công khai (data/gia-dinh.enc.json).
+// Mã hoá một bản sao lưu của Misa Misu để đưa vào repo công khai (data/gia-dinh.enc.json).
 // App giải mã bằng nút "Nạp lịch gia đình" ở mục Gia đình.
 //
 //   MAT_KHAU='mật khẩu' node tools/ma-hoa.mjs ban-sao-luu.json > data/gia-dinh.enc.json
@@ -11,7 +11,7 @@ const pass = String(process.env.MAT_KHAU || '').trim().toLowerCase();
 const file = process.argv[2];
 if (!pass || !file) { console.error("Cách dùng: MAT_KHAU='...' node tools/ma-hoa.mjs ban-sao-luu.json > data/gia-dinh.enc.json"); process.exit(1); }
 const json = JSON.parse(readFileSync(file, 'utf8'));
-if (!json?.data?.kids) { console.error('File không phải bản sao lưu của Bé Chăm Ngoan.'); process.exit(1); }
+if (!json?.data?.kids) { console.error('File không phải bản sao lưu của Misa Misu.'); process.exit(1); }
 
 const iter = 600000;
 const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));

@@ -1,7 +1,7 @@
 {
-  "name": "Bé Chăm Ngoan",
-  "short_name": "Chăm Ngoan",
-  "description": "Bảng việc nhà cho các con: đóng dấu sao, đổi phần thưởng, tính tiền tiêu vặt.",
+  "name": "Misa Misu",
+  "short_name": "Misa Misu",
+  "description": "Lịch học, việc nhà và phần thưởng cho các con.",
   "lang": "vi",
   "start_url": "./",
   "scope": "./",

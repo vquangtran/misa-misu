@@ -361,7 +361,7 @@ function draw() {
   const on = $('#app .tkb th.on');
   if (on) { const w = on.closest('.tbl-wrap'); if (w.scrollWidth > w.clientWidth) w.scrollLeft = Math.max(0, on.offsetLeft - 112); }
 }
-const brand = () => `<div class="brand"><span class="brand-mark">${STAR}</span>Bé Chăm Ngoan</div>`;
+const brand = () => `<div class="brand"><span class="brand-mark">${STAR}</span>Misa Misu</div>`;
 function topbar() {
   let s;
   if (!store || !loaded) s = '<span class="sync wait"><i></i>Đang tải…</span>';
@@ -651,7 +651,7 @@ function drawSheet() {
 }
 function printSheet() {
   const ws = weekStart(today());
-  printHtml(`<h1 style="font-family:var(--display);margin:0">Bé Chăm Ngoan</h1><div>Tuần ${dm(ws)} – ${dm(addDays(ws, 6))} · Đánh dấu ô khi làm xong việc</div>${sheetTables()}`);
+  printHtml(`<h1 style="font-family:var(--display);margin:0">Misa Misu</h1><div>Tuần ${dm(ws)} – ${dm(addDays(ws, 6))} · Đánh dấu ô khi làm xong việc</div>${sheetTables()}`);
 }
 function printTkb(kidId) {
   const k = S.kids[kidId], t = tkbOf(kidId); if (!k || !t) return;
@@ -836,7 +836,7 @@ function exportBackup() {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'be-cham-ngoan-sao-luu-' + key(today()) + '.json';
+  a.download = 'misa-misu-sao-luu-' + key(today()) + '.json';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
@@ -864,7 +864,7 @@ async function importBackup(file) {
     await importData(JSON.parse(await file.text()));
   } catch (e) {
     console.error(e);
-    toast('File này không phải bản sao lưu của Bé Chăm Ngoan.');
+    toast('File này không phải bản sao lưu của Misa Misu.');
   }
 }
 async function importData(j, quiet = false) {

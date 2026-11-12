@@ -1,6 +1,6 @@
-# Bé Chăm Ngoan
+# Misa Misu
 
-Bảng việc nhà cho các con, bằng tiếng Việt:
+Lịch học, việc nhà và phần thưởng cho các con, bằng tiếng Việt:
 
 - **Hôm nay:** dòng thời gian trong ngày của từng con, chia Buổi sáng / chiều / tối: việc nhà, giờ vào học và tan học, các buổi học thêm. Mỗi con đóng dấu sao cho việc đã làm.
 - **Việc nhà linh hoạt:** việc *phải làm* (có sao) và việc *thích làm* (xem phim, chơi Lego..., không có sao, bị khoá cho tới khi xong việc phải làm của buổi đó); giờ hoặc hạn giờ ("tắm trước 19:00", báo quá giờ, báo khi giờ đó con đang ở trường hay đang học thêm); số phút; danh sách con ("Chuẩn bị trước khi ngủ": cặp sách, quần áo...); X lần mỗi tuần, ngày nào cũng được; nội dung xen kẽ ("hôm nay: tiếng Anh"); việc chung cả nhà. Nếu con có thời khoá biểu thì hiện luôn giờ ở trường và các môn hôm nay; sau giờ tan học đổi thành các môn cần soạn cặp cho buổi học tiếp theo.
@@ -76,7 +76,7 @@ Trên máy mới: mở app, vào **Gia đình → Nạp lịch gia đình**, gõ
 Cập nhật lịch lưu sẵn: trong app bấm **Tải bản sao lưu**, rồi mã hoá file đó:
 
 ```bash
-MAT_KHAU='mật khẩu gia đình' node tools/ma-hoa.mjs be-cham-ngoan-sao-luu.json > data/gia-dinh.enc.json
+MAT_KHAU='mật khẩu gia đình' node tools/ma-hoa.mjs misa-misu-sao-luu.json > data/gia-dinh.enc.json
 ```
 
 Chỉ commit file `.enc.json`, không commit file sao lưu chưa mã hoá và không ghi mật khẩu vào repo.
