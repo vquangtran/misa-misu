@@ -370,3 +370,33 @@ details.adv[open]{padding-bottom:14px}
 details.adv>summary{cursor:pointer;font-weight:700}
 details.adv>*+*{margin-top:14px}
 textarea.input{resize:vertical;font:inherit}
+
+/* tài khoản và bảng giá */
+.delta{font-family:var(--display);font-weight:800;font-size:17px;white-space:nowrap}
+.stars .coin{font-size:18px;line-height:1}
+.stars.neg{color:var(--bad)}
+.acct-link{text-decoration:none;color:inherit;margin-left:auto}
+.kid-head .acct-link .stars{margin-left:0}
+.earn{color:var(--good);font-weight:700}
+.tile.acct{border:2px solid transparent;text-align:left;font:inherit;color:inherit;cursor:pointer;gap:4px}
+.tile.acct.on{border-color:var(--accent)}
+.tile .bal{font-family:var(--display);font-weight:800;font-size:28px;line-height:1.15}
+.tile .bal.neg{color:var(--bad)}
+.acct-form{display:flex;flex-direction:column;gap:14px}
+.presets{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.preset{display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:1.5px solid var(--line);background:var(--surface);border-radius:16px;padding:10px 12px;text-align:left;font:inherit;color:inherit;cursor:pointer;min-height:84px}
+.preset:hover{border-color:var(--accent)}
+.preset .ico{font-size:24px;line-height:1.1}
+.preset .t{font-weight:600;font-size:14px}
+.preset b{font-family:var(--display);font-weight:800;font-size:16px;color:var(--bad)}
+.preset.gift b{color:var(--ink)}
+.slot-h.extra,.km-slot.extra{color:var(--good)}
+.price-poster h1{font-family:var(--display);text-align:center;font-size:30px;margin:0 0 10px;color:#C3304A}
+.price-poster h2{font-family:var(--display);font-size:22px;margin:14px 0 6px;color:#C3304A;text-transform:uppercase}
+.pp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px 18px;font-size:15px}
+.pp-i b{color:#C3304A}
+.pp-line{margin-top:10px;font-size:16px}
+.pp-line b{color:#C3304A}
+.extra-g{border-top:1px solid var(--line)}
+.extra-g>summary{border-top:0;cursor:pointer;list-style:revert}
+.extra-g>.item:first-of-type{border-top:0}

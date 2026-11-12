@@ -1,15 +1,15 @@
 # Misa Misu
 
-Lịch học, việc nhà và phần thưởng cho các con, bằng tiếng Việt:
+Lịch học, việc nhà và tiền tiêu vặt cho các con, bằng tiếng Việt:
 
-- **Hôm nay:** dòng thời gian trong ngày của từng con, chia Buổi sáng / chiều / tối: việc nhà, giờ vào học và tan học, các buổi học thêm. Mỗi con đóng dấu sao cho việc đã làm.
-- **Việc nhà linh hoạt:** việc *phải làm* (có sao) và việc *thích làm* (xem phim, chơi Lego..., không có sao, bị khoá cho tới khi xong việc phải làm của buổi đó); giờ hoặc hạn giờ ("tắm trước 19:00", báo quá giờ, báo khi giờ đó con đang ở trường hay đang học thêm); số phút; danh sách con ("Chuẩn bị trước khi ngủ": cặp sách, quần áo...); X lần mỗi tuần, ngày nào cũng được; nội dung xen kẽ ("hôm nay: tiếng Anh"); việc chung cả nhà. Nếu con có thời khoá biểu thì hiện luôn giờ ở trường và các môn hôm nay; sau giờ tan học đổi thành các môn cần soạn cặp cho buổi học tiếp theo.
+- **Hôm nay:** dòng thời gian trong ngày của từng con, chia Buổi sáng / chiều / tối: việc nhà, giờ vào học và tan học, các buổi học thêm. Mỗi con đóng dấu cho việc đã làm và được cộng tiền vào tài khoản.
+- **Việc nhà linh hoạt:** việc *phải làm* (có tiền, tính vào thưởng đủ tuần), việc *làm thêm* (rửa bát, đổ rác..., không bắt buộc, làm lúc nào được tiền lúc đó) và việc *thích làm* (xem phim, chơi Lego..., không có tiền, bị khoá cho tới khi xong việc phải làm của buổi đó); giờ hoặc hạn giờ ("tắm trước 19:00", báo quá giờ, báo khi giờ đó con đang ở trường hay đang học thêm); số phút; danh sách con ("Chuẩn bị trước khi ngủ": cặp sách, quần áo...); X lần mỗi tuần, ngày nào cũng được; nội dung xen kẽ ("hôm nay: tiếng Anh"); việc chung cả nhà. Nếu con có thời khoá biểu thì hiện luôn giờ ở trường và các môn hôm nay; sau giờ tan học đổi thành các môn cần soạn cặp cho buổi học tiếp theo.
 - **Lịch học:** thời khoá biểu ở trường của từng con (lớp, năm học, giờ từng tiết, nghỉ trưa, có thể học cả Thứ Bảy). Tô sáng ngày hôm nay và tiết đang học, đếm số tiết mỗi môn và số giờ con ở trường mỗi tuần, in khổ ngang để dán bàn học.
 - **Các con ở đâu:** mỗi thứ trong tuần, ban ngày và buổi tối các con ở nhà nào (nhà bố, nhà mẹ, nhà ông bà...). App đánh dấu ngày đổi nhà, báo ở màn Hôm nay ("Đổi nhà: tối nay về nhà bố") và cho con thấy trong chế độ cho bé.
 - **Học thêm:** các buổi học thêm, gia sư, thể thao của từng con theo ngày trong tuần, ghi học ở đâu, học ngay tại nhà con đang ở hay phải đưa đón, ai đưa đi và ai đón về (Bố, Mẹ, Grab, tự đi...). Mục **Cả nhà** xếp lịch đưa đón theo từng ngày, đếm số chuyến mỗi tuần của từng người, và cảnh báo khi một buổi chưa có người đưa/đón hoặc một người có hai chuyến cách nhau dưới 20 phút.
 - **Chế độ cho bé:** chữ và nút to để con tự đánh dấu. Muốn thoát thì giữ nút 1 giây.
-- **Phần thưởng:** đổi sao lấy quà, thưởng thêm hoặc trừ sao, có lịch sử.
-- **Tiền tiêu vặt:** tính theo tuần, theo việc đã làm hoặc nhận đủ. Bố mẹ đánh dấu "Đã trả".
+- **Tài khoản:** số tiền hiện có của từng con. Việc nhà tự cộng tiền; làm đủ việc phải làm cả tuần được thưởng thêm (mặc định 25.000đ, sửa ở thông tin của con). Bố mẹ bấm một lần để ghi phạt (nổi nóng, trì hoãn...), phí sử dụng điện thoại, tivi theo giờ, thưởng thêm, chi tiêu hoặc đổi quà. Lịch sử ghi mọi khoản, bấm nhầm thì Huỷ.
+- **Bảng giá:** mỗi việc được bao nhiêu tiền, phạt bao nhiêu, phí sử dụng mỗi giờ, quà đổi bao nhiêu. Có sẵn bảng mẫu “Cách cho con tiền tiêu vặt đúng cách”, bố mẹ thêm, sửa, xoá tuỳ ý và in ra để dán.
 - **Gia đình:** thêm con, giao việc theo ngày, in bảng dán tủ lạnh, sao lưu và nhập dữ liệu.
 
 App là web tĩnh, không cần bước build: HTML, CSS và JavaScript thuần. Chạy trên GitHub Pages.
@@ -62,6 +62,10 @@ Khi `js/config.js` để `null`, dữ liệu chỉ lưu trên trình duyệt c�
 ### Về bảo mật
 
 Mỗi gia đình có một mã ngẫu nhiên 23 ký tự, nằm trong link mời. Ai có link thì xem và sửa được bảng của nhà mình, nên chỉ gửi link cho người trong nhà. Tên, ngày sinh và dữ liệu của các con nằm trên Firestore, không nằm trong mã nguồn.
+
+## Từ sao sang tiền
+
+Bản trước tính bằng sao. Dữ liệu cũ được quy đổi tự động: **1 sao = 5.000đ** (hằng số `STAR_VND` trong `js/app.js`). Việc cũ chỉ có số sao sẽ hiện theo giá quy đổi; mở Sửa rồi Lưu là việc đó được ghi lại bằng tiền.
 
 ## Sao lưu
 

@@ -3,12 +3,13 @@
 //   - firebaseStore: lưu trên Cloud Firestore, đồng bộ giữa các máy cùng "mã gia đình".
 //
 // Dữ liệu gồm 6 nhóm (collection), mỗi nhóm là { id: object }:
-//   kids     các con        { name, avatar, birthday, allowance, mode, tint, order, since }
-//   chores   việc nhà       { name, icon, stars, kids: [kidId], days: [0..6], order }
-//   rewards  phần thưởng    { name, icon, cost }
-//   done     việc đã xong   id = "YYYY-MM-DD", { [kidId]: { [choreId]: số sao nhận được (0 = chưa) } }
-//   ledger   sổ sao         { kid, delta, kind: reward|bonus|penalty, note, icon, at }
-//   paid     tiền đã trả    id = kidId_YYYY-MM-DD (thứ Hai), { kid, week, amount, paidAt }
+//   kids     các con        { name, avatar, birthday, weekBonus (đồng), tint, order, since }
+//   chores   việc nhà       { name, icon, money (đồng), kind: must|extra|fun, kids: [kidId], days: [0..6], order }
+//   rewards  bảng giá       { name, icon, kind: penalty|fee|gift, price (đồng; fee là đồng/giờ), all }
+//   done     việc đã xong   id = "YYYY-MM-DD", { [kidId]: { [choreId]: số tiền nhận được (0 = chưa) } }
+//   ledger   sổ tài khoản   { kid, amount (đồng), kind: bonus|penalty|fee|spend|reward, note, icon, at }
+//   paid     (cũ, không dùng nữa) tiền tiêu vặt đã trả theo tuần
+//   Dữ liệu cũ tính bằng sao (chores.stars, rewards.cost, ledger.delta, done < 100) được quy đổi 1 sao = 5.000đ.
 //   timetables thời khoá biểu  id = kidId, { cls, year, days: [1..6], lunch, rows: [{ s, e, d: { [thứ]: môn } }] }
 //   lessons  học thêm       { kid, day: 0..6, s: "HH:MM", e: "HH:MM", name, at, home, go, back }
 //   stays    các con ở đâu  id = thứ "0".."6", { day, night }
