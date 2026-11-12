@@ -199,6 +199,7 @@ function balance(kidId) {
     return s;
   });
 }
+const progBox = (n, all, title) => `<div class="prog-box"><div class="prog-t">${title}</div><div class="prog"><div class="bar ${n >= all ? 'full' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="${all}" aria-valuenow="${n}"><b style="width:${all ? Math.round(n / all * 100) : 0}%"></b></div><span class="lv num ${n >= all ? 'full' : ''}">${n}/${all}</span></div></div>`;
 const moneyChip = (k, style = '') => `<span class="stars num ${balance(k.id) < 0 ? 'neg' : ''}" title="Số tiền trong tài khoản" ${style ? `style="${style}"` : ''}><span class="coin" aria-hidden="true">💰</span>${money(balance(k.id))}</span>`;
 function weekStats(kid, ws) {
   let possible = 0, done = 0;
@@ -207,6 +208,26 @@ function weekStats(kid, ws) {
   for (const c of choresList()) if (isMust(c) && perWeekOf(c) && (c.kids || []).includes(kid.id)) { const n = perWeekOf(c); possible += n; done += Math.min(n, weekCount(kid.id, c, addDays(ws, 6))); }
   return { possible, done };
 }
+// Ngày đủ việc: true / false, 'skip' (dùng phiếu nghỉ) hoặc 'none' (không có việc phải làm).
+const dayFull = (kidId, d) => { if (skipOn(kidId, d)) return 'skip'; const l = mustFor(kidId, d); return l.length ? l.every(c => isDone(d, kidId, c.id)) : 'none'; };
+const kidSince = kidId => { const k = S.kids[kidId]; const first = Object.keys(S.done).filter(dk => S.done[dk]?.[kidId]).sort()[0]; const a = k?.since && (!first || k.since < first) ? k.since : first; return a ? parse(a) : today(); };
+// Chuỗi ngày liên tiếp làm đủ việc phải làm (ngày nghỉ, ngày không có việc thì bỏ qua). Hôm nay chưa xong thì chưa làm đứt chuỗi.
+function streakOf(kidId) {
+  return memoize('st' + kidId, () => {
+    const from = kidSince(kidId); let n = 0, d = today();
+    if (dayFull(kidId, d) !== true) d = addDays(d, -1);
+    for (let i = 0; i < 400 && d >= from; i++, d = addDays(d, -1)) { const f = dayFull(kidId, d); if (f === true) n++; else if (f === false) break; }
+    return n;
+  });
+}
+function bestStreak(kidId) {
+  return memoize('bs' + kidId, () => {
+    let best = 0, n = 0, d = kidSince(kidId); const t = today();
+    for (let i = 0; i < 800 && d <= t; i++, d = addDays(d, 1)) { const f = dayFull(kidId, d); if (f === true) best = Math.max(best, ++n); else if (f === false && key(d) !== key(t)) n = 0; }
+    return Math.max(best, streakOf(kidId));
+  });
+}
+const streakChip = k => { const n = streakOf(k.id); return n ? `<span class="streak" title="Số ngày liên tiếp làm đủ việc phải làm">🔥 ${n} ngày</span>` : ''; };
 const kidName = id => S.kids[id]?.name || 'Bé';
 const tintOf = k => 'var(--t' + ((Number(k.tint) || 0) % 6) + ')';
 const ava = (k, cls = '') => `<span class="ava ${cls}" style="background:${tintOf(k)}">${esc(k.avatar || '🙂')}</span>`;
@@ -602,20 +623,32 @@ function viewWeekGrid() {
   return h;
 }
 
+// Dải 7 ngày trong tuần: ✓ cả nhà làm đủ, ✗ còn thiếu, vòng tiến độ cho hôm nay.
+function weekStrip(sel) {
+  const t = today(), ws = weekStart(sel), kids = kidsList();
+  const cells = Array.from({ length: 7 }, (_, i) => addDays(ws, i)).map(d => {
+    let all = 0, done = 0, any = false;
+    for (const k of kids) { const l = mustFor(k.id, d); all += l.length; done += l.filter(c => isDone(d, k.id, c.id)).length; if (l.length) any = true; }
+    const isT = key(d) === key(t), pct = all ? Math.round(done / all * 100) : 0;
+    const st = d > t ? 'fut' : !any ? 'rest' : done >= all ? 'ok' : isT ? 'now' : 'miss';
+    const ic = { ok: '✓', miss: '✕', rest: '·', fut: '', now: '' }[st];
+    const lbl = { ok: 'đủ việc', miss: 'còn thiếu việc', rest: 'không có việc', fut: 'chưa tới', now: `xong ${pct}%` }[st];
+    return `<button class="wd ${st} ${isT ? 'today' : ''} ${key(d) === key(sel) ? 'on' : ''}" data-act="day-set" data-d="${key(d)}" aria-label="${WD[d.getDay()]} ${dm(d)}: ${lbl}" ${key(d) === key(sel) ? 'aria-current="date"' : ''}>
+      <b class="num">${pad(d.getDate())}</b><i class="wd-s" ${st === 'now' ? `style="--p:${pct}%"` : ''}>${ic}</i><span>${WDS[d.getDay()]}</span></button>`;
+  }).join('');
+  return `<div class="wk">${cells}</div>`;
+}
 function viewToday() {
   if (UI.todayMode === 'week') return viewWeekGrid();
   const d = UI.date, t = today(), isT = key(d) === key(t), future = d > t;
   const label = `${WD[d.getDay()]}, ${d.getDate()} tháng ${d.getMonth() + 1}`;
   const kids = kidsList();
-  let h = `<div class="head"><h1>${isT ? 'Việc hôm nay' : future ? 'Việc sắp tới' : 'Việc ngày ' + dm(d)}</h1></div>${modeSeg()}
-  <div class="row" style="justify-content:space-between">
+  let h = `<div class="head head-row"><div><h1>${isT ? 'Hôm nay' : future ? 'Sắp tới' : 'Ngày ' + dm(d)}</h1><p>${label}${isT ? '' : ' · <button class="linkbtn" data-act="day" data-n="0">Về hôm nay</button>'}</p></div>
     <div class="daynav">
-      <button class="iconbtn" data-act="day" data-n="-1" aria-label="Ngày trước"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
-      <b>${label}</b>
-      <button class="iconbtn" data-act="day" data-n="1" aria-label="Ngày sau"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
-      ${isT ? '' : '<button class="chip" style="border:0" data-act="day" data-n="0">Về hôm nay</button>'}
-    </div>
-  </div>
+      <button class="iconbtn" data-act="day" data-n="-7" aria-label="Tuần trước"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+      <button class="iconbtn" data-act="day" data-n="7" aria-label="Tuần sau"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+    </div></div>
+  ${kids.length ? weekStrip(d) : ''}${modeSeg()}
   <div class="row"><button class="btn primary" data-act="km-open" ${kids.length ? '' : 'disabled'}>Chế độ cho bé</button><button class="btn ghost" data-act="sheet-open" ${kids.length ? '' : 'disabled'}>In kế hoạch tuần</button></div>`;
   if (!kids.length) return h + noKids();
   if (future) h += `<div class="note">Đây là ngày chưa tới, các con chưa thể đóng dấu.</div>`;
@@ -624,21 +657,21 @@ function viewToday() {
     const list = mustFor(k.id, d), plan = dayPlan(k.id, d);
     const n = list.filter(c => isDone(d, k.id, c.id)).length;
     const pct = list.length ? Math.round(n / list.length * 100) : 0;
-    h += `<section class="card"><div class="kid-head">${ava(k)}<div class="kid-name">${esc(k.name)}</div>${bdayChip(k, d)}<a href="#tai-khoan" class="acct-link" data-act="acct-go" data-kid="${k.id}">${moneyChip(k)}</a></div>`;
+    h += `<section class="card kid-card"><div class="kid-hero" style="--tint:${tintOf(k)}">${ava(k)}<div class="kid-hi"><div class="kid-name">${esc(k.name)}</div><div class="row" style="gap:6px">${streakChip(k)}${bdayChip(k, d)}</div></div><a href="#tai-khoan" class="acct-link" data-act="acct-go" data-kid="${k.id}">${moneyChip(k)}</a></div>`;
     const sc = schoolNow(k, d, isT);
     if (sc) h += `<a class="school-line" href="#lich-hoc" data-act="tkb-go" data-tab="tkb" data-kid="${k.id}"><b>${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}:</b> ${esc(sc.subjects.join(', '))}</a>`;
     h += eventLines(k) + skipNote(k, d);
     const ts = isT ? tasksSoon(k.id) : [];
     if (ts.length) h += `<div class="today-tasks"><a class="ag-h" href="#lich-hoc" data-act="tkb-go" data-tab="bai-tap" data-kid="${k.id}">📝 Bài cần nộp (${ts.length})</a><div class="list">${ts.map(t => taskRow(t, false)).join('')}</div></div>`;
     if (!plan.length) { h += `<p class="muted" style="margin:12px 0 0">Hôm nay ${esc(k.name)} không có việc nào. Nghỉ ngơi thôi!</p></section>`; continue; }
-    if (list.length) h += `<div class="prog"><div class="bar ${n === list.length ? 'full' : ''}"><b style="width:${pct}%"></b></div><span class="num">${n} / ${list.length} việc phải làm</span></div>`;
+    if (list.length) h += progBox(n, list.length, n === list.length ? '🎉 Xong hết việc phải làm!' : `⭐ Việc phải làm · còn ${list.length - n} việc`);
     const cur = isT ? slotAt(nowMin()) : null;
     h += `<div class="list">`;
     for (const g of plan) {
       if (g.extra) {
         const nd = g.items.filter(x => isDone(d, k.id, x.c.id)).length;
         h += `<details class="extra-g" data-kid="${k.id}" ${nd || UI.extraOpen[k.id] ? 'open' : ''}><summary class="slot-h extra">${g.icon} ${g.label} <span class="muted small">(${g.items.length} việc${nd ? `, đã làm ${nd}` : ''})</span></summary>`;
-      } else h += `<div class="slot-h ${g.id && g.id === cur ? 'now' : ''}">${g.icon} ${g.label}${g.id && g.id === cur ? ' · bây giờ' : ''}</div>`;
+      } else h += `<div class="slot-h ${g.id && g.id === cur ? 'now' : ''}">${g.icon} ${g.label}${g.id && g.id === cur ? '<span class="nowpill">bây giờ</span>' : ''}</div>`;
       for (const x of g.items) {
         if (x.type !== 'chore') { h += markRow(x); continue; }
         const c = x.c, on = isDone(d, k.id, c.id), steps = (c.steps || []).filter(Boolean), mask = stepMask(d, k.id, c.id);
@@ -1128,11 +1161,15 @@ function drawKidMode() {
       <button class="stamp ${on ? 'on' : ''}" data-act="tick" data-kid="${k.id}" data-chore="${c.id}" data-km="1" aria-pressed="${on}" aria-label="${on ? 'Bỏ dấu' : 'Xong hết'}: ${esc(c.name)}">${STAR}</button></div>
       <div class="big-steps">${steps.map((st, i) => { const ok = on || (mask >> i) & 1; return `<button class="step ${ok ? 'on' : ''}" data-act="step" data-kid="${k.id}" data-chore="${c.id}" data-i="${i}" data-km="1" aria-pressed="${!!ok}">${ok ? '✅' : '⬜'} ${esc(st)}</button>`; }).join('')}</div></div>`;
   };
-  const timeline = plan.map(g => `<div class="km-slot ${g.id === cur ? 'now' : ''} ${g.extra ? 'extra' : ''}">${g.icon} ${g.label}${g.id === cur ? ' · bây giờ' : ''}</div>`
+  const timeline = plan.map(g => `<div class="km-slot ${g.id === cur ? 'now' : ''} ${g.extra ? 'extra' : ''}">${g.icon} ${g.label}${g.id === cur ? '<span class="nowpill">bây giờ</span>' : ''}</div>`
     + g.items.map(x => x.type === 'chore' ? bigChore(x, g) : markRow(x, true)).join('')).join('');
+  const stk = streakOf(k.id), best = bestStreak(k.id), left = list.length - n;
+  const bubble = isBirthday(k, t) ? `Chúc mừng sinh nhật ${esc(k.name)}! 🎂` : !list.length ? `Chào ${esc(k.name)}! Hôm nay thảnh thơi nhé!` : left ? `Chào ${esc(k.name)}! Cùng làm việc nào!` : `${esc(k.name)} giỏi quá! 🎉`;
   el.innerHTML = `<div class="wrap"><div class="km-top"><button class="btn quiet" data-act="km-kid" data-kid="">← Đổi bạn</button>${hold}</div>
-  <div class="kid-head">${ava(k)}<div><div class="kid-name" style="font-size:32px">${isBirthday(k, t) ? `Chúc mừng sinh nhật ${esc(k.name)}! 🎂` : `Chào ${esc(k.name)}!`}</div><div class="muted">${WD[t.getDay()]}, ${t.getDate()} tháng ${t.getMonth() + 1}</div></div>${moneyChip(k, 'margin-left:auto;font-size:28px')}</div>
-  ${list.length ? `<div class="prog"><div class="bar ${n === list.length ? 'full' : ''}"><b style="width:${Math.round(n / list.length * 100)}%"></b></div><span class="num">${n} / ${list.length}</span></div>` : ''}
+  <div class="km-hero" style="--tint:${tintOf(k)}"><div class="km-bubble">${bubble}</div>${ava(k)}<div class="km-date">${WD[t.getDay()]}, ${t.getDate()} tháng ${t.getMonth() + 1}</div></div>
+  ${list.length ? `<div class="card km-prog">${progBox(n, list.length, left ? `⭐ Hôm nay của ${esc(k.name)} · còn ${left} việc` : '🏆 Xong hết việc hôm nay!')}</div>` : ''}
+  <div class="km-stats"><div class="km-stat"><span class="hex">💰</span><div><b class="num ${balance(k.id) < 0 ? 'minus' : ''}">${money(balance(k.id))}</b><span>Tài khoản</span></div></div>
+    <div class="km-stat"><span class="hex fire">🔥</span><div><b class="num">${stk} ngày</b><span>${stk ? 'liên tiếp' : 'Làm đủ hôm nay để bắt đầu'}${best > stk ? ` · dài nhất ${best}` : ''}</span></div></div></div>
   ${school}
   ${list.length && n === list.length ? `<div class="cheer">Giỏi quá! Hôm nay con làm xong hết rồi 🎉</div>` : ''}
   <div class="big-list">${list.length || plan.length ? timeline
@@ -1468,7 +1505,11 @@ function markChore(d, kid, cid, on) {
     const gLeft = g ? g.items.filter(x => x.type === 'chore' && isMust(x.c) && x.c.id !== cid && !isDone(d, kid, x.c.id)).length : 1;
     const earn = choreVnd(ch) ? ` +${money(choreVnd(ch))}` : '';
     if (isExtra(ch)) msg = `${kidName(kid)} làm thêm “${ch.name}”${earn} 💪`;
-    else if (!left && list.some(c => c.id === cid)) { confetti(); msg = `${kidName(kid)} làm xong hết việc phải làm rồi! 🎉${earn}`; }
+    else if (!left && list.some(c => c.id === cid)) {
+      confetti();
+      if (key(d) === key(today())) { const got = earned(kid, key(d), key(d)) + choreVnd(ch); setTimeout(() => celebrate(kid, got), 450); }
+      else msg = `${kidName(kid)} làm xong hết việc phải làm rồi! 🎉${earn}`;
+    }
     else if (g?.id && !gLeft && funs.length) { confetti(); msg = `🎈 Mở khoá: ${funs.join(', ')}!`; }
     if (ch.shared && who.length > 1) msg = msg || `Đã tính cho ${who.map(kidName).join(', ')}.${earn}`;
     msg = msg || (earn ? `${kidName(kid)}${earn} 💰` : null);
@@ -1484,10 +1525,32 @@ function markChore(d, kid, cid, on) {
 // ---------- actions ----------
 let toastT = 0;
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => (t.hidden = true), 2800); }
+// Màn chúc mừng khi con làm xong hết việc phải làm hôm nay.
+function celebrate(kidId, got) {
+  const k = S.kids[kidId]; if (!k) return;
+  memo = {};
+  document.querySelector('.celebrate')?.remove();
+  const n = streakOf(kidId), st = weekStats({ id: kidId, ...k }, weekStart(today())), wb = weekBonusOf(k);
+  const el = document.createElement('div'); el.className = 'celebrate'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'cel-h');
+  el.innerHTML = `<div class="cel-burst" aria-hidden="true"></div><div class="cel-box">
+    <div class="cel-ava">${ava({ ...k, id: kidId })}<span class="cel-sp s1">✨</span><span class="cel-sp s2">⭐</span><span class="cel-sp s3">✨</span></div>
+    <div class="cel-coin"><span class="coin3d" aria-hidden="true"></span><b class="num">+${money(got)}</b></div>
+    <h2 id="cel-h">Giỏi quá! ${esc(k.name)} đã xong hết việc hôm nay 🎉</h2>
+    <div class="cel-cards"><div class="km-stat"><span class="hex fire">🔥</span><div><b class="num">${n} ngày liên tiếp</b><span>Dài nhất: ${Math.max(n, bestStreak(kidId))} ngày</span></div></div>
+      ${wb && st.possible ? `<div class="km-stat"><span class="hex">🏆</span><div><b class="num">${st.done}/${st.possible} việc tuần này</b><span>${st.done >= st.possible ? `Đủ cả tuần! Thưởng ${money(wb)}` : `Đủ tuần được thưởng ${money(wb)}`}</span></div></div>` : ''}</div>
+    <button class="btn go" data-cel-close>Tuyệt vời!</button></div>`;
+  document.body.appendChild(el);
+  confetti();
+  const close = () => { el.classList.add('out'); setTimeout(() => el.remove(), 250); document.removeEventListener('keydown', esc1); };
+  const esc1 = e => { if (e.key === 'Escape') close(); };
+  el.addEventListener('click', e => { if (e.target.closest('[data-cel-close]') || e.target === el || e.target.classList.contains('cel-burst')) close(); });
+  document.addEventListener('keydown', esc1);
+  el.querySelector('[data-cel-close]').focus();
+}
 function confetti() {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const box = document.createElement('div'); box.className = 'confetti';
-  const cols = ['var(--star)', 'var(--accent)', 'var(--good)', 'var(--bad)', 'var(--t4)'];
+  const cols = ['#FFC633', '#22B85C', '#FF6B6B', '#4DA8FF', '#B07CFF', '#FF9F2E'];
   for (let i = 0; i < 60; i++) { const s = document.createElement('i'); s.style.left = Math.random() * 100 + '%'; s.style.background = cols[i % cols.length]; s.style.animationDelay = Math.random() * 0.5 + 's'; s.style.animationDuration = 1.2 + Math.random() + 's'; box.appendChild(s); }
   document.body.appendChild(box); setTimeout(() => box.remove(), 2600);
 }
@@ -1502,6 +1565,7 @@ document.addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
   const a = b.dataset.act, id = b.dataset.id;
   if (a === 'close') return closeModal();
+  if (a === 'day-set') { UI.date = parse(b.dataset.d); return render(); }
   if (a === 'day') { const n = Number(b.dataset.n); UI.date = n === 0 ? today() : addDays(UI.date, n); return render(); }
   if (a === 'tick') {
     const d = b.dataset.km ? today() : UI.date, kid = b.dataset.kid; if (!S.chores[b.dataset.chore]) return;

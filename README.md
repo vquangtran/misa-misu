@@ -12,7 +12,9 @@ Lịch học, việc nhà và tiền tiêu vặt cho các con, bằng tiếng Vi
 - **Học thêm:** các buổi học thêm, gia sư, thể thao của từng con theo ngày trong tuần, ghi học ở đâu, học ngay tại nhà con đang ở hay phải đưa đón, ai đưa đi và ai đón về (Bố, Mẹ, Grab, tự đi...). Mục **Cả nhà** xếp lịch đưa đón theo từng ngày, đếm số chuyến mỗi tuần của từng người, và cảnh báo khi một buổi chưa có người đưa/đón hoặc một người có hai chuyến cách nhau dưới 20 phút.
 - **Cả tuần:** ở màn Hôm nay chọn *Cả tuần* để xem bảng lưới: mỗi việc một dòng, mỗi ngày một cột, bấm ô để đánh dấu. Có dòng ⭐ ngày đủ việc, đếm số lần từng việc và còn bao nhiêu việc nữa là đủ thưởng tuần.
 - **Kế hoạch tuần (in):** mỗi con một trang A4 mang tên con: việc theo buổi sáng, chiều, tối; lưới ô đánh dấu từng ngày; lịch tuần (kiểm tra, giờ ở trường, học thêm, bài phải nộp); việc làm thêm có tiền; mục tiêu tiết kiệm với các đồng xu để tô; chỗ ghi chú. In được tuần này hoặc tuần sau.
-- **Chế độ cho bé:** chữ và nút to để con tự đánh dấu. Muốn thoát thì giữ nút 1 giây.
+- **Dải tuần và chuỗi ngày:** đầu màn Hôm nay có dải 7 ngày (✓ cả nhà làm đủ, ✕ còn thiếu, vòng tiến độ cho hôm nay), bấm để xem ngày đó. Mỗi con có chuỗi 🔥 số ngày liên tiếp làm đủ việc phải làm (ngày dùng phiếu nghỉ hoặc không có việc thì không làm đứt chuỗi).
+- **Màn chúc mừng:** con đóng dấu việc phải làm cuối cùng của hôm nay thì hiện màn chúc mừng có hoa giấy, số tiền kiếm được hôm nay, chuỗi ngày và tiến độ thưởng đủ tuần.
+- **Chế độ cho bé:** chữ và nút to để con tự đánh dấu, lời chào, thanh tiến độ, tài khoản và chuỗi ngày. Muốn thoát thì giữ nút 1 giây.
 - **Tài khoản:** số tiền hiện có của từng con. Việc nhà tự cộng tiền; làm đủ việc phải làm cả tuần được thưởng thêm (mặc định 25.000đ, sửa ở thông tin của con). Bố mẹ bấm một lần để ghi phạt (nổi nóng, trì hoãn...), phí sử dụng điện thoại, tivi theo giờ, thưởng thêm, chi tiêu hoặc đổi quà. Lịch sử ghi mọi khoản, bấm nhầm thì Huỷ.
 - **Mục tiêu tiết kiệm:** con đặt mục tiêu (xe đạp 500.000đ...), có thanh tiến độ và các đồng xu được tô dần. Tiền trong tài khoản chia cho các mục tiêu theo thứ tự ưu tiên. App tính còn thiếu bao nhiêu, khoảng mấy tuần nữa, hoặc làm thêm mấy lần việc gì. Đủ tiền thì bấm Mua.
 - **Phiếu thưởng:** chọn phim, chọn món ăn sáng, tráng miệng, thức khuya 30 phút, mời bạn đến chơi, một ngày không làm việc nhà. Con đổi bằng tiền trong tài khoản; phiếu "Một ngày không làm việc nhà" miễn việc phải làm của ngày được chọn mà vẫn giữ thưởng đủ tuần. In được tờ phiếu cắt rời.
@@ -26,7 +28,7 @@ App là web tĩnh, không cần bước build: HTML, CSS và JavaScript thuần.
 | File | Nội dung |
 | --- | --- |
 | `index.html` | Khung trang |
-| `styles.css` | Giao diện (màu nằm trong `:root`, có chế độ tối) |
+| `styles.css` | Giao diện tông vàng ấm, nút và thẻ "nổi" (màu nằm trong `:root`, có chế độ tối) |
 | `js/app.js` | Toàn bộ màn hình và thao tác |
 | `js/store.js` | Lưu dữ liệu: trên máy (localStorage) hoặc Firebase |
 | `js/config.js` | Cấu hình Firebase |
