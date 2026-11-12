@@ -400,3 +400,11 @@ textarea.input{resize:vertical;font:inherit}
 .extra-g{border-top:1px solid var(--line)}
 .extra-g>summary{border-top:0;cursor:pointer;list-style:revert}
 .extra-g>.item:first-of-type{border-top:0}
+
+/* mốc năm học */
+.event-line{display:block;margin-top:8px;padding:8px 12px;border-radius:12px;background:var(--accent-soft);color:var(--ink);text-decoration:none;font-size:14px}
+.event-line.exam,.km-event.exam{background:var(--star-soft)}
+.event-line.holiday,.km-event.holiday{background:var(--good-soft)}
+.km-event{display:block;margin-top:10px;padding:12px 16px;border-radius:18px;background:var(--accent-soft);color:var(--ink);text-decoration:none;font-size:18px}
+.item.event.now .t{color:var(--accent)}
+.item.event.past{opacity:.6}

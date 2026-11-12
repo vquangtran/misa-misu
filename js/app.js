@@ -242,10 +242,102 @@ function schoolDay(t, wd) {
   if (!list.length) return null;
   return { list, start: list[0].s, end: list[list.length - 1].e, subjects: [...new Set(list.map(x => x.subj))] };
 }
-// Buổi học tiếp theo sau ngày d (trong vòng 7 ngày).
-function nextSchool(t, d) {
-  for (let i = 1; i <= 7; i++) { const x = addDays(d, i), info = schoolDay(t, x.getDay()); if (info) return { date: x, info, label: i === 1 ? 'Ngày mai' : WDN(x.getDay()) }; }
+// Buổi học tiếp theo sau ngày d, bỏ qua những ngày nghỉ trong Mốc năm học.
+function nextSchool(t, d, kidId) {
+  for (let i = 1; i <= 31; i++) {
+    const x = addDays(d, i), info = kidId && holidayOn(kidId, x) ? null : schoolDay(t, x.getDay());
+    if (info) return { date: x, info, label: i === 1 ? 'Ngày mai' : i < 7 ? WDN(x.getDay()) : `${WDN(x.getDay())} ${dm(x)}` };
+  }
   return null;
+}
+
+// ---------- mốc năm học ----------
+// events: { name, icon, kind: exam|holiday|meeting|event, from: "YYYY-MM-DD", to: "YYYY-MM-DD" (không bắt buộc), kids: [] = cả nhà }
+const EVENT_KINDS = [['exam', 'Kiểm tra', '📝'], ['holiday', 'Nghỉ học', '🏖️'], ['meeting', 'Họp phụ huynh', '👪'], ['event', 'Sự kiện', '🎉']];
+const EVENT_ICONS = ['📝', '🏫', '🎒', '📘', '🌱', '🌸', '🧧', '🎓', '🏆', '👪', '🎉', '🏖️', '⚽', '🎭', '🩺', '📣'];
+// Khung thời gian năm học 2026 – 2027 theo hướng dẫn của Bộ GD&ĐT và Sở GD&ĐT Hà Nội (khối 4).
+const SAMPLE_YEAR = { label: 'năm học 2026 – 2027', items: [
+  { name: 'Khối 4 tập trung, sinh hoạt lớp đầu năm', icon: '🎒', kind: 'event', from: '2026-09-03' },
+  { name: 'Lễ khai giảng', icon: '🏫', kind: 'event', from: '2026-09-05' },
+  { name: 'Khảo sát đầu năm Tiếng Việt, Toán, Tiếng Anh', icon: '📝', kind: 'exam', from: '2026-09-07', to: '2026-09-11' },
+  { name: 'Kiểm tra, khảo sát giữa kì I', icon: '📝', kind: 'exam', from: '2026-10-26', to: '2026-11-01' },
+  { name: 'Kiểm tra học kì I', icon: '📝', kind: 'exam', from: '2026-12-14', to: '2026-12-27' },
+  { name: 'Kết thúc học kì I', icon: '📘', kind: 'event', from: '2027-01-15' },
+  { name: 'Họp phụ huynh cuối kì I', icon: '👪', kind: 'meeting', from: '2027-01-17' },
+  { name: 'Bắt đầu chương trình học kì II', icon: '🌱', kind: 'event', from: '2027-01-18' },
+  { name: 'Lễ hội chào Xuân 2027', icon: '🌸', kind: 'event', from: '2027-01-27', to: '2027-01-28' },
+  { name: 'Nghỉ Tết Nguyên đán', icon: '🧧', kind: 'holiday', from: '2027-02-04', to: '2027-02-22' },
+  { name: 'Kiểm tra, khảo sát giữa kì II', icon: '📝', kind: 'exam', from: '2027-03-09', to: '2027-03-10' },
+  { name: 'Kiểm tra học kì II', icon: '📝', kind: 'exam', from: '2027-04-19', to: '2027-05-09' },
+  { name: 'Kết thúc chương trình học kì II', icon: '🎓', kind: 'event', from: '2027-05-21' },
+  { name: 'Họp phụ huynh cuối năm học', icon: '👪', kind: 'meeting', from: '2027-05-23' },
+  { name: 'Kết thúc năm học (bế giảng)', icon: '🏆', kind: 'event', from: '2027-05-24', to: '2027-05-30' },
+] };
+const eventsList = () => Object.entries(S.events || {}).map(([id, e]) => ({ id, ...e, to: e.to && e.to > e.from ? e.to : e.from }))
+  .filter(e => e.from).sort((a, b) => a.from.localeCompare(b.from) || String(a.name).localeCompare(String(b.name), 'vi'));
+const forKid = (e, kidId) => !(e.kids || []).length || e.kids.includes(kidId);
+const eventsOf = kidId => eventsList().filter(e => forKid(e, kidId));
+const holidayOn = (kidId, d) => { const dk = key(d); return eventsOf(kidId).find(e => e.kind === 'holiday' && e.from <= dk && dk <= e.to) || null; };
+const schoolOn = (kidId, d) => holidayOn(kidId, d) ? null : schoolDay(tkbOf(kidId), d.getDay());
+const dmy = d => `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+function eventRange(e) {
+  const a = parse(e.from), b = parse(e.to);
+  if (e.from === e.to) return `${WDN(a.getDay())}, ${dmy(a)}`;
+  return a.getFullYear() === b.getFullYear() ? `${dm(a)} – ${dmy(b)}` : `${dmy(a)} – ${dmy(b)}`;
+}
+const daysTo = dk => Math.round((parse(dk) - today()) / 864e5);
+// Trạng thái so với hôm nay: { past, now, txt }.
+function eventWhen(e) {
+  const tk = key(today()), n = daysTo(e.from);
+  if (e.to < tk) return { past: true, txt: 'Đã qua' };
+  if (e.from <= tk) return { now: true, txt: e.kind === 'holiday' ? 'Đang nghỉ' : e.from === e.to ? 'Hôm nay' : `Đang diễn ra, còn ${daysTo(e.to) + 1} ngày` };
+  return { txt: n === 1 ? 'Ngày mai' : `Còn ${n} ngày` };
+}
+// Mốc sắp tới cần nhắc ở màn Hôm nay: đang diễn ra, hoặc sắp bắt đầu (kiểm tra báo trước 14 ngày, còn lại 7 ngày).
+const eventsSoon = kidId => eventsOf(kidId).filter(e => { const w = eventWhen(e); return !w.past && (w.now || daysTo(e.from) <= (e.kind === 'exam' ? 14 : 7)); });
+const eventLines = (k, cls = 'event-line') => eventsSoon(k.id).map(e => `<a class="${cls} ${esc(e.kind)}" href="#lich-hoc" data-act="tkb-go" data-kid="${k.id}"><b>${esc(e.icon || '📌')} ${esc(eventWhen(e).txt)}:</b> ${esc(e.name)} <span class="muted">(${esc(eventRange(e))})</span></a>`).join('');
+function missingYear() {
+  const have = new Set(eventsList().map(e => norm(e.name) + e.from));
+  return SAMPLE_YEAR.items.filter(e => !have.has(norm(e.name) + e.from));
+}
+function eventsCard(kidId) {
+  const kids = kidsList(), list = kidId ? eventsOf(kidId) : eventsList(), miss = missingYear();
+  const past = list.filter(e => eventWhen(e).past), rest = list.filter(e => !eventWhen(e).past);
+  const row = e => {
+    const w = eventWhen(e), who = (e.kids || []).length && !kidId ? e.kids.map(kidName).join(', ') : '';
+    return `<div class="item event ${w.now ? 'now' : ''} ${w.past ? 'past' : ''}"><span class="ico">${esc(e.icon || '📌')}</span><div class="txt"><div class="t">${esc(e.name)}</div><div class="s num">${esc(eventRange(e))}${who ? ` · ${esc(who)}` : ''}</div></div>
+      <div class="acts">${w.past ? '' : `<span class="badge ${w.now ? 'ok' : ''}">${esc(w.txt)}</span>`}<button class="btn ghost sm" data-act="event-form" data-id="${e.id}">Sửa</button></div></div>`;
+  };
+  let h = `<div class="sec-title">Mốc năm học</div><div class="row"><button class="btn primary" data-act="event-form" data-kid="${kidId || ''}" ${kids.length ? '' : 'disabled'}>Thêm mốc</button>${miss.length && kids.length ? `<button class="btn ghost" data-act="year-form">Thêm ${miss.length} mốc ${SAMPLE_YEAR.label}</button>` : ''}</div>`;
+  if (!list.length) return h + `<p class="muted" style="margin:0">Ghi các ngày khai giảng, kiểm tra, nghỉ Tết, họp phụ huynh. App nhắc trước ở màn Hôm nay, và những ngày nghỉ học thì không báo đi học.</p>`;
+  h += `<section class="card"><div class="list">${rest.map(row).join('') || '<p class="muted small" style="margin:0">Không còn mốc nào sắp tới.</p>'}</div>`;
+  if (past.length) h += `<details class="adv"><summary>Đã qua (${past.length} mốc)</summary><div class="list">${past.map(row).join('')}</div></details>`;
+  return h + `</section>`;
+}
+function eventForm(id, kidPre) {
+  const e = id ? S.events[id] : null, kids = kidsList();
+  const sel = e ? (e.kids || []) : S.kids[kidPre] ? [kidPre] : [];
+  const kind = e?.kind || 'event';
+  openModal(`<h2>${e ? 'Sửa mốc' : 'Thêm mốc năm học'}</h2>
+  <div class="field"><label for="ename">Tên mốc</label><input id="ename" class="input" maxlength="60" value="${esc(e?.name || '')}" placeholder="Ví dụ: Kiểm tra học kì I"></div>
+  <div class="field"><span class="lbl">Loại</span><div class="seg">${EVENT_KINDS.map(([v, l, ic]) => `<label><input type="radio" name="ekind" value="${v}" ${v === kind ? 'checked' : ''}><span>${ic} ${l}</span></label>`).join('')}</div>
+    <span class="muted small">Những ngày <b>Nghỉ học</b> app không báo giờ ở trường và soạn cặp. <b>Kiểm tra</b> được nhắc trước 14 ngày, các mốc khác 7 ngày.</span></div>
+  <div class="field"><span class="lbl">Biểu tượng</span>${pickGrid('eico', EVENT_ICONS, e?.icon)}</div>
+  <div class="row2"><div class="field"><label for="efrom">Từ ngày</label><input id="efrom" class="input num" type="date" value="${esc(e?.from || '')}"></div>
+    <div class="field"><label for="eto">Đến ngày (nếu kéo dài)</label><input id="eto" class="input num" type="date" value="${esc(e?.to && e.to !== e.from ? e.to : '')}"></div></div>
+  ${kids.length > 1 ? `<div class="field"><span class="lbl">Của con nào</span><div class="seg">${kids.map(k => `<label><input type="checkbox" name="ekid" value="${k.id}" ${sel.includes(k.id) ? 'checked' : ''}><span>${esc(k.avatar)} ${esc(k.name)}</span></label>`).join('')}</div>
+    <span class="muted small">Không chọn ai thì là mốc chung của cả nhà.</span></div>` : ''}
+  <div class="foot">${e ? `<button class="btn danger left" data-act="event-del" data-id="${id}">Xoá</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="event-save" data-id="${id || ''}">Lưu</button></div>`);
+}
+function yearForm() {
+  const kids = kidsList(), miss = missingYear();
+  const pre = kids.filter(k => /(^|\D)4(\D|$)/.test(tkbOf(k.id)?.cls || '')).map(k => k.id);
+  openModal(`<h2>Mốc ${SAMPLE_YEAR.label}</h2>
+  <p class="muted" style="margin:-8px 0 0">Khung thời gian năm học khối 4 theo hướng dẫn của Bộ GD&ĐT và Sở GD&ĐT Hà Nội: ${miss.length} mốc, từ ngày tập trung đến bế giảng. Thêm xong sửa lại tuỳ ý.</p>
+  <div class="list">${miss.map(e => `<div class="item"><span class="ico">${e.icon}</span><div class="txt"><div class="t">${esc(e.name)}</div><div class="s num">${esc(eventRange({ ...e, to: e.to || e.from }))}</div></div></div>`).join('')}</div>
+  ${kids.length > 1 ? `<div class="field"><span class="lbl">Cho con nào</span><div class="seg">${kids.map(k => `<label><input type="checkbox" name="ykid" value="${k.id}" ${pre.includes(k.id) ? 'checked' : ''}><span>${esc(k.avatar)} ${esc(k.name)}</span></label>`).join('')}</div>
+    <span class="muted small">Không chọn ai thì là mốc chung của cả nhà.</span></div>` : ''}
+  <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="year-add">Thêm ${miss.length} mốc</button></div>`);
 }
 // Màu cố định cho mỗi môn, để cùng một môn luôn cùng một màu.
 const subjTint = name => { let h = 0; for (const ch of String(name).toLowerCase().trim()) h = (h * 31 + ch.codePointAt(0)) >>> 0; return h % 6; };
@@ -367,10 +459,10 @@ const lessonChips = list => list.map(l => `<span class="sj-chip sj${subjTint(l.n
 // Dòng ngắn "hôm nay ở trường" cho màn Hôm nay và chế độ cho bé.
 function schoolNow(k, d, isToday) {
   const t = tkbOf(k.id); if (!t) return null;
-  const info = schoolDay(t, d.getDay());
+  const info = schoolOn(k.id, d);
   if (info && !(isToday && nowMin() >= toMin(info.end))) return { title: `Ở trường ${info.start} – ${info.end}`, subjects: info.subjects };
   if (!isToday) return null;
-  const nx = nextSchool(t, d);
+  const nx = nextSchool(t, d, k.id);
   return nx ? { title: `Soạn cặp cho ${nx.label === 'Ngày mai' ? 'ngày mai' : nx.label}`, subjects: nx.info.subjects, bag: true } : null;
 }
 
@@ -382,7 +474,7 @@ const choreSlot = c => toMin(c.time) !== null ? slotAt(toMin(c.time)) : (c.slot 
 function dayPlan(kidId, d) {
   const all = choresFor(kidId, d), extras = all.filter(isExtra);
   const items = all.filter(c => !isExtra(c)).map(c => ({ type: 'chore', c, t: toMin(c.time), slot: choreSlot(c) }));
-  const t = tkbOf(kidId), info = t && schoolDay(t, d.getDay());
+  const t = tkbOf(kidId), info = t && schoolOn(kidId, d);
   if (info) {
     items.push({ type: 'mark', t: toMin(info.start), icon: '🏫', text: `Vào học (${info.list.length} tiết)` });
     items.push({ type: 'mark', t: toMin(info.end), icon: '🏫', text: 'Tan học' });
@@ -409,7 +501,7 @@ function busyAt(kidId, d, m) {
   if (m === null) return '';
   const l = lessonsOn(kidId, d.getDay()).find(l => toMin(l.s) <= m && m < toMin(l.e));
   if (l) return `học ${l.name} (${l.s} – ${l.e})`;
-  const info = schoolDay(tkbOf(kidId), d.getDay());
+  const info = schoolOn(kidId, d);
   return info && toMin(info.start) <= m && m < toMin(info.end) ? `ở trường (${info.start} – ${info.end})` : '';
 }
 function choreMeta(c, kidId, d, isToday) {
@@ -481,6 +573,7 @@ function viewToday() {
     h += `<section class="card"><div class="kid-head">${ava(k)}<div class="kid-name">${esc(k.name)}</div>${bdayChip(k, d)}<a href="#tai-khoan" class="acct-link" data-act="acct-go" data-kid="${k.id}">${moneyChip(k)}</a></div>`;
     const sc = schoolNow(k, d, isT);
     if (sc) h += `<a class="school-line" href="#lich-hoc" data-act="tkb-go" data-kid="${k.id}"><b>${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}:</b> ${esc(sc.subjects.join(', '))}</a>`;
+    h += eventLines(k);
     if (!plan.length) { h += `<p class="muted" style="margin:12px 0 0">Hôm nay ${esc(k.name)} không có việc nào. Nghỉ ngơi thôi!</p></section>`; continue; }
     if (list.length) h += `<div class="prog"><div class="bar ${n === list.length ? 'full' : ''}"><b style="width:${pct}%"></b></div><span class="num">${n} / ${list.length} việc phải làm</span></div>`;
     const cur = isT ? slotAt(nowMin()) : null;
@@ -526,20 +619,21 @@ function kidSchedule(k) {
     <p class="muted">Nhập các tiết học một lần. App sẽ cho biết hôm nay con học những môn gì, và tối nay cần soạn cặp cho môn nào.</p>
     <div class="row" style="justify-content:center;margin-top:10px"><button class="btn primary" data-act="tkb-form" data-kid="${k.id}">Tạo thời khoá biểu</button></div></section>`;
   } else {
-    const info = schoolDay(t, wd);
+    const info = schoolOn(k.id, td), hol = holidayOn(k.id, td);
     let line;
     if (info && now < toMin(info.end)) {
       const cur = info.list.find(x => toMin(x.s) <= now && now < toMin(x.e));
       line = `<div><b>Hôm nay ${esc(k.name)} học ${info.list.length} tiết</b>, ${esc(info.start)} – ${esc(info.end)}.${cur ? ` Đang học: <b>${esc(cur.subj)}</b> (tiết ${cur.i + 1}).` : ''}</div>`;
     } else {
-      const nx = nextSchool(t, td);
-      line = nx ? `<div><b>${info ? 'Hôm nay đã tan học.' : 'Hôm nay không đi học.'}</b> ${esc(nx.label)} có:</div><div class="sj-list">${subjChips(nx.info.subjects)}</div>` : '<div>Chưa có tiết nào trong thời khoá biểu.</div>';
+      const nx = nextSchool(t, td, k.id);
+      line = nx ? `<div><b>${info ? 'Hôm nay đã tan học.' : hol ? `Hôm nay nghỉ: ${esc(hol.name)}.` : 'Hôm nay không đi học.'}</b> ${esc(nx.label)} có:</div><div class="sj-list">${subjChips(nx.info.subjects)}</div>` : '<div>Chưa có tiết nào trong thời khoá biểu.</div>';
     }
     h += `<section class="card tkb-card"><div class="kid-head">${ava(k, 'sm')}<div><div class="kid-name" style="font-size:21px">${esc(t.cls || k.name)}</div>${t.year ? `<div class="muted small">Năm học ${esc(t.year)}</div>` : ''}</div>
       <div class="acts" style="margin-left:auto"><button class="btn ghost sm" data-act="tkb-form" data-kid="${k.id}">Sửa</button><button class="btn ghost sm" data-act="tkb-print" data-kid="${k.id}">In</button></div></div>
       <div class="tkb-today">${line}</div>
       ${tkbTable(t, info ? wd : null)}</section>`;
   }
+  h += eventsCard(k.id);
   // Học thêm
   const ls = lessonsOf(k.id);
   h += `<div class="sec-title">Học thêm</div><div class="row"><button class="btn primary" data-act="lesson-form" data-kid="${k.id}">Thêm buổi học thêm</button></div>`;
@@ -569,7 +663,7 @@ function staysCard(wd) {
 // Cả nhà: lịch học thêm của các con theo từng ngày, kèm lịch đưa đón và cảnh báo.
 function familyWeek(kids) {
   const wd = today().getDay(), all = lessonsList();
-  let h = staysCard(wd);
+  let h = staysCard(wd) + eventsCard(null) + `<div class="sec-title">Học thêm</div>`;
   h += `<div class="row"><button class="btn primary" data-act="lesson-form">Thêm buổi học thêm</button></div>`;
   if (!all.length) return h + `<section class="card empty"><div class="big">📚</div><h2>Chưa có lịch học thêm</h2><p class="muted">Thêm các buổi học thêm của từng con, ghi học ở nhà hay đi học và ai đưa đón. App sẽ xếp lịch đưa đón theo từng ngày.</p></section>`;
   const days = WEEK_ORDER.filter(d => all.some(l => l.day === d));
@@ -762,7 +856,7 @@ function drawKidMode() {
   const sc = schoolNow(k, t, true);
   const kst = stayInfo(t.getDay());
   const home = kst?.night ? `<div class="km-school km-home ${kst.moved ? 'moved' : ''}"><div class="t">${kst.moved ? '🔁' : '🏠'} ${esc(kst.moved ? `Tối nay con về ${kst.night.toLowerCase()}` : `Tối nay con ở ${kst.night.toLowerCase()}`)}</div>${kst.day ? `<div class="muted">Ban ngày con ở ${esc(kst.day.toLowerCase())}.</div>` : ''}</div>` : '';
-  const school = home + (sc ? `<div class="km-school"><div class="t">${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}</div><div class="sj-list">${subjChips(sc.subjects)}</div></div>` : '');
+  const school = home + eventLines(k, 'km-event') + (sc ? `<div class="km-school"><div class="t">${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}</div><div class="sj-list">${subjChips(sc.subjects)}</div></div>` : '');
   const bigChore = (x, g) => {
     const c = x.c, on = isDone(t, k.id, c.id), steps = (c.steps || []).filter(Boolean), mask = stepMask(t, k.id, c.id);
     const sub = `<span class="s">${choreMeta(c, k.id, t, true)}</span>`;
@@ -1003,6 +1097,7 @@ function matchKidsByName(data) {
   for (const day of Object.values(data.done || {})) for (const id of Object.keys(day || {})) if (map[id]) { day[map[id]] = { ...(day[map[id]] || {}), ...day[id] }; delete day[id]; }
   for (const l of Object.values(data.ledger || {})) if (l) l.kid = m(l.kid);
   for (const l of Object.values(data.lessons || {})) if (l) l.kid = m(l.kid);
+  for (const ev of Object.values(data.events || {})) if (ev && Array.isArray(ev.kids)) ev.kids = ev.kids.map(m);
   if (data.paid) data.paid = Object.fromEntries(Object.entries(data.paid).map(([id, p]) => { const [kid, w] = id.split('_'); return [m(kid) + '_' + w, { ...p, kid: m(p.kid) }]; }));
   if (data.timetables) data.timetables = Object.fromEntries(Object.entries(data.timetables).map(([id, t]) => [m(id), t]));
   return [...new Set(Object.values(map))].map(kidName);
@@ -1024,7 +1119,7 @@ async function importData(j, quiet = false) {
     const n = Object.keys(data.kids).length, parts = [];
     if (n) parts.push(`${n} con mới`);
     if (matched.length) parts.push(`gộp vào ${matched.join(', ')}`);
-    for (const [c, label] of [['chores', 'việc nhà'], ['timetables', 'thời khoá biểu'], ['lessons', 'buổi học thêm'], ['stays', 'ngày trong lịch ở nhà nào']]) { const m = Object.keys(data[c] || {}).length; if (m) parts.push(`${m} ${label}`); }
+    for (const [c, label] of [['chores', 'việc nhà'], ['timetables', 'thời khoá biểu'], ['lessons', 'buổi học thêm'], ['stays', 'ngày trong lịch ở nhà nào'], ['events', 'mốc năm học']]) { const m = Object.keys(data[c] || {}).length; if (m) parts.push(`${m} ${label}`); }
     if (!quiet) toast(`Đã nhập: ${parts.join(', ') || 'không có gì mới'}.`);
   }
 }
@@ -1214,6 +1309,23 @@ document.addEventListener('click', e => {
       });
     return;
   }
+  if (a === 'event-form') return eventForm(id, b.dataset.kid);
+  if (a === 'year-form') return yearForm();
+  if (a === 'event-save') {
+    const name = $('#ename').value.trim(); if (!name) { $('#ename').focus(); return toast('Nhập tên mốc nhé.'); }
+    const from = $('#efrom').value, to = $('#eto').value;
+    if (!from) { $('#efrom').focus(); return toast('Chọn ngày nhé.'); }
+    if (to && to < from) return toast('Ngày kết thúc phải sau ngày bắt đầu.');
+    const data = { name, icon: radioVal('eico') || '📌', kind: radioVal('ekind') || 'event', from, kids: [...document.querySelectorAll('#modal input[name=ekid]:checked')].map(x => x.value) };
+    if (to && to > from) data.to = to;
+    closeModal(); put('events', id || uid(), data); return toast('Đã lưu mốc.');
+  }
+  if (a === 'event-del') { if (!armed(b, 'Bấm lần nữa để xoá')) return; closeModal(); del('events', id); return toast('Đã xoá mốc.'); }
+  if (a === 'year-add') {
+    const kids = [...document.querySelectorAll('#modal input[name=ykid]:checked')].map(x => x.value), miss = missingYear();
+    miss.forEach(e => put('events', uid(), { ...e, kids }));
+    closeModal(); return toast(`Đã thêm ${miss.length} mốc ${SAMPLE_YEAR.label}.`);
+  }
   if (a === 'stay-form') return stayForm();
   if (a === 'stay-save') {
     for (const d of [0, 1, 2, 3, 4, 5, 6]) {
@@ -1273,6 +1385,7 @@ document.addEventListener('click', e => {
     closeModal(); del('kids', id);
     if (S.timetables[id]) del('timetables', id);
     for (const l of Object.entries(S.lessons || {})) if (l[1].kid === id) del('lessons', l[0]);
+    for (const [eid, ev] of Object.entries(S.events || {})) if ((ev.kids || []).includes(id)) put('events', eid, { ...ev, kids: ev.kids.filter(x => x !== id) });
     for (const c of choresList()) if ((c.kids || []).includes(id)) { const { id: cid, ...rest } = c; put('chores', cid, { ...rest, kids: rest.kids.filter(x => x !== id) }); }
     return toast('Đã xoá.');
   }
