@@ -3,8 +3,8 @@
 //   - firebaseStore: lưu trên Cloud Firestore, đồng bộ giữa các máy cùng "mã gia đình".
 //
 // Dữ liệu gồm 6 nhóm (collection), mỗi nhóm là { id: object }:
-//   kids     các con        { name, avatar, birthday, weekBonus (đồng), tint, order, since }
-//   chores   việc nhà       { name, icon, money (đồng), kind: must|extra|fun, kids: [kidId], days: [0..6], order }
+//   kids     các con        { name, avatar, birthday, weekBonus (đồng), wbLog: [{ from, amount, prev }] các lần đổi mức thưởng tuần, tint, order, since }
+//   chores   việc nhà       { name, icon, money (đồng; việc phải làm có money = 0 là việc chỉ tính thưởng đủ tuần), kind: must|extra|fun, kids: [kidId], days: [0..6], order }
 //   rewards  bảng giá       { name, icon, kind: penalty|fee|gift, price (đồng; fee là đồng/giờ), all }
 //   done     việc đã xong   id = "YYYY-MM-DD", { [kidId]: { [choreId]: số tiền nhận được (0 = chưa) } }
 //   ledger   sổ tài khoản   { kid, amount (đồng), kind: bonus|penalty|fee|spend|reward, note, icon, at, skip: ngày được miễn việc }

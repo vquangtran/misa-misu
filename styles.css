@@ -755,7 +755,7 @@ details.slot>summary:focus-visible{outline:3px solid var(--accent);outline-offse
 
 /* tiêu đề nhóm kèm nút thêm tại chỗ */
 .sec-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:0}
-.sec-row .btn{font-family:var(--body)}
+.sec-row .btn{font-family:var(--body);white-space:nowrap;flex:none}
 .grp-h{font-family:var(--display);font-weight:800;font-size:15px;color:var(--muted);padding:10px 2px 0}
 .grp-h:first-child{padding-top:0}
 .grp-h .muted{font-family:var(--body);font-weight:600;font-size:12px}
@@ -786,3 +786,7 @@ details.adv>summary .muted{font-weight:500;margin-left:4px}
 .km-stat b{font-size:20px}
 .km-place{font-weight:600;text-align:center}
 .km-place.moved{background:var(--accent-soft);color:var(--accent)}
+
+/* việc thưởng đủ tuần */
+.km-week{margin-top:10px;font-weight:700;font-size:15px;color:var(--muted)}
+.item.bonus{background:var(--star-soft);border-color:var(--sun)}
