@@ -99,7 +99,7 @@ const SAMPLE_PERIODS = [['08:00', '08:35'], ['08:45', '09:20'], ['09:40', '10:15
 
 // ---------- state ----------
 let S = Object.fromEntries(COLS.map(c => [c, {}]));
-const UI = { view: 'hom-nay', date: today(), acctKid: null, acctKind: 'penalty', histAll: false, extraOpen: {}, learn: 'sap-toi', todayMode: 'day', gridWs: null, planNext: false, agDate: null, taskDone: false, tkbKid: null, km: { on: false, kid: null }, sheet: false };
+const UI = { view: 'hom-nay', date: today(), acctKid: null, acctKind: 'penalty', histAll: false, slotOpen: {}, learn: 'sap-toi', todayMode: 'day', gridWs: null, planNext: false, agDate: null, taskDone: false, tkbKid: null, km: { on: false, kid: null }, sheet: false };
 let store = null, loaded = false, stale = false, family = null;
 const FAMILY_KEY = 'be-cham-ngoan-family';
 const getFamily = () => { try { return localStorage.getItem(FAMILY_KEY); } catch (e) { return null; } };
@@ -247,7 +247,7 @@ const ava = (k, cls = '') => {
 const mini = k => photoOf(k) ? `<img class="mini" src="${photoOf(k)}" alt="">` : avatarPick(avatarOf(k)) ? `<span class="mini">${avInner(avatarOf(k))}</span>` : esc(avatarOf(k));
 function choreSummary(c) {
   const sl = SLOTS.find(x => x[0] === choreSlot(c));
-  return [isFun(c) ? '🎈 thích làm' : `${isExtra(c) ? '💪 làm thêm' : '⭐ phải làm'} ${money(choreVnd(c))}`, (c.kids || []).map(kidName).map(esc).join(', ') || 'chưa giao cho ai',
+  return [isFun(c) ? '' : money(choreVnd(c)), (c.kids || []).map(kidName).map(esc).join(', ') || 'chưa giao cho ai',
     perWeekOf(c) ? `${perWeekOf(c)} lần/tuần (${daysLabel(c.days)})` : daysLabel(c.days),
     choreSlot(c) ? `${sl[2]} ${toMin(c.time) !== null ? (c.by ? 'trước ' : '') + esc(c.time) : sl[1].replace('Buổi ', '').toLowerCase()}` : '',
     Number(c.minutes) ? `${Number(c.minutes)} phút` : '', (c.steps || []).length ? `${c.steps.length} mục con` : '',
@@ -339,8 +339,14 @@ function eventWhen(e) {
   return { txt: n === 1 ? 'Ngày mai' : `Còn ${n} ngày` };
 }
 // Mốc sắp tới cần nhắc ở màn Hôm nay: đang diễn ra, hoặc sắp bắt đầu (kiểm tra báo trước 14 ngày, còn lại 7 ngày).
-const eventsSoon = kidId => eventsOf(kidId).filter(e => { const w = eventWhen(e); return !w.past && (w.now || daysTo(e.from) <= (e.kind === 'exam' ? 14 : 7)); });
-const eventLines = (k, cls = 'event-line') => eventsSoon(k.id).map(e => `<a class="${cls} ${esc(e.kind)}" href="#lich-hoc" data-act="tkb-go" data-tab="moc" data-kid="${k.id}"><b>${esc(e.icon || '📌')} ${esc(eventWhen(e).txt)}:</b> ${esc(e.name)} <span class="muted">(${esc(eventRange(e))})</span></a>`).join('');
+const isSoon = e => { const w = eventWhen(e); return !w.past && (w.now || daysTo(e.from) <= (e.kind === 'exam' ? 14 : 7)); };
+const eventsSoon = kidId => eventsOf(kidId).filter(isSoon);
+// Ngày viết ngắn cho dòng nhắc: "T5 19/11" hoặc "21/11 – 25/11".
+const eventShort = e => { const a = parse(e.from), b = parse(e.to); return e.from === e.to ? `${WDS[a.getDay()]} ${dm(a)}` : `${dm(a)} – ${dm(b)}`; };
+const eventLine = (e, cls, kid) => `<a class="${cls} ${esc(e.kind)}" href="#lich-hoc" data-act="tkb-go" data-tab="moc" data-kid="${kid}"><b>${esc(e.icon || '📌')} ${esc(eventWhen(e).txt)}:</b> ${esc(e.name)} <span class="muted">(${esc(cls === 'km-event' ? eventRange(e) : eventShort(e))})</span></a>`;
+// own: chỉ lấy mốc ghi riêng cho con này (mốc chung cả nhà đã hiện một lần ở đầu màn Hôm nay).
+const eventLines = (k, cls = 'event-line', own = false) => eventsSoon(k.id).filter(e => !own || (e.kids || []).length).map(e => eventLine(e, cls, k.id)).join('');
+const famEventLines = () => eventsList().filter(e => !(e.kids || []).length && isSoon(e)).map(e => eventLine(e, 'event-line', 'all')).join('');
 function missingYear() {
   const have = new Set(eventsList().map(e => norm(e.name) + e.from));
   return SAMPLE_YEAR.items.filter(e => !have.has(norm(e.name) + e.from));
@@ -584,6 +590,7 @@ function draw() {
   $('#app').innerHTML = topbar() + body;
   drawKidMode();
   if (UI.sheet) drawSheet();
+  const tb = $('#app .tabbar .on'); if (tb) tb.parentElement.scrollLeft = Math.max(0, tb.offsetLeft - 60);
   const on = $('#app .tkb th.on');
   if (on) { const w = on.closest('.tbl-wrap'); if (w.scrollWidth > w.clientWidth) w.scrollLeft = Math.max(0, on.offsetLeft - 112); }
 }
@@ -604,16 +611,18 @@ function noKids() {
 }
 
 // ---------- bảng tuần (lưới việc × ngày) ----------
-const modeSeg = () => `<div class="seg modes"><label><input type="radio" name="tmode" value="day" ${UI.todayMode !== 'week' ? 'checked' : ''}><span>📋 Từng ngày</span></label><label><input type="radio" name="tmode" value="week" ${UI.todayMode === 'week' ? 'checked' : ''}><span>🗓️ Cả tuần</span></label></div>`;
+// Một hàng điều khiển: xem từng ngày hay cả tuần, và nút mở chế độ cho bé.
+const todayBar = kids => `<div class="today-bar"><div class="seg modes"><label><input type="radio" name="tmode" value="day" ${UI.todayMode !== 'week' ? 'checked' : ''}><span>Từng ngày</span></label><label><input type="radio" name="tmode" value="week" ${UI.todayMode === 'week' ? 'checked' : ''}><span>Cả tuần</span></label></div>
+  <button class="btn primary sm" data-act="km-open" ${kids.length ? '' : 'disabled'}>Chế độ cho bé</button></div>`;
 const skipNote = (k, d) => { const e = skipEntry(k.id, d); return e ? `<div class="skip-note">🎟️ ${key(d) === key(today()) ? 'Hôm nay' : 'Ngày này'} ${esc(k.name)} dùng phiếu “Một ngày không làm việc nhà”: việc phải làm được miễn, làm thì vẫn có tiền.</div>` : ''; };
 function viewWeekGrid() {
   const kids = kidsList(), t = today(), ws = UI.gridWs || weekStart(t), days = Array.from({ length: 7 }, (_, i) => addDays(ws, i));
-  let h = `<div class="head"><h1>Cả tuần</h1><p>Mỗi việc một dòng, mỗi ngày một cột. Bấm vào ô để đánh dấu đã làm hoặc bỏ dấu.</p></div>${modeSeg()}
+  let h = `<div class="head"><h1>Cả tuần</h1><p>Bấm vào ô để đánh dấu đã làm hoặc bỏ dấu.</p></div>${todayBar(kids)}
   <div class="daynav"><button class="iconbtn" data-act="grid-week" data-n="-7" aria-label="Tuần trước"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
     <b>Tuần ${dm(ws)} – ${dm(addDays(ws, 6))}</b>
     <button class="iconbtn" data-act="grid-week" data-n="7" aria-label="Tuần sau"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
-    ${key(ws) === key(weekStart(t)) ? '' : '<button class="chip" style="border:0" data-act="grid-week" data-n="0">Tuần này</button>'}</div>
-  <div class="row"><button class="btn primary" data-act="km-open" ${kids.length ? '' : 'disabled'}>Chế độ cho bé</button><button class="btn ghost" data-act="sheet-open" ${kids.length ? '' : 'disabled'}>In kế hoạch tuần</button></div>`;
+    ${key(ws) === key(weekStart(t)) ? '' : '<button class="chip" style="border:0" data-act="grid-week" data-n="0">Tuần này</button>'}
+    <button class="btn ghost sm push" data-act="sheet-open" ${kids.length ? '' : 'disabled'}>🖨️ In kế hoạch tuần</button></div>`;
   if (!kids.length) return h + noKids();
   const so = c => (isExtra(c) ? 1e6 : 0) + SLOTS.findIndex(x => x[0] === choreSlot(c)) * 10000 + (toMin(c.time) ?? 9999);
   for (const k of kids) {
@@ -646,12 +655,12 @@ function viewWeekGrid() {
   return h;
 }
 
-// Dải 7 ngày trong tuần: ✓ cả nhà làm đủ, ✗ còn thiếu, vòng tiến độ cho hôm nay.
+// Dải 7 ngày trong tuần: ✓ cả nhà làm đủ, ✗ còn thiếu, vòng tiến độ cho hôm nay. Những ngày trước khi con bắt đầu dùng app không tính là thiếu.
 function weekStrip(sel) {
   const t = today(), ws = weekStart(sel), kids = kidsList();
   const cells = Array.from({ length: 7 }, (_, i) => addDays(ws, i)).map(d => {
     let all = 0, done = 0, any = false;
-    for (const k of kids) { const l = mustFor(k.id, d); all += l.length; done += l.filter(c => isDone(d, k.id, c.id)).length; if (l.length) any = true; }
+    for (const k of kids) { if (d < kidSince(k.id)) continue; const l = mustFor(k.id, d); all += l.length; done += l.filter(c => isDone(d, k.id, c.id)).length; if (l.length) any = true; }
     const isT = key(d) === key(t), pct = all ? Math.round(done / all * 100) : 0;
     const st = d > t ? 'fut' : !any ? 'rest' : done >= all ? 'ok' : isT ? 'now' : 'miss';
     const ic = { ok: '✓', miss: '✕', rest: '·', fut: '', now: '' }[st];
@@ -671,11 +680,15 @@ function viewToday() {
       <button class="iconbtn" data-act="day" data-n="-7" aria-label="Tuần trước"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
       <button class="iconbtn" data-act="day" data-n="7" aria-label="Tuần sau"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
     </div></div>
-  ${kids.length ? weekStrip(d) : ''}${modeSeg()}
-  <div class="row"><button class="btn primary" data-act="km-open" ${kids.length ? '' : 'disabled'}>Chế độ cho bé</button><button class="btn ghost" data-act="sheet-open" ${kids.length ? '' : 'disabled'}>In kế hoạch tuần</button></div>`;
+  ${kids.length ? weekStrip(d) : ''}${todayBar(kids)}`;
   if (!kids.length) return h + noKids();
   if (future) h += `<div class="note">Đây là ngày chưa tới, các con chưa thể đóng dấu.</div>`;
-  if (stayLine(d.getDay(), isT)) h += `<a class="stay-note ${stayInfo(d.getDay()).moved ? 'moved' : ''}" href="#lich-hoc" data-act="tkb-go" data-kid="all">${esc(stayLine(d.getDay(), isT))}</a>`;
+  // Nhắc chung của cả nhà chỉ hiện một lần ở đây, không lặp lại trong thẻ của từng con.
+  const multi = kids.length > 1, fam = (stayLine(d.getDay(), isT) ? `<a class="stay-note ${stayInfo(d.getDay()).moved ? 'moved' : ''}" href="#lich-hoc" data-act="tkb-go" data-tab="hoc-them" data-kid="all">${esc(stayLine(d.getDay(), isT))}</a>` : '') + (multi ? famEventLines() : '');
+  if (fam) h += `<div class="fam-notes">${fam}</div>`;
+  // Nhà chưa có việc nào: chỉ ngay bước tiếp theo, không để màn trống.
+  if (!Object.keys(S.chores).length) h += `<section class="card empty"><div class="big">🧹</div><h2>Chưa có việc nhà nào</h2><p class="muted">Bắt đầu nhanh với bảng mẫu (${SAMPLE_CHORES.length} việc có tiền, kèm mục phạt, phí sử dụng và phiếu thưởng) rồi sửa lại sau, hoặc tự thêm từng việc.</p>
+    <div class="row" style="justify-content:center;margin-top:10px"><button class="btn primary" data-act="seed">Dùng bảng mẫu</button><button class="btn ghost" data-act="chore-form">Tự thêm việc</button></div></section>`;
   for (const k of kids) {
     const list = mustFor(k.id, d), plan = dayPlan(k.id, d);
     const n = list.filter(c => isDone(d, k.id, c.id)).length;
@@ -683,21 +696,25 @@ function viewToday() {
     h += `<section class="card kid-card" style="--tint:${tintOf(k)}"><div class="kid-hero">${ava(k)}<div class="kid-hi"><div class="kid-name">${esc(k.name)}</div><div class="row" style="gap:6px">${streakChip(k)}${bdayChip(k, d)}</div></div><a href="#tai-khoan" class="acct-link" data-act="acct-go" data-kid="${k.id}">${moneyChip(k)}</a></div>`;
     const sc = schoolNow(k, d, isT);
     if (sc) h += `<a class="school-line" href="#lich-hoc" data-act="tkb-go" data-tab="tkb" data-kid="${k.id}"><b>${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}:</b> ${esc(sc.subjects.join(', '))}</a>`;
-    h += eventLines(k) + skipNote(k, d);
+    h += eventLines(k, 'event-line', multi) + skipNote(k, d);
     const ts = isT ? tasksSoon(k.id) : [];
-    if (ts.length) h += `<div class="today-tasks"><a class="ag-h" href="#lich-hoc" data-act="tkb-go" data-tab="bai-tap" data-kid="${k.id}">📝 Bài cần nộp (${ts.length})</a><div class="list">${ts.map(t => taskRow(t, false)).join('')}</div></div>`;
-    if (!plan.length) { h += `<p class="muted" style="margin:12px 0 0">Hôm nay ${esc(k.name)} không có việc nào. Nghỉ ngơi thôi!</p></section>`; continue; }
+    if (ts.length) h += `<div class="today-tasks"><a class="ag-h" href="#lich-hoc" data-act="tkb-go" data-tab="bai-tap" data-kid="${k.id}">📝 Bài cần nộp (${ts.length}) <span class="more">Xem hết ›</span></a><div class="list">${ts.map(t => taskRow(t, false, 'mini')).join('')}</div></div>`;
+    if (!plan.length) { h += `<p class="muted" style="margin:12px 0 0">${isT ? 'Hôm nay' : 'Ngày này'} ${esc(k.name)} không có việc nào${Object.keys(S.chores).length ? '. Nghỉ ngơi thôi!' : '.'}</p></section>`; continue; }
     if (list.length) h += progBox(n, list.length, n === list.length ? '🎉 Xong hết việc phải làm!' : `⭐ Việc phải làm · còn ${list.length - n} việc`);
     const cur = isT ? slotAt(nowMin()) : null;
     // Mỗi buổi là một khối có màu riêng (sáng cam, chiều xanh trời, tối tím, lúc nào cũng được xanh lá nhạt) cho dễ tách.
     h += `<div class="slots">`;
     for (const g of plan) {
+      // Mỗi buổi mở/đóng được. Mặc định: buổi đã xong hết thì thu gọn (trừ buổi đang diễn ra và buổi có việc thích làm vừa mở khoá),
+      // việc làm thêm thu gọn cho tới khi có làm. Bố mẹ bấm mở/đóng thì giữ nguyên lựa chọn đó.
+      const sk = `${key(d)}|${k.id}|${g.id}`, isNow = !g.extra && g.id && g.id === cur;
       if (g.extra) {
         const nd = g.items.filter(x => isDone(d, k.id, x.c.id)).length;
-        h += `<details class="slot s-them extra-g" data-kid="${k.id}" ${nd || UI.extraOpen[k.id] ? 'open' : ''}><summary class="slot-h extra">${g.icon} ${g.label} <span class="slot-n">${g.items.length} việc${nd ? `, đã làm ${nd}` : ''}</span></summary><div class="list">`;
+        h += `<details class="slot s-them" data-slot="${sk}" ${UI.slotOpen[sk] ?? nd > 0 ? 'open' : ''}><summary class="slot-h extra">${g.icon} ${g.label} <span class="slot-n">${g.items.length} việc${nd ? `, đã làm ${nd}` : ''}</span></summary><div class="list">`;
       } else {
         const mine = g.items.filter(x => x.type === 'chore' && !isFun(x.c)), nd = mine.filter(x => isDone(d, k.id, x.c.id)).length;
-        h += `<section class="slot s-${g.id || 'any'} ${g.id && g.id === cur ? 'now' : ''}"><div class="slot-h">${g.icon} ${g.label}${g.id && g.id === cur ? '<span class="nowpill">bây giờ</span>' : ''}${mine.length ? `<span class="slot-n num">${nd}/${mine.length}</span>` : ''}</div><div class="list">`;
+        const full = mine.length > 0 && nd === mine.length, hasFun = g.items.some(x => x.type === 'chore' && isFun(x.c));
+        h += `<details class="slot s-${g.id || 'any'} ${isNow ? 'now' : ''} ${full ? 'full' : ''}" data-slot="${sk}" ${UI.slotOpen[sk] ?? (!full || isNow || hasFun) ? 'open' : ''}><summary class="slot-h">${g.icon} ${g.label}${isNow ? '<span class="nowpill">bây giờ</span>' : ''}${mine.length ? `<span class="slot-n num">${full ? '✓ ' : ''}${nd}/${mine.length}</span>` : ''}</summary><div class="list">`;
       }
       for (const x of g.items) {
         if (x.type !== 'chore') { h += markRow(x); continue; }
@@ -707,17 +724,17 @@ function viewToday() {
         h += `<div class="item ${on ? 'done' : ''} ${isFun(c) ? 'fun' + (x.locked ? ' locked' : '') : ''}"><span class="ico">${esc(c.icon || '✅')}</span><div class="txt"><div class="t">${esc(c.name)}</div><div class="s">${choreMeta(c, k.id, d, isT)}</div>
           ${steps.length && !isFun(c) ? `<div class="steps">${steps.map((st, i) => { const ok = on || (mask >> i) & 1; return `<button class="step ${ok ? 'on' : ''}" data-act="step" data-kid="${k.id}" data-chore="${c.id}" data-i="${i}" ${future ? 'disabled' : ''} aria-pressed="${!!ok}">${ok ? '☑' : '☐'} ${esc(st)}</button>`; }).join('')}</div>` : ''}</div>${right}</div>`;
       }
-      h += g.extra ? `</div></details>` : `</div></section>`;
+      h += `</div></details>`;
     }
     h += `</div></section>`;
   }
   return h;
 }
 
-const LEARN_TABS = [['sap-toi', '📅 Sắp tới'], ['bai-tap', '📝 Bài tập'], ['tkb', '🏫 Thời khoá biểu'], ['moc', '🚩 Mốc năm học'], ['hoc-them', '🚗 Học thêm']];
+const LEARN_TABS = [['sap-toi', 'Sắp tới'], ['bai-tap', 'Bài tập'], ['tkb', 'Thời khoá biểu'], ['moc', 'Mốc năm học'], ['hoc-them', 'Học thêm']];
 function viewSchedule() {
   const kids = kidsList();
-  let h = `<div class="head"><h1>Học tập</h1><p>Lịch ở trường, bài tập, các đợt kiểm tra và học thêm của các con, xếp theo từng ngày.</p></div>`;
+  let h = `<div class="head"><h1>Học tập</h1></div>`;
   if (!kids.length) return h + noKids();
   // Nhiều con thì mặc định xem cả nhà, để thấy ngay giờ nào cần đưa đón hai nơi.
   const all = kids.length > 1 && (UI.tkbKid === 'all' || !S.kids[UI.tkbKid]);
@@ -755,14 +772,15 @@ function dueLabel(dk) {
   return n < 7 ? `${WDN(d.getDay())} ${dm(d)}` : `${WDN(d.getDay())} ${dm(d)} (còn ${n} ngày)`;
 }
 const subjDot = s => s ? `<i class="dot sj${subjTint(s)}"></i>` : '';
-function taskRow(t, showKid, big = false) {
+function taskRow(t, showKid, mode = '') {
+  const big = mode === 'big', bare = big || mode === 'mini';
   const nd = t.steps.filter(x => x.done).length, over = !t.done && t.due && daysTo(t.due) < 0, kind = TASK_KINDS.find(x => x[0] === t.kind) || TASK_KINDS[0];
   const meta = [t.subj ? `${subjDot(t.subj)}${esc(t.subj)}` : '', t.done ? `xong ${t.doneAt ? dm(parse(t.doneAt)) : ''}` : t.due ? `<span class="${over ? 'late' : ''}">${over ? '' : 'hạn '}${esc(dueLabel(t.due))}</span>` : 'chưa có hạn',
     t.steps.length ? `${nd}/${t.steps.length} bước` : '', showKid ? esc(kidName(t.kid)) : ''].filter(Boolean).join(' · ');
   const steps = !t.done && t.steps.length ? `<div class="steps">${t.steps.map((x, i) => `<button class="step ${x.done ? 'on' : ''}" data-act="task-step" data-id="${t.id}" data-i="${i}" aria-pressed="${!!x.done}">${x.done ? '☑' : '☐'} ${esc(x.t)}</button>`).join('')}</div>` : '';
   return `<div class="${big ? 'big-item task' : 'item task'} ${t.done ? 'done' : ''}"><button class="check ${t.done ? 'on' : ''}" data-act="task-done" data-id="${t.id}" aria-pressed="${!!t.done}" aria-label="${t.done ? 'Chưa xong' : 'Xong'}: ${esc(t.title)}">✓</button>
-    <div class="txt"><div class="t">${kind[2]} ${esc(t.title)}</div><div class="s">${meta}</div>${t.notes && !big ? `<div class="s snip">${esc(String(t.notes).slice(0, 120))}</div>` : ''}${steps}</div>
-    ${big ? '' : `<div class="acts"><button class="btn ghost sm" data-act="task-form" data-id="${t.id}">Sửa</button></div>`}</div>`;
+    <div class="txt"><div class="t">${kind[2]} ${esc(t.title)}</div><div class="s">${meta}</div>${t.notes && !bare ? `<div class="s snip">${esc(String(t.notes).slice(0, 120))}</div>` : ''}${steps}</div>
+    ${bare ? '' : `<div class="acts"><button class="btn ghost sm" data-act="task-form" data-id="${t.id}">Sửa</button></div>`}</div>`;
 }
 function tasksView(ks) {
   const ids = ks.map(k => k.id), multi = ks.length > 1, tk = key(today());
@@ -800,8 +818,10 @@ function taskForm(id, kidPre) {
     ${subs.length ? `<div class="row">${subs.map(x => `<button class="btn quiet sm" data-act="task-subj" data-v="${esc(x)}">${subjDot(x)}${esc(x)}</button>`).join('')}</div><span class="muted small">Chọn môn thì hạn nộp tự đặt vào buổi học tới của môn đó.</span>` : ''}</div>
   <div class="field"><label for="tdue">Hạn nộp</label><input id="tdue" class="input num" type="date" value="${esc(t?.due || '')}">
     <div class="row"><button class="btn quiet sm" data-act="task-due" data-v="next">Buổi học tới của môn</button><button class="btn quiet sm" data-act="task-due" data-v="1">Ngày mai</button><button class="btn quiet sm" data-act="task-due" data-v="mon">Thứ Hai tới</button><button class="btn quiet sm" data-act="task-due" data-v="">Không có hạn</button></div></div>
-  <div class="field"><label for="tsteps">Các bước (mỗi dòng một bước, không bắt buộc)</label><textarea id="tsteps" class="input" rows="3" placeholder="Đọc đề&#10;Làm nháp&#10;Chép vào vở">${esc((t?.steps || []).map(x => x.t).join('\n'))}</textarea></div>
-  <div class="field"><label for="tnotes">Ghi chú</label><textarea id="tnotes" class="input" rows="3" maxlength="1000" placeholder="Cô dặn gì, cần mang gì...">${esc(t?.notes || '')}</textarea></div>
+  <details class="adv" ${(t?.steps || []).length || t?.notes ? 'open' : ''}><summary>Thêm tuỳ chọn <span class="muted small">các bước nhỏ, ghi chú</span></summary>
+    <div class="field"><label for="tsteps">Các bước (mỗi dòng một bước)</label><textarea id="tsteps" class="input" rows="3" placeholder="Đọc đề&#10;Làm nháp&#10;Chép vào vở">${esc((t?.steps || []).map(x => x.t).join('\n'))}</textarea></div>
+    <div class="field"><label for="tnotes">Ghi chú</label><textarea id="tnotes" class="input" rows="3" maxlength="1000" placeholder="Cô dặn gì, cần mang gì...">${esc(t?.notes || '')}</textarea></div>
+  </details>
   <div class="foot">${t ? `<button class="btn danger left" data-act="task-del" data-id="${id}">Xoá</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="task-save" data-id="${id || ''}">Lưu</button></div>`);
 }
 
@@ -952,19 +972,19 @@ function statement(kidId) {
     const v = earned(kidId, dk, dk); if (!v) continue;
     const names = Object.entries(S.done[dk][kidId] || {}).filter(([cid, x]) => !cid.includes('~') && doneVnd(x) > 0).map(([cid]) => S.chores[cid]?.name).filter(Boolean);
     const end = parse(dk); end.setHours(23, 58);
-    rows.push({ kind: 'chores', vnd: v, note: `Ngày ${dm(parse(dk))}: ${names.join(', ') || 'việc nhà'}`, at: end.toISOString() });
+    rows.push({ kind: 'chores', vnd: v, note: `Ngày ${dm(parse(dk))} · ${names.length ? `${names.length} việc: ${names.join(', ')}` : 'việc nhà'}`, at: end.toISOString() });
   }
   return rows.sort((a, b) => String(b.at).localeCompare(String(a.at)));
 }
 function viewAccount() {
   const kids = kidsList(), t = today(), ws = weekStart(t);
-  let h = `<div class="head"><h1>Tài khoản</h1><p>Tiền tiêu vặt của các con. Làm việc nhà được cộng tiền; bị phạt, dùng điện thoại hay xem tivi thì trừ tiền.</p></div>`;
+  let h = `<div class="head"><h1>Tài khoản</h1><p>Tiền tiêu vặt của các con.</p></div>`;
   if (!kids.length) return h + noKids();
   const ak = S.kids[UI.acctKid] ? UI.acctKid : kids[0].id, kind = ACCT_KINDS.some(x => x[0] === UI.acctKind) ? UI.acctKind : 'penalty';
   h += `<div class="tiles">${kids.map(k => {
     const st = weekStats(k, ws), wk = earned(k.id, key(ws), key(addDays(ws, 6))), wb = weekBonusOf(k), b = balance(k.id);
     const wbTxt = wb && st.possible ? (st.done >= st.possible ? `🏆 Đủ cả tuần, được thưởng ${money(wb)}` : `Đủ việc cả tuần thưởng ${money(wb)}`) : '';
-    return `<button class="tile acct ${k.id === ak ? 'on' : ''}" data-act="acct-kid" data-kid="${k.id}"><span class="who">${ava(k, 'sm')}${esc(k.name)}</span>
+    return `<button class="tile acct ${k.id === ak ? 'on' : ''}" data-act="acct-kid" data-kid="${k.id}" aria-pressed="${k.id === ak}"><span class="who">${ava(k, 'sm')}${esc(k.name)}</span>
       <span class="bal num ${b < 0 ? 'neg' : ''}">${money(b)}</span>
       <span class="muted small">Tuần này kiếm được <b class="num">${money(wk)}</b> · việc phải làm <span class="num">${st.done}/${st.possible}</span></span>
       ${wbTxt ? `<span class="muted small">${wbTxt}</span>` : ''}</button>`;
@@ -972,8 +992,7 @@ function viewAccount() {
   <div class="row"><button class="btn ghost sm" data-act="bal-form">🏦 Khớp số dư với tài khoản ngân hàng</button></div>`;
 
   const kidName1 = esc(kidName(ak));
-  h += `<section class="card acct-form"><h2>Ghi vào tài khoản</h2>
-    ${kids.length > 1 ? `<div class="field"><span class="lbl">Con</span><div class="seg">${kids.map(k => `<label><input type="radio" name="akid" value="${k.id}" ${k.id === ak ? 'checked' : ''}><span>${mini(k)} ${esc(k.name)}</span></label>`).join('')}</div></div>` : ''}
+  h += `<section class="card acct-form"><h2>Ghi vào tài khoản của ${kidName1}</h2>
     <div class="seg">${ACCT_KINDS.map(([v, l]) => `<label><input type="radio" name="akind" value="${v}" ${v === kind ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div>`;
   const presets = list => `<div class="presets">${list.map(r => `<button class="preset ${priceKind(r)}" data-act="acct-preset" data-id="${r.id}"><span class="ico">${esc(r.icon || '•')}</span><span class="t">${esc(r.name)}</span>${r.note ? `<span class="muted small">${esc(r.note)}</span>` : ''}<b class="num">${priceTag(r)}</b></button>`).join('')}</div>`;
   const custom = (label, btn, ph) => `<div class="row2"><div class="field"><label for="aamt">${label}</label><input id="aamt" class="input num" type="number" min="0" step="1000" inputmode="numeric" placeholder="Ví dụ: 10000"></div>
@@ -981,7 +1000,7 @@ function viewAccount() {
     <div class="row"><button class="btn ${kind === 'bonus' ? 'primary' : 'danger'}" data-act="acct-custom">${btn}</button></div>`;
   if (kind === 'penalty') {
     const ps = pricesList('penalty');
-    h += ps.length ? `<p class="muted small" style="margin:0">Bấm vào lỗi để trừ tiền của ${kidName1}. Bấm nhầm thì Huỷ trong lịch sử.</p>${presets(ps)}` : `<p class="muted small" style="margin:0">Chưa có mục phạt nào. Thêm ở trang <a href="#bang-gia">Bảng giá</a>.</p>`;
+    h += ps.length ? `<p class="muted small" style="margin:0">Bấm vào lỗi để trừ tiền của ${kidName1}. Bấm nhầm thì bấm Hoàn tác ngay sau đó, hoặc Huỷ trong lịch sử.</p>${presets(ps)}` : `<p class="muted small" style="margin:0">Chưa có mục phạt nào. Thêm ở trang <a href="#bang-gia">Bảng giá</a>.</p>`;
     h += `<details class="adv"><summary>Phạt số tiền khác</summary>${custom('Số tiền trừ (đồng)', 'Trừ tiền', 'Ví dụ: Làm vỡ cốc')}</details>`;
   } else if (kind === 'fee') {
     const ps = pricesList('fee');
@@ -993,7 +1012,6 @@ function viewAccount() {
   } else {
     const gs = pricesList('gift');
     h += `<p class="muted small" style="margin:0">Con tiêu tiền trong tài khoản: đổi phiếu thưởng, mua quà hoặc rút tiền mặt.</p>`;
-    if (gs.some(r => r.skip)) h += `<div class="field"><label for="askip">Phiếu nghỉ việc nhà dùng cho ngày</label><input id="askip" class="input num" type="date" value="${key(t)}" min="${key(t)}"></div>`;
     if (gs.length) h += presets(gs);
     h += custom('Số tiền chi (đồng)', 'Ghi chi tiêu', 'Ví dụ: Rút tiền mặt, mua truyện');
   }
@@ -1010,6 +1028,15 @@ function viewAccount() {
     <div class="acts"><span class="delta num ${plus ? 'plus' : 'minus'}">${signed(l.vnd)}</span>${l.id ? `<button class="btn ghost sm" data-act="ledger-undo" data-id="${l.id}">Huỷ</button>` : ''}</div></div>`;
   }).join('')}</div>${rows.length > shown.length ? `<div class="row" style="margin-top:8px"><button class="btn quiet sm" data-act="hist-all">Xem thêm ${rows.length - shown.length} dòng</button></div>` : ''}`;
   return h + `</section>`;
+}
+
+// Phiếu nghỉ việc nhà: hỏi con muốn nghỉ ngày nào rồi mới trừ tiền.
+function skipForm(rid, kidId) {
+  const r = S.rewards[rid]; if (!r) return;
+  openModal(`<h2>${esc(r.icon || '🎟️')} ${esc(r.name)}</h2>
+  <p class="muted" style="margin:-8px 0 0">${esc(kidName(kidId))} đổi phiếu này mất ${money(priceVnd(r))}. Việc phải làm của ngày được chọn được miễn, vẫn giữ thưởng đủ tuần.</p>
+  <div class="field"><label for="askip">Nghỉ ngày nào</label><input id="askip" class="input num" type="date" value="${key(today())}" min="${key(today())}"></div>
+  <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="acct-preset" data-id="${rid}" data-go="1">Đổi phiếu</button></div>`);
 }
 
 // Khớp số dư: bố mẹ gõ số tiền thật của từng con, app ghi một khoản "Khớp số dư" bằng phần chênh lệch.
@@ -1104,26 +1131,30 @@ function addSamples(kidIds) {
   m.prices.forEach(r => put('rewards', uid(), r));
   return m.chores.length + m.prices.length;
 }
+// Tiêu đề nhóm kèm nút thêm ngay tại chỗ: thêm đúng loại đang xem, không phải chọn lại loại trong form.
+const secAdd = (title, act, kind, off = false) => `<div class="sec-title sec-row"><span>${title}</span><button class="btn quiet sm" data-act="${act}" data-kind="${kind}" ${off ? 'disabled' : ''}>+ Thêm</button></div>`;
 function viewPrices() {
   const kids = kidsList(), chores = choresList().filter(c => !isFun(c));
-  let h = `<div class="head"><h1>Bảng giá</h1><p>Mỗi việc được bao nhiêu tiền, lỗi nào bị phạt bao nhiêu, dùng điện thoại hay xem tivi mất bao nhiêu. Bố mẹ thêm, sửa, xoá được hết.</p></div>
-  <div class="row"><button class="btn primary" data-act="chore-form" ${kids.length ? '' : 'disabled'}>Thêm việc có tiền</button><button class="btn primary" data-act="price-form">Thêm mục phạt, phí, quà</button><button class="btn ghost" data-act="prices-print">In bảng giá</button><button class="btn ghost" data-act="coupons-print" ${pricesList('gift').length ? '' : 'disabled'}>In phiếu thưởng</button></div>`;
+  let h = `<div class="head"><h1>Bảng giá</h1><p>Việc nào được bao nhiêu tiền, lỗi nào bị trừ bao nhiêu.</p></div>
+  <div class="row"><button class="btn ghost" data-act="prices-print">🖨️ In bảng giá</button><button class="btn ghost" data-act="coupons-print" ${pricesList('gift').length ? '' : 'disabled'}>🖨️ In phiếu thưởng</button></div>`;
   const miss = missingSamples(), n = miss.chores.length + miss.prices.length;
-  if (n && kids.length) h += `<div class="note">Có ${n} mục trong bảng mẫu (tiền tiêu vặt, nhiệm vụ tuần, checklist trước khi ngủ, phiếu thưởng) chưa có ở đây${miss.chores.length ? ` (${miss.chores.length} việc, ${miss.prices.length} mục phạt, phí và phiếu thưởng)` : ''}. <button class="btn quiet sm" data-act="seed-prices">Thêm vào</button></div>`;
-  const choreRow = c => `<div class="item"><span class="ico">${esc(c.icon || '✅')}</span><div class="txt"><div class="t">${esc(c.name)}</div><div class="s">${esc((c.kids || []).map(kidName).join(', ') || 'chưa giao cho ai')} · ${daysLabel(c.days)}</div></div>
-    <span class="delta num plus">+${money(choreVnd(c))}</span><div class="acts"><button class="btn ghost sm" data-act="chore-form" data-id="${c.id}">Sửa</button></div></div>`;
+  if (n && kids.length) h += `<div class="note">Bảng mẫu còn ${n} mục chưa có ở đây${miss.chores.length ? ` (${miss.chores.length} việc, ${miss.prices.length} mục phạt, phí và phiếu thưởng)` : ''}. <button class="btn quiet sm" data-act="seed-prices">Thêm vào</button></div>`;
+  // Số tiền nằm ngay dưới tên, để tên việc không bị ép thành nhiều dòng trên màn hình hẹp.
+  const choreRow = c => `<div class="item"><span class="ico">${esc(c.icon || '✅')}</span><div class="txt"><div class="t">${esc(c.name)}</div><div class="s"><b class="num plus">+${money(choreVnd(c))}</b> · ${esc((c.kids || []).map(kidName).join(', ') || 'chưa giao cho ai')} · ${perWeekOf(c) ? `${perWeekOf(c)} lần/tuần` : daysLabel(c.days)}</div></div>
+    <div class="acts"><button class="btn ghost sm" data-act="chore-form" data-id="${c.id}">Sửa</button></div></div>`;
   const must = chores.filter(isMust), extra = chores.filter(isExtra);
-  h += `<div class="sec-title">⭐ Thưởng: việc phải làm</div>`;
+  h += secAdd('⭐ Thưởng: việc phải làm', 'chore-form', 'must', !kids.length);
   h += `<section class="card"><div class="list">${must.map(choreRow).join('') || '<p class="muted small" style="margin:0">Chưa có việc phải làm nào.</p>'}
-    ${kids.map(k => `<div class="item"><span class="ico">🏆</span><div class="txt"><div class="t">Làm đủ việc phải làm cả tuần${kids.length > 1 ? ` · ${esc(k.name)}` : ''}</div><div class="s">Tự cộng vào tài khoản khi xong hết việc phải làm từ Thứ Hai đến Chủ nhật</div></div>
-      <span class="delta num plus">${weekBonusOf(k) ? '+' + money(weekBonusOf(k)) : '—'}</span><div class="acts"><button class="btn ghost sm" data-act="kid-form" data-id="${k.id}">Sửa</button></div></div>`).join('')}</div></section>`;
-  h += `<div class="sec-title">💪 Thưởng: việc làm thêm</div><section class="card">${extra.length ? `<div class="list">${extra.map(choreRow).join('')}</div>` : '<p class="muted small" style="margin:0">Việc không bắt buộc, làm lúc nào được tiền lúc đó. Ví dụ: rửa bát, đổ rác.</p>'}</section>`;
+    ${kids.map(k => `<div class="item"><span class="ico">🏆</span><div class="txt"><div class="t">Làm đủ việc cả tuần${kids.length > 1 ? ` · ${esc(k.name)}` : ''}</div><div class="s"><b class="num ${weekBonusOf(k) ? 'plus' : ''}">${weekBonusOf(k) ? '+' + money(weekBonusOf(k)) : 'Không thưởng'}</b> · tự cộng khi xong hết việc phải làm từ Thứ Hai đến Chủ nhật</div></div>
+      <div class="acts"><button class="btn ghost sm" data-act="kid-form" data-id="${k.id}">Sửa</button></div></div>`).join('')}</div></section>`;
+  h += secAdd('💪 Thưởng: việc làm thêm', 'chore-form', 'extra', !kids.length) + `<section class="card">${extra.length ? `<div class="list">${extra.map(choreRow).join('')}</div>` : '<p class="muted small" style="margin:0">Việc không bắt buộc, làm lúc nào được tiền lúc đó. Ví dụ: rửa bát, đổ rác.</p>'}</section>`;
+  const EMPTY = { penalty: 'Lỗi nào thì bị trừ tiền. Ví dụ: nổi nóng, trì hoãn.', fee: 'Dùng điện thoại, xem tivi mất bao nhiêu tiền mỗi giờ.', gift: 'Con dùng tiền trong tài khoản để đổi. Ví dụ: chọn phim tối nay, mời bạn đến chơi.' };
   for (const [kind, label, icon] of PRICE_KINDS) {
     const list = pricesList(kind);
-    h += `<div class="sec-title">${icon} ${label}</div><section class="card">`;
-    h += list.length ? `<div class="list">${list.map(r => `<div class="item"><span class="ico">${esc(r.icon || icon)}</span><div class="txt"><div class="t">${esc(r.name)}</div>${r.all ? '<div class="s">Trừ hết số tiền đang có trong tài khoản</div>' : ''}</div>
-      <span class="delta num ${kind === 'gift' ? '' : 'minus'}">${priceTag(r)}</span><div class="acts"><button class="btn ghost sm" data-act="price-form" data-id="${r.id}">Sửa</button></div></div>`).join('')}</div>`
-      : `<p class="muted small" style="margin:0">Chưa có mục nào. <button class="btn quiet sm" data-act="price-form" data-kind="${kind}">Thêm</button></p>`;
+    h += secAdd(`${icon} ${label}`, 'price-form', kind) + `<section class="card">`;
+    h += list.length ? `<div class="list">${list.map(r => `<div class="item"><span class="ico">${esc(r.icon || icon)}</span><div class="txt"><div class="t">${esc(r.name)}</div><div class="s"><b class="num ${kind === 'gift' ? '' : 'minus'}">${priceTag(r)}</b>${r.all ? ' · trừ hết số tiền đang có' : r.skip ? ' · miễn việc phải làm một ngày' : ''}</div></div>
+      <div class="acts"><button class="btn ghost sm" data-act="price-form" data-id="${r.id}">Sửa</button></div></div>`).join('')}</div>`
+      : `<p class="muted small" style="margin:0">${EMPTY[kind]}</p>`;
     h += `</section>`;
   }
   return h;
@@ -1145,12 +1176,13 @@ const inviteLink = () => location.origin + location.pathname + '?gd=' + encodeUR
 
 function viewFamily() {
   const kids = kidsList(), chores = choresList();
-  let h = `<div class="head"><h1>Gia đình</h1><p>Cài đặt một lần: các con, việc nhà, sao lưu. Tiền thưởng, phạt và phí sử dụng nằm ở trang <a href="#bang-gia">Bảng giá</a>.</p></div>
+  let h = `<div class="head"><h1>Gia đình</h1><p>Cài đặt một lần: các con, việc nhà, sao lưu. Phạt, phí và quà nằm ở <a href="#bang-gia">Bảng giá</a>.</p></div>
   <div class="sec-title">Các con</div><div class="row"><button class="btn primary" data-act="kid-form">Thêm con</button></div>`;
   h += kids.length ? `<section class="card"><div class="list">${kids.map(k => `<div class="item">${ava(k, 'sm')}<div class="txt"><div class="t">${esc(k.name)}</div><div class="s">${ageOf(k) !== null ? `${ageOf(k)} tuổi (sinh ${dm(parse(k.birthday))}/${parse(k.birthday).getFullYear()}) · ` : ''}${modeLabel(k)}</div></div><div class="acts"><button class="btn ghost sm" data-act="kid-form" data-id="${k.id}">Sửa</button></div></div>`).join('')}</div></section>`
     : `<p class="muted" style="margin:0">Chưa có con nào.</p>`;
-  h += `<div class="sec-title">Việc nhà</div><div class="row"><button class="btn primary" data-act="chore-form" ${kids.length ? '' : 'disabled'}>Thêm việc</button><button class="btn ghost" data-act="sheet-open" ${kids.length ? '' : 'disabled'}>In kế hoạch tuần</button></div>`;
-  if (chores.length) h += `<section class="card"><div class="list">${chores.map(c => `<div class="item"><span class="ico">${esc(c.icon || '✅')}</span><div class="txt"><div class="t">${esc(c.name)}</div><div class="s">${choreSummary(c)}</div></div><div class="acts"><button class="btn ghost sm" data-act="chore-form" data-id="${c.id}">Sửa</button></div></div>`).join('')}</div></section>`;
+  h += `<div class="sec-title">Việc nhà</div><div class="row"><button class="btn primary" data-act="chore-form" ${kids.length ? '' : 'disabled'}>Thêm việc</button><button class="btn ghost" data-act="sheet-open" ${kids.length ? '' : 'disabled'}>🖨️ In kế hoạch tuần</button></div>`;
+  const choreItem = c => `<div class="item"><span class="ico">${esc(c.icon || '✅')}</span><div class="txt"><div class="t">${esc(c.name)}</div><div class="s">${choreSummary(c)}</div></div><div class="acts"><button class="btn ghost sm" data-act="chore-form" data-id="${c.id}">Sửa</button></div></div>`;
+  if (chores.length) h += `<section class="card"><div class="list">${[['⭐ Việc phải làm', isMust], ['💪 Việc làm thêm', isExtra], ['🎈 Việc thích làm', isFun]].map(([label, f]) => { const l = chores.filter(f); return l.length ? `<div class="grp-h">${label} <span class="muted">${l.length} việc</span></div>${l.map(choreItem).join('')}` : ''; }).join('')}</div></section>`;
   else if (kids.length) h += `<section class="card"><p class="muted" style="margin:0 0 10px">Chưa có việc nào. Bắt đầu nhanh với bảng mẫu: ${SAMPLE_CHORES.length} việc có tiền, ${SAMPLE_PRICES.length} mục phạt và phí sử dụng. Sửa lại sau cũng được.</p><button class="btn quiet" data-act="seed">Dùng việc nhà mẫu</button></section>`;
   else h += `<p class="muted" style="margin:0">Chưa có việc nào. Thêm con trước rồi giao việc.</p>`;
 
@@ -1184,10 +1216,12 @@ function drawKidMode() {
   const list = mustFor(k.id, t), n = list.filter(c => isDone(t, k.id, c.id)).length, plan = dayPlan(k.id, t), cur = slotAt(nowMin());
   const sc = schoolNow(k, t, true);
   const kst = stayNow(t.getDay());
-  const home = kst ? `<div class="km-school km-home ${kst.next ? 'moved' : ''}"><div class="t">📍 Con đang ở ${esc(placeLow(kst.here))}</div>${kst.next ? `<div class="muted">Tối nay con về ${esc(placeLow(kst.next))}.</div>` : ''}</div>` : '';
+  const home = kst ? `<div class="km-date km-place ${kst.next ? 'moved' : ''}">📍 Con đang ở ${esc(placeLow(kst.here))}${kst.next ? ` · tối nay về ${esc(placeLow(kst.next))}` : ''}</div>` : '';
   const kts = tasksSoon(k.id), g1 = goalProgress(k.id)[0];
   const goal = g1 ? `<div class="km-goal"><div class="t">${esc(g1.icon || '🎁')} Con đang để dành mua <b>${esc(g1.name)}</b></div>${coins(g1, true)}<div class="muted">${g1.need ? `Còn thiếu ${money(g1.need)}` : 'Đủ tiền rồi! Nhờ bố mẹ mua cho con nhé 🎉'}</div></div>` : '';
-  const school = skipNote(k, t) + goal + home + eventLines(k, 'km-event') + (kts.length ? `<div class="km-slot">📝 Bài cần nộp</div>${kts.map(t => taskRow(t, false, true)).join('')}` : '') + (sc ? `<div class="km-school"><div class="t">${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}</div><div class="sj-list">${subjChips(sc.subjects)}</div></div>` : '');
+  // Trên danh sách việc: những gì con phải làm hôm nay (bài cần nộp, soạn cặp). Dưới danh sách: mốc sắp tới và mục tiêu tiết kiệm.
+  const school = skipNote(k, t) + (kts.length ? `<div class="km-slot">📝 Bài cần nộp</div>${kts.map(t => taskRow(t, false, 'big')).join('')}` : '') + (sc ? `<div class="km-school"><div class="t">${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}</div><div class="sj-list">${subjChips(sc.subjects)}</div></div>` : '');
+  const after = eventLines(k, 'km-event') + goal;
   const bigChore = (x, g) => {
     const c = x.c, on = isDone(t, k.id, c.id), steps = (c.steps || []).filter(Boolean), mask = stepMask(t, k.id, c.id);
     const sub = `<span class="s">${choreMeta(c, k.id, t, true)}</span>`;
@@ -1202,14 +1236,15 @@ function drawKidMode() {
   const stk = streakOf(k.id), best = bestStreak(k.id), left = list.length - n;
   const bubble = isBirthday(k, t) ? `Chúc mừng sinh nhật ${esc(k.name)}! 🎂` : !list.length ? `Chào ${esc(k.name)}! Hôm nay thảnh thơi nhé!` : left ? `Chào ${esc(k.name)}! Cùng làm việc nào!` : `${esc(k.name)} giỏi quá! 🎉`;
   el.innerHTML = `<div class="wrap"><div class="km-top"><button class="btn quiet" data-act="km-kid" data-kid="">← Đổi bạn</button>${hold}</div>
-  <div class="km-hero" style="--tint:${tintOf(k)}"><div class="km-bubble">${bubble}</div>${ava(k)}<div class="km-date">${WD[t.getDay()]}, ${t.getDate()} tháng ${t.getMonth() + 1}</div></div>
+  <div class="km-hero" style="--tint:${tintOf(k)}"><div class="km-bubble">${bubble}</div>${ava(k)}<div class="km-date">${WD[t.getDay()]}, ${t.getDate()} tháng ${t.getMonth() + 1}</div>${home}</div>
   ${list.length ? `<div class="card km-prog">${progBox(n, list.length, left ? `⭐ Hôm nay của ${esc(k.name)} · còn ${left} việc` : '🏆 Xong hết việc hôm nay!')}</div>` : ''}
   <div class="km-stats"><div class="km-stat"><span class="hex">💰</span><div><b class="num ${balance(k.id) < 0 ? 'minus' : ''}">${money(balance(k.id))}</b><span>Tài khoản</span></div></div>
     <div class="km-stat"><span class="hex fire">🔥</span><div><b class="num">${stk} ngày</b><span>${stk ? 'liên tiếp' : 'Làm đủ hôm nay để bắt đầu'}${best > stk ? ` · dài nhất ${best}` : ''}</span></div></div></div>
   ${school}
   ${list.length && n === list.length ? `<div class="cheer">Giỏi quá! Hôm nay con làm xong hết rồi 🎉</div>` : ''}
   <div class="big-list">${list.length || plan.length ? timeline
-    : `<div class="card empty"><div class="big">🎈</div><h2>${school ? 'Hôm nay con không có việc nhà nào.' : 'Hôm nay con được nghỉ!'}</h2></div>`}</div></div>`;
+    : `<div class="card empty"><div class="big">🎈</div><h2>${school ? 'Hôm nay con không có việc nhà nào.' : 'Hôm nay con được nghỉ!'}</h2></div>`}</div>
+  ${after}</div>`;
 }
 
 // ---------- kế hoạch tuần (in ra, mỗi con một trang) ----------
@@ -1276,10 +1311,17 @@ function openModal(html, wide, keep) {
   m.innerHTML = `<div class="dialog ${wide ? 'wide' : ''}" role="dialog" aria-modal="true">${html}</div>`;
   m.hidden = false;
   if (keep) { m.querySelector('.dialog').scrollTop = top; return; }
+  modalDirty = false;
   const f = m.querySelector('input:not([type=radio]):not([type=checkbox]),button');
   if (f && !wide) f.focus();
 }
-function closeModal() { $('#modal').hidden = true; $('#modal').innerHTML = ''; UI.sheet = false; }
+function closeModal() { $('#modal').hidden = true; $('#modal').innerHTML = ''; UI.sheet = false; modalDirty = false; }
+// Form đã gõ hoặc chọn gì đó thì bấm ra ngoài / phím Esc không đóng, tránh mất công nhập. Muốn bỏ thì bấm Huỷ.
+let modalDirty = false;
+function dismissModal() {
+  if (modalDirty && !UI.sheet) return toast('Chưa lưu. Bấm Lưu để giữ, hoặc Huỷ để bỏ.');
+  closeModal();
+}
 const pickGrid = (name, list, val) => `<div class="pick" role="radiogroup">${list.map((e, i) => `<label><input type="radio" name="${name}" value="${e}" ${(val ? val === e : i === 0) ? 'checked' : ''} aria-label="${e}"><span>${e}</span></label>`).join('')}</div>`;
 const radioVal = n => { const r = document.querySelector(`#modal input[name="${n}"]:checked, #app input[name="${n}"]:checked`); return r ? r.value : null; };
 
@@ -1317,39 +1359,44 @@ function kidForm(id) {
   openModal(`<h2>${k ? 'Sửa thông tin con' : 'Thêm con'}</h2>
   <div class="field"><label for="kname">Tên</label><input id="kname" class="input" maxlength="30" value="${esc(k?.name || '')}" placeholder="Ví dụ: Bin"></div>
   <div class="field"><label for="kbday">Ngày sinh</label><input id="kbday" class="input" type="date" value="${esc(k?.birthday || '')}"></div>
+  <div class="field"><label for="kwb">Thưởng thêm khi làm đủ việc phải làm cả tuần (đồng)</label><input id="kwb" class="input num" type="number" min="0" step="5000" inputmode="numeric" value="${k ? weekBonusOf(k) : WEEK_BONUS}">
+    <span class="muted small">Xong hết việc phải làm từ Thứ Hai đến Chủ nhật thì app tự cộng tiền này vào tài khoản. Để 0 nếu không thưởng.</span></div>
   <div class="field"><span class="lbl">Ảnh của con</span>
     <div class="photo-pick"><span class="ava photo-prev" style="background:${k ? tintOf(k) : 'var(--t3)'}">${photoOf(k) ? `<img src="${photoOf(k)}" alt="">` : k ? avInner(avatarOf(k)) : '📷'}</span>
       <div class="col"><div class="row"><label class="btn ghost sm file-btn">📷 Chọn ảnh<input type="file" id="kphoto" accept="image/*"></label><button class="btn quiet sm" data-act="photo-del" ${photoOf(k) ? '' : 'hidden'}>Bỏ ảnh</button></div>
       <div class="photo-adj" hidden><label class="small">🔍 Phóng to<input type="range" id="pzoom" min="1" max="4" step="0.05" value="2"></label><label class="small">↕️ Lên xuống<input type="range" id="py" min="0" max="1" step="0.01" value="0.4"></label><label class="small">↔️ Trái phải<input type="range" id="px" min="0" max="1" step="0.01" value="0.5"></label></div>
       <span class="muted small">Ảnh được thu nhỏ và chỉ lưu trong dữ liệu của gia đình. Không có ảnh thì dùng hình emoji bên dưới.</span></div></div></div>
   <div class="field"><span class="lbl">Hình đại diện</span>${avatarGrid(k ? avatarOf(k) : '')}</div>
-  <div class="field"><label for="kwb">Thưởng thêm khi làm đủ việc phải làm cả tuần (đồng)</label><input id="kwb" class="input num" type="number" min="0" step="5000" inputmode="numeric" value="${k ? weekBonusOf(k) : WEEK_BONUS}">
-    <span class="muted small">Xong hết việc phải làm từ Thứ Hai đến Chủ nhật thì app tự cộng tiền này vào tài khoản. Để 0 nếu không thưởng.</span></div>
   <div class="foot">${k ? `<button class="btn danger left" data-act="kid-del" data-id="${id}">Xoá</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="kid-save" data-id="${id || ''}">Lưu</button></div>`);
 }
-function choreForm(id) {
+const KIND_HELP = {
+  must: 'Tính vào tiến độ mỗi ngày và thưởng đủ tuần.',
+  extra: 'Không bắt buộc, làm lúc nào được tiền lúc đó (rửa bát, đổ rác...).',
+  fun: 'Xem phim, chơi Lego... Không có tiền, bị khoá cho đến khi con xong việc phải làm của buổi đó.',
+};
+function choreForm(id, kindPre) {
   const c = id ? S.chores[id] : null, kids = kidsList();
   const ck = c ? (c.kids || []) : kids.map(k => k.id), days = c ? (c.days || []) : [0, 1, 2, 3, 4, 5, 6];
-  const kind = c ? (isFun(c) ? 'fun' : isExtra(c) ? 'extra' : 'must') : 'must', fun = kind === 'fun', slot = c ? choreSlot(c) : '', pw = c ? perWeekOf(c) : 0;
-  const adv = c && (pw || (c.steps || []).length || (c.variants || []).length || c.shared);
+  const kind = c ? (isFun(c) ? 'fun' : isExtra(c) ? 'extra' : 'must') : KIND_HELP[kindPre] ? kindPre : 'must', fun = kind === 'fun', slot = c ? choreSlot(c) : '', pw = c ? perWeekOf(c) : 0;
+  const adv = c && (pw || (c.steps || []).length || (c.variants || []).length || c.shared || toMin(c.time) !== null || Number(c.minutes));
   openModal(`<h2>${c ? 'Sửa việc' : 'Thêm việc'}</h2>
   <div class="field"><label for="cname">Tên việc</label><input id="cname" class="input" maxlength="40" value="${esc(c?.name || '')}" placeholder="Ví dụ: Học bài, Gấp quần áo, Xem phim"></div>
   <div class="field"><span class="lbl">Loại việc</span><div class="seg">
     <label><input type="radio" name="ckind" value="must" ${kind === 'must' ? 'checked' : ''}><span>⭐ Việc phải làm</span></label>
     <label><input type="radio" name="ckind" value="extra" ${kind === 'extra' ? 'checked' : ''}><span>💪 Việc làm thêm</span></label>
     <label><input type="radio" name="ckind" value="fun" ${fun ? 'checked' : ''}><span>🎈 Việc thích làm</span></label></div>
-    <span class="muted small"><b>Phải làm:</b> tính vào tiến độ mỗi ngày và thưởng đủ tuần. <b>Làm thêm:</b> không bắt buộc, làm lúc nào được tiền lúc đó (rửa bát, đổ rác...). <b>Thích làm:</b> xem phim, chơi Lego..., không có tiền, bị khoá cho đến khi con làm xong việc phải làm của buổi đó.</span></div>
+    <span class="muted small" id="ckind-help">${KIND_HELP[kind]}</span></div>
   <div class="field"><span class="lbl">Biểu tượng</span>${pickGrid('cico', CHORE_ICONS, c?.icon)}</div>
   <div class="field cmoney-f" ${fun ? 'hidden' : ''}><label for="cmoney">Được bao nhiêu tiền (đồng)</label><div class="stepper"><button class="iconbtn" data-act="num-step" data-t="cmoney" data-n="-5000" data-min="0" aria-label="Bớt 5.000đ">−</button><input id="cmoney" class="input num" type="number" min="0" step="1000" inputmode="numeric" value="${c ? choreVnd(c) : 5000}"><button class="iconbtn" data-act="num-step" data-t="cmoney" data-n="5000" data-min="0" aria-label="Thêm 5.000đ">+</button></div>
     <div class="row">${[5000, 10000, 15000, 20000].map(v => `<button class="btn quiet sm" data-act="who-fill" data-t="cmoney" data-v="${v}">${money(v)}</button>`).join('')}</div></div>
   <div class="field"><span class="lbl">Buổi</span><div class="seg">${SLOTS.map(([v, label, icon]) => `<label><input type="radio" name="cslot" value="${v}" ${slot === v ? 'checked' : ''}><span>${icon} ${v ? label.replace('Buổi ', '') : label}</span></label>`).join('')}</div></div>
-  <div class="row2"><div class="field"><label for="ctime">Giờ (không bắt buộc)</label><input id="ctime" class="input num" type="time" value="${esc(c?.time || '')}"></div>
-    <div class="field"><label for="cmin">Làm trong bao lâu (phút)</label><input id="cmin" class="input num" type="number" min="0" max="600" step="5" inputmode="numeric" value="${Number(c?.minutes) || ''}" placeholder="Ví dụ: 30"></div></div>
-  <div class="seg"><label><input type="checkbox" id="cby" ${c?.by ? 'checked' : ''}><span>Phải xong trước giờ này (ví dụ: tắm trước 19:00)</span></label></div>
   <div class="field"><span class="lbl">Giao cho</span><div class="seg">${kids.map(k => `<label><input type="checkbox" name="ckid" value="${k.id}" ${ck.includes(k.id) ? 'checked' : ''}><span>${mini(k)} ${esc(k.name)}</span></label>`).join('')}</div></div>
-  <div class="field"><span class="lbl">Những ngày</span><div class="seg">${WEEK_ORDER.map(d => `<label><input type="checkbox" name="cday" value="${d}" ${days.includes(d) ? 'checked' : ''}><span>${WDS[d]}</span></label>`).join('')}</div>
+  <div class="field"><span class="lbl">Những ngày</span><div class="seg days7">${WEEK_ORDER.map(d => `<label><input type="checkbox" name="cday" value="${d}" ${days.includes(d) ? 'checked' : ''}><span>${WDS[d]}</span></label>`).join('')}</div>
     <div class="row"><button class="btn quiet sm" data-act="days" data-v="0,1,2,3,4,5,6">Mỗi ngày</button><button class="btn quiet sm" data-act="days" data-v="1,2,3,4,5">Ngày thường</button><button class="btn quiet sm" data-act="days" data-v="0,6">Cuối tuần</button></div></div>
-  <details class="adv" ${adv ? 'open' : ''}><summary>Thêm tuỳ chọn</summary>
+  <details class="adv" ${adv ? 'open' : ''}><summary>Thêm tuỳ chọn <span class="muted small">giờ, số lần mỗi tuần, danh sách con…</span></summary>
+    <div class="row2"><div class="field"><label for="ctime">Giờ</label><input id="ctime" class="input num" type="time" value="${esc(c?.time || '')}"></div>
+      <div class="field"><label for="cmin">Làm trong bao lâu (phút)</label><input id="cmin" class="input num" type="number" min="0" max="600" step="5" inputmode="numeric" value="${Number(c?.minutes) || ''}" placeholder="Ví dụ: 30"></div></div>
+    <div class="seg"><label><input type="checkbox" id="cby" ${c?.by ? 'checked' : ''}><span>Phải xong trước giờ này (ví dụ: tắm trước 19:00)</span></label></div>
     <div class="field"><label for="cpw">Số lần mỗi tuần</label><select id="cpw" class="input">${[0, 1, 2, 3, 4, 5, 6].map(n => `<option value="${n}" ${pw === n ? 'selected' : ''}>${n ? `${n} lần/tuần, ngày nào cũng được` : 'Mọi ngày đã chọn'}</option>`).join('')}</select>
       <span class="muted small">Ví dụ: đi bộ hoặc chạy 3 buổi mỗi tuần. Việc hiện mỗi ngày cho tới khi đủ số lần.</span></div>
     <div class="field"><label for="csteps">Danh sách con (mỗi dòng một mục)</label><textarea id="csteps" class="input" rows="4" placeholder="Cặp sách đã soạn&#10;Quần áo ngày mai&#10;Bàn học đã gọn&#10;Đánh răng, rửa mặt">${esc((c?.steps || []).join('\n'))}</textarea>
@@ -1442,7 +1489,7 @@ function lessonForm(id, kidPre) {
   <div class="field"><span class="lbl">Con</span><div class="seg">${kids.map(k => `<label><input type="radio" name="lkid" value="${k.id}" ${k.id === kid ? 'checked' : ''}><span>${mini(k)} ${esc(k.name)}</span></label>`).join('')}</div></div>
   <div class="field"><label for="lname">Học gì</label><input id="lname" class="input" list="lesson-list" maxlength="40" value="${esc(l?.name || '')}" placeholder="Ví dụ: Tiếng Anh cô Huyền">
     <datalist id="lesson-list">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
-  <div class="field"><span class="lbl">${l ? 'Ngày' : 'Những ngày (cùng giờ)'}</span><div class="seg">${WEEK_ORDER.map(d => `<label><input type="${l ? 'radio' : 'checkbox'}" name="lday" value="${d}" ${d === day ? 'checked' : ''}><span>${WDS[d]}</span></label>`).join('')}</div></div>
+  <div class="field"><span class="lbl">${l ? 'Ngày' : 'Những ngày (cùng giờ)'}</span><div class="seg days7">${WEEK_ORDER.map(d => `<label><input type="${l ? 'radio' : 'checkbox'}" name="lday" value="${d}" ${d === day ? 'checked' : ''}><span>${WDS[d]}</span></label>`).join('')}</div></div>
   <div class="row2"><div class="field"><label for="ls">Từ</label><input id="ls" class="input num" type="time" value="${esc(l?.s || '17:30')}"></div>
     <div class="field"><label for="le">Đến</label><input id="le" class="input num" type="time" value="${esc(l?.e || '19:30')}"></div></div>
   <div class="field"><span class="lbl">Có phải đi lại không</span><div class="seg">
@@ -1594,7 +1641,12 @@ function markChore(d, kid, cid, on) {
 
 // ---------- actions ----------
 let toastT = 0;
-function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => (t.hidden = true), 2800); }
+// undo: hàm hoàn tác. Có thì thông báo kèm nút Hoàn tác và ở lại lâu hơn.
+function toast(msg, undo) {
+  const t = $('#toast'); t.textContent = msg; t.classList.toggle('has-act', !!undo);
+  if (undo) { const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Hoàn tác'; b.onclick = () => { t.hidden = true; undo(); }; t.appendChild(b); }
+  t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => (t.hidden = true), undo ? 7000 : 2800);
+}
 // Màn chúc mừng khi con làm xong hết việc phải làm hôm nay.
 function celebrate(kidId, got) {
   const k = S.kids[kidId]; if (!k) return;
@@ -1640,6 +1692,7 @@ document.addEventListener('click', e => {
   if (a === 'tick') {
     const d = b.dataset.km ? today() : UI.date, kid = b.dataset.kid; if (!S.chores[b.dataset.chore]) return;
     const on = isDone(d, kid, b.dataset.chore);
+    const sl = b.closest('details.slot'); if (sl) UI.slotOpen[sl.dataset.slot] = true;
     const st = b.classList.contains('stamp') ? b : b.querySelector('.stamp');
     if (!on && st) st.classList.add('on', 'pop');
     return markChore(d, kid, b.dataset.chore, !on);
@@ -1647,6 +1700,7 @@ document.addEventListener('click', e => {
   if (a === 'step') {
     const d = b.dataset.km ? today() : UI.date, kid = b.dataset.kid, cid = b.dataset.chore, ch = S.chores[cid]; if (!ch) return;
     const steps = (ch.steps || []).filter(Boolean), all = (1 << steps.length) - 1;
+    const sl = b.closest('details.slot'); if (sl) UI.slotOpen[sl.dataset.slot] = true;
     let mask = isDone(d, kid, cid) ? all : stepMask(d, kid, cid);
     mask ^= 1 << Number(b.dataset.i);
     b.classList.toggle('on', !!((mask >> Number(b.dataset.i)) & 1));
@@ -1801,7 +1855,7 @@ document.addEventListener('click', e => {
   if (a === 'print') return printSheet();
   if (a === 'kid-form') return kidForm(id);
   if (a === 'photo-del') { photoEdit = { img: null, out: '' }; const pv = $('#modal .photo-prev'); if (pv) pv.innerHTML = avInner(radioVal('kava')); b.hidden = true; $('#modal .photo-adj').hidden = true; return; }
-  if (a === 'chore-form') return choreForm(id);
+  if (a === 'chore-form') return choreForm(id, b.dataset.kind);
   if (a === 'price-form') return priceForm(id, b.dataset.kind);
   if (a === 'prices-print') return printPrices();
   if (a === 'coupons-print') return printCoupons();
@@ -1929,9 +1983,11 @@ document.addEventListener('click', e => {
         if (bal < p) return toast(`${who} còn thiếu ${money(p - bal)} để đổi “${r.name}”.`);
         e = { amount: -p, kind: 'reward', note: r.name };
         if (r.skip) {
+          if (!b.dataset.go) return skipForm(id, kid);
           const sd = $('#askip')?.value || key(today()), d = parse(sd);
           if (skipOn(kid, d)) return toast(`${who} đã dùng phiếu nghỉ cho ${WDN(d.getDay())} ${dm(d)} rồi.`);
           e.skip = sd; e.note = `${r.name} (${WDN(d.getDay())} ${dm(d)})`;
+          closeModal();
         }
       }
       e.icon = r.icon || '';
@@ -1942,9 +1998,12 @@ document.addEventListener('click', e => {
       e = { amount: kind === 'bonus' ? n : -n, kind: kind === 'bonus' ? 'bonus' : kind === 'spend' ? 'spend' : 'penalty',
         note: note || (kind === 'bonus' ? 'Thưởng thêm' : kind === 'spend' ? 'Chi tiêu' : 'Phạt') };
     }
-    put('ledger', uid(), { kid, ...e, at });
+    const lid = uid();
+    put('ledger', lid, { kid, ...e, at });
     if (e.amount > 0) confetti();
-    return toast(`${e.amount > 0 ? 'Đã cộng' : 'Đã trừ'} ${money(Math.abs(e.amount))} ${e.amount > 0 ? 'vào' : 'của'} ${who} (${e.note}). Còn ${money(bal + e.amount)}.`);
+    if (a === 'acct-custom') { $('#aamt').value = ''; $('#anote').value = ''; }
+    return toast(`${e.amount > 0 ? 'Đã cộng' : 'Đã trừ'} ${money(Math.abs(e.amount))} ${e.amount > 0 ? 'vào' : 'của'} ${who} (${e.note}). Còn ${money(bal + e.amount)}.`,
+      () => { del('ledger', lid); toast(`Đã hoàn tác. ${who} vẫn còn ${money(bal)}.`); });
   }
   if (a === 'bal-form') return balForm();
   if (a === 'bal-save') {
@@ -1962,12 +2021,11 @@ document.addEventListener('click', e => {
   if (a === 'ledger-undo') { if (!armed(b, 'Chắc chưa?')) return; del('ledger', id); return toast('Đã huỷ mục này.'); }
 });
 document.addEventListener('change', e => {
-  if (e.target.name === 'akid') { UI.acctKid = e.target.value; UI.histAll = false; render(); }
   if (e.target.name === 'akind') { UI.acctKind = e.target.value; render(); }
   if (e.target.name === 'planw') { UI.planNext = e.target.value === '1'; drawSheet(); }
   if (e.target.name === 'tmode') { UI.todayMode = e.target.value; render(); }
   if (e.target.name === 'tview') { UI.taskDone = e.target.value === '1'; UI.histAll = false; render(); }
-  if (e.target.name === 'ckind') { const f = $('#modal .cmoney-f'); if (f) f.hidden = e.target.value === 'fun'; }
+  if (e.target.name === 'ckind') { const f = $('#modal .cmoney-f'); if (f) f.hidden = e.target.value === 'fun'; const hp = $('#ckind-help'); if (hp) hp.textContent = KIND_HELP[e.target.value] || ''; }
   if (e.target.name === 'pkind') { const f = $('#modal .pall-f'); if (f) f.hidden = e.target.value !== 'penalty'; document.querySelectorAll('#modal .pgift-f').forEach(x => (x.hidden = e.target.value !== 'gift')); }
   if (e.target.name === 'lwhere') { const g = $('#modal .lgo'); if (g) g.hidden = e.target.value !== 'out'; }
   if (e.target.name === 'tkbkid') { UI.tkbKid = e.target.value; render(); }
@@ -1977,10 +2035,13 @@ document.addEventListener('change', e => {
   if (e.target.name === 'kava' && !photoEdit.img && !(photoEdit.out ?? photoOf(S.kids[$('#modal [data-act=kid-save]')?.dataset.id]))) { const pv = $('#modal .photo-prev'); if (pv) pv.innerHTML = avInner(e.target.value); }
 });
 document.addEventListener('input', e => { if (['pzoom', 'px', 'py'].includes(e.target.id)) photoRender(); });
-$('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
-document.addEventListener('toggle', e => { if (e.target.classList?.contains('extra-g')) UI.extraOpen[e.target.dataset.kid] = e.target.open; }, true);
+$('#modal').addEventListener('click', e => { if (e.target.id === 'modal') dismissModal(); else if (e.target.closest('button:not([data-act=close])')) modalDirty = true; });
+$('#modal').addEventListener('input', () => { modalDirty = true; });
+$('#modal').addEventListener('change', () => { modalDirty = true; });
+// Nhớ buổi nào bố mẹ đã tự mở/đóng (bấm vào tiêu đề buổi), để vẽ lại không tự đổi.
+document.addEventListener('click', e => { const sm = e.target.closest('details.slot > summary'); if (sm) UI.slotOpen[sm.parentElement.dataset.slot] = !sm.parentElement.open; });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && !$('#modal').hidden) closeModal();
+  if (e.key === 'Escape' && !$('#modal').hidden) dismissModal();
   if (e.key === 'Enter' && e.target.id === 'seedpass') $('#modal [data-act="seed-load"]')?.click();
 });
 

@@ -358,8 +358,6 @@ select.input{appearance:auto}
 .stay-chip.moved{color:var(--accent)}
 .stay-note{display:block;background:var(--surface);box-shadow:var(--shadow-sm);border:2px solid var(--line);border-radius:18px;padding:10px 14px;font-weight:600;font-size:14px;color:var(--ink);text-decoration:none}
 .stay-note.moved{background:var(--accent-soft);color:var(--accent)}
-.km-home.moved{background:var(--accent-soft)}
-.km-home.moved .t{color:var(--accent)}
 .stay-rows{display:grid;grid-template-columns:auto 1fr 1fr;gap:6px 8px;align-items:center}
 .stay-rows .input{padding:7px 9px;font-size:14px}
 .stay-rows b{font-size:14px;white-space:nowrap}
@@ -428,9 +426,6 @@ textarea.input{resize:vertical;font:inherit}
 .pp-i b{color:#C3304A}
 .pp-line{margin-top:10px;font-size:16px}
 .pp-line b{color:#C3304A}
-.extra-g{border-top:1px solid var(--line)}
-.extra-g>summary{border-top:0;cursor:pointer;list-style:revert}
-.extra-g>.item:first-of-type{border-top:0}
 
 /* mốc năm học */
 .event-line{display:block;margin-top:8px;padding:8px 12px;border-radius:12px;background:var(--accent-soft);color:var(--ink);text-decoration:none;font-size:14px}
@@ -702,13 +697,6 @@ img.mini{width:1.35em;height:1.35em;border-radius:50%;object-fit:cover;vertical-
 .slot .item.mark .t{color:var(--ink)}
 .slot .step{border-color:var(--se);box-shadow:0 2px 0 var(--se)}
 .slot .step.on{border-color:transparent;box-shadow:none}
-/* việc làm thêm: khối gập lại được */
-.slot.extra-g{border-top:2px solid var(--se);padding-bottom:10px}
-.slot.extra-g>summary{list-style:none;padding-bottom:0}
-.slot.extra-g>summary::-webkit-details-marker{display:none}
-.slot.extra-g>summary::before{content:"▸";font-size:14px;transition:transform .15s}
-.slot.extra-g[open]>summary{padding-bottom:8px}
-.slot.extra-g[open]>summary::before{transform:rotate(90deg)}
 
 /* nút đóng dấu: vàng sao, nổi trên nền trắng của việc */
 .stamp{background:var(--star-soft);box-shadow:0 4px 0 color-mix(in srgb,var(--star) 45%,var(--star-soft))}
@@ -738,3 +726,63 @@ img.mini{width:1.35em;height:1.35em;border-radius:50%;object-fit:cover;vertical-
 .slot .steps{gap:5px}
 .slot .step{padding:2px 9px;text-align:left}
 @media (max-width:420px){.kid-card{padding:0 10px 12px}.kid-hero{margin:0 -10px;padding:12px 12px 10px}.slot{padding:8px 6px 8px;border-radius:18px}.slot .slot-h{padding:2px 4px 8px}}
+
+/* ===== gọn thao tác ===== */
+/* mỗi buổi gập lại được: bấm tiêu đề để mở/đóng; buổi đã xong hết tự thu gọn */
+details.slot>summary{list-style:none;cursor:pointer;user-select:none;-webkit-user-select:none}
+details.slot>summary::-webkit-details-marker{display:none}
+details.slot>summary::before{content:"▸";font-size:13px;opacity:.75;transition:transform .15s}
+details.slot[open]>summary::before{transform:rotate(90deg)}
+details.slot:not([open])>summary,details.slot:not([open])>summary.extra{padding-bottom:0}
+details.slot:not([open]){padding-top:9px;padding-bottom:9px}
+details.slot.full .slot-n{background:var(--good-fill);color:#fff}
+details.slot>summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px;border-radius:10px}
+@media (max-width:420px){details.slot:not([open])>summary{padding-bottom:0}}
+
+/* màn Hôm nay: một hàng điều khiển */
+.today-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.daynav .push{margin-left:auto}
+.daynav{flex-wrap:wrap}
+/* nhắc chung của cả nhà: gom một chỗ, mỗi dòng nhắc gọn một dòng */
+.fam-notes{display:flex;flex-direction:column;gap:8px}
+.fam-notes .event-line{margin-top:0;border-radius:16px;padding:9px 14px}
+.today-tasks .ag-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.today-tasks .more{text-transform:none;letter-spacing:0;color:var(--accent);font-size:12px}
+
+/* tab con: luôn một hàng, vuốt ngang khi không đủ chỗ */
+.tabbar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-behavior:smooth}
+.tabbar button{padding:8px 13px}
+
+/* tiêu đề nhóm kèm nút thêm tại chỗ */
+.sec-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:0}
+.sec-row .btn{font-family:var(--body)}
+.grp-h{font-family:var(--display);font-weight:800;font-size:15px;color:var(--muted);padding:10px 2px 0}
+.grp-h:first-child{padding-top:0}
+.grp-h .muted{font-family:var(--body);font-weight:600;font-size:12px}
+.item .s b.plus{color:var(--good)} .item .s b.minus{color:var(--bad)}
+.item .s b.num{font-family:var(--display);font-weight:800;font-size:15px;color:var(--ink)}
+.item .s b.num.plus{color:var(--good)} .item .s b.num.minus{color:var(--bad)}
+
+/* 7 ngày trong tuần luôn nằm trên một hàng */
+.seg.days7{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.seg.days7 span{display:flex;justify-content:center;padding:7px 0}
+
+/* lịch sử tài khoản: mỗi dòng tối đa 2 dòng chữ */
+.hist .item .s{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* form dài: hàng nút Lưu / Huỷ luôn nằm trong tầm tay ở đáy form */
+.dialog .foot{position:sticky;bottom:calc(-20px - env(safe-area-inset-bottom,0px));z-index:3;background:var(--surface);border-top:2px solid var(--line);
+  margin:0 -18px calc(-20px - env(safe-area-inset-bottom,0px));padding:12px 18px calc(12px + env(safe-area-inset-bottom,0px))}
+@media (min-width:600px){.dialog .foot{bottom:-24px;margin:0 -24px -24px;padding:14px 24px 18px}}
+details.adv>summary .muted{font-weight:500;margin-left:4px}
+
+/* thông báo có nút Hoàn tác */
+.toast.has-act{display:flex;align-items:center;gap:12px;text-align:left;padding:8px 8px 8px 16px;width:max-content}
+.toast button{flex:none;border:0;border-radius:12px;padding:8px 14px;font:inherit;font-weight:800;background:var(--sun);color:var(--on-sun);cursor:pointer}
+
+/* chế độ cho bé: tiền và chuỗi ngày nằm cạnh nhau, chỗ ở là một dòng nhỏ dưới ngày */
+.km-stats{grid-template-columns:1fr 1fr;gap:10px}
+.km-stat{padding:10px 12px;gap:10px;min-width:0}
+.km-stat b{font-size:20px}
+.km-place{font-weight:600;text-align:center}
+.km-place.moved{background:var(--accent-soft);color:var(--accent)}
