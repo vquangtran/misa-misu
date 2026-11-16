@@ -19,6 +19,7 @@ Lịch học, việc nhà và tiền tiêu vặt cho các con, bằng tiếng Vi
 - **Mục tiêu tiết kiệm:** con đặt mục tiêu (xe đạp 500.000đ...), có thanh tiến độ và các đồng xu được tô dần. Tiền trong tài khoản chia cho các mục tiêu theo thứ tự ưu tiên. App tính còn thiếu bao nhiêu, khoảng mấy tuần nữa, hoặc làm thêm mấy lần việc gì. Đủ tiền thì bấm Mua.
 - **Phiếu thưởng:** chọn phim, chọn món ăn sáng, tráng miệng, thức khuya 30 phút, mời bạn đến chơi, một ngày không làm việc nhà. Con đổi bằng tiền trong tài khoản; phiếu "Một ngày không làm việc nhà" hỏi con muốn nghỉ ngày nào, rồi miễn việc phải làm của ngày đó mà vẫn giữ thưởng đủ tuần. In được tờ phiếu cắt rời.
 - **Bảng giá:** mỗi việc được bao nhiêu tiền, phạt bao nhiêu, phí sử dụng mỗi giờ, quà đổi bao nhiêu. Có sẵn bảng mẫu (“Cách cho con tiền tiêu vặt đúng cách”, bảng nhiệm vụ tuần, checklist trước khi đi ngủ), bố mẹ thêm, sửa, xoá tuỳ ý và in ra để dán. Mỗi nhóm (việc phải làm, việc làm thêm, phạt, phí, quà) có nút *Thêm* riêng ở bên phải tiêu đề, thêm đúng loại đang xem. Bấm vào một dòng để sửa.
+- **Biểu tượng:** việc nhà, phạt, phí, quà, mốc năm học, học thêm, mục tiêu, các buổi trong ngày và thanh điều hướng dùng chung một bộ hình vẽ kiểu khối 3D mềm (không viền, màu chuyển sắc, có điểm sáng và bóng đổ nhẹ), thay cho emoji của máy nên máy nào cũng hiện giống nhau, cả khi in. Dữ liệu vẫn lưu biểu tượng bằng emoji như cũ; emoji nào chưa có hình trong bộ thì hiện như emoji thường.
 - **Hình đại diện:** ngoài emoji có bộ 12 kiểu gà tông vàng (Su) và 12 kiểu ngựa tông be, nâu (Sa), vẽ cùng phong cách với app: viền nâu đậm, khối tròn có bóng, nền tia nắng. Chọn một kiểu cố định hoặc *Mỗi ngày một kiểu* để hình tự đổi theo ngày. Su mặc định là bộ gà, Sa là bộ ngựa, mỗi ngày một kiểu, cho tới khi bố mẹ chọn hình khác. Đầu thẻ của con dùng màu nền theo bộ hình.
 - **Ảnh của con:** trong thông tin của con, bấm *Chọn ảnh*, kéo thanh Phóng to / Lên xuống / Trái phải để căn mặt vào khung tròn. Ảnh được cắt vuông, thu về 320px và lưu trong dữ liệu của gia đình (trên máy hoặc Firebase), không đưa lên repo.
 - **Gia đình:** thêm con, giao việc theo ngày, in bảng dán tủ lạnh, sao lưu và nhập dữ liệu.
@@ -36,6 +37,7 @@ App là web tĩnh, không cần bước build: HTML, CSS và JavaScript thuần.
 | `styles.css` | Giao diện: cách dùng theo thói quen iOS, diện mạo giấy kem ấm với nút và thẻ "nổi". Màu nằm trong `:root` (vàng nắng `--sun` là màu nhấn, xanh lá = đã xong, đỏ = bị trừ), có chế độ tối |
 | `js/app.js` | Toàn bộ màn hình và thao tác |
 | `js/avatars.js` | Hình đại diện vẽ bằng SVG: bộ gà, bộ ngựa |
+| `js/icons.js` | Bộ biểu tượng 3D vẽ bằng SVG (khoảng 120 hình) và phần tự thay emoji bằng hình vẽ. Thêm hình mới: vẽ trong `I`, khai emoji tương ứng trong `MAP` |
 | `js/store.js` | Lưu dữ liệu: trên máy (localStorage) hoặc Firebase |
 | `js/config.js` | Cấu hình Firebase |
 | `firestore.rules` | Quy tắc bảo vệ dữ liệu trên Firestore |

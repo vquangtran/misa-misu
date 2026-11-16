@@ -1,6 +1,7 @@
 import { firebaseConfig } from './config.js';
 import { COLS, localStore, firebaseStore } from './store.js';
 import { AVATAR_SETS, avatarPick, isSvgAvatar } from './avatars.js';
+import { autoIcons, icon, iconify, iconSvg } from './icons.js';
 
 // ---------- helpers ----------
 const $ = (s, r = document) => r.querySelector(s);
@@ -28,17 +29,17 @@ const AVATARS = ['🐔', '🐓', '🐣', '🐤', '🐥', '🐴', '🐎', '🦓',
 const CHORE_ICONS = ['🛏️', '🪥', '🧸', '🍽️', '🪴', '📚', '🎒', '👕', '🧹', '🧽', '🗑️', '📦', '🛋️', '🧦', '👟', '🧺', '🛁', '🥢', '🐶', '🐟', '🍚', '✏️', '🎹', '🏃', '🪢', '🏫', '🎧', '🪑', '🤝', '🌙', '🎬', '🎮', '📺', '🧩', '🗣️'];
 const PRICE_ICONS = {
   gift: ['🎁', '🎟️', '🍿', '🌙', '🧹', '🥞', '👫', '🍰', '🎬', '🎮', '🍦', '🧋', '🍕', '🧁', '📖', '🎡', '🛝', '🚲', '🏊'],
-  penalty: ['😤', '🐢', '🤐', '🙉', '📢', '⚠️', '😠', '🙅', '🥊', '📵'],
-  fee: ['📱', '📺', '🎮', '💻', '📲', '🎧'],
+  penalty: ['😤', '🐢', '🤐', '🙉', '📢', '⚠️', '🙅', '🥊', '📵'],
+  fee: ['📱', '📺', '🎮', '💻', '🎧'],
 };
 // Các loại mục trong Bảng giá (nhóm "rewards"): đổi quà, phạt, phí sử dụng theo giờ.
 const PRICE_KINDS = [['penalty', 'Phạt', '⚠️'], ['fee', 'Phí sử dụng', '📱'], ['gift', 'Đổi quà', '🎁']];
 const NAV = [
-  { id: 'hom-nay', label: 'Hôm nay', svg: '<path d="M20 6 9 17l-5-5"/>' },
-  { id: 'lich-hoc', label: 'Học tập', svg: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>' },
-  { id: 'tai-khoan', label: 'Tài khoản', svg: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.2"/><path d="M6 12h.01M18 12h.01"/>' },
-  { id: 'bang-gia', label: 'Bảng giá', svg: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><path d="M7.5 7.5h.01"/>' },
-  { id: 'gia-dinh', label: 'Gia đình', svg: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>' },
+  { id: 'hom-nay', label: 'Hôm nay', ic: 'checklist' },
+  { id: 'lich-hoc', label: 'Học tập', ic: 'calendar' },
+  { id: 'tai-khoan', label: 'Tài khoản', ic: 'piggy' },
+  { id: 'bang-gia', label: 'Bảng giá', ic: 'tag' },
+  { id: 'gia-dinh', label: 'Gia đình', ic: 'family' },
 ];
 // Link cũ (#phan-thuong, #tien-tieu-vat) mở trang mới tương ứng.
 const NAV_ALIAS = { 'phan-thuong': 'bang-gia', 'tien-tieu-vat': 'tai-khoan' };
@@ -614,7 +615,7 @@ const markRow = (x, big) => x.type === 'lesson'
 let raf = 0;
 const render = () => { memo = {}; cancelAnimationFrame(raf); raf = requestAnimationFrame(draw); };
 function draw() {
-  const navHtml = cls => NAV.map(n => `<a href="#${n.id}" class="${cls} ${UI.view === n.id ? 'on' : ''}" ${UI.view === n.id ? 'aria-current="page"' : ''}><svg viewBox="0 0 24 24" aria-hidden="true">${n.svg}</svg><span>${n.label}</span></a>`).join('');
+  const navHtml = cls => NAV.map(n => `<a href="#${n.id}" class="${cls} ${UI.view === n.id ? 'on' : ''}" ${UI.view === n.id ? 'aria-current="page"' : ''}>${iconSvg(n.ic)}<span>${n.label}</span></a>`).join('');
   $('#rail').innerHTML = brand() + navHtml('');
   $('#tabs').innerHTML = navHtml('tab');
   const body = !loaded ? loading() : ({ 'hom-nay': viewToday, 'lich-hoc': viewSchedule, 'tai-khoan': viewAccount, 'bang-gia': viewPrices, 'gia-dinh': viewFamily }[UI.view] || viewToday)();
@@ -1338,7 +1339,7 @@ function printTkb(kidId) {
 }
 function printHtml(html, cls = '') {
   const pa = $('#print-area');
-  pa.className = cls; pa.innerHTML = html;
+  pa.className = cls; pa.innerHTML = html; iconify(pa); // thay emoji ngay, vì window.print() chặn trang trước khi autoIcons kịp chạy
   document.body.classList.add('printing');
   const done = () => { document.body.classList.remove('printing'); window.removeEventListener('afterprint', done); };
   window.addEventListener('afterprint', done);
@@ -1402,9 +1403,9 @@ function photoLoad(file) {
 function avatarGrid(val) {
   const opt = (v, inner, label, cls = '') => `<label><input type="radio" name="kava" value="${esc(v)}" ${v === val ? 'checked' : ''} aria-label="${esc(label)}"><span class="${cls}" title="${esc(label)}">${inner}</span></label>`;
   const sets = Object.entries(AVATAR_SETS);
-  let h = `<div class="av-group"><span class="av-h">Mỗi ngày một kiểu</span><div class="pick av">${sets.map(([id, st]) => opt('set:' + id, avInner('set:' + id) + '<i class="av-badge">🔀</i>', `${st.label}, mỗi ngày một kiểu`, 'rot')).join('')}</div></div>`;
+  let h = `<div class="av-group"><span class="av-h">Mỗi ngày một kiểu</span><div class="pick av">${sets.map(([id, st]) => opt('set:' + id, avInner('set:' + id) + `<i class="av-badge">${icon('🔀')}</i>`, `${st.label}, mỗi ngày một kiểu`, 'rot')).join('')}</div></div>`;
   for (const [id, st] of sets) h += `<div class="av-group"><span class="av-h">${st.label}</span><div class="pick av">${st.items.map((it, i) => opt(`svg:${id}-${i}`, avInner(`svg:${id}-${i}`), it[0])).join('')}</div></div>`;
-  h += `<div class="av-group"><span class="av-h">Emoji</span><div class="pick">${AVATARS.map(e => opt(e, e, e)).join('')}</div></div>`;
+  h += `<div class="av-group"><span class="av-h">Emoji</span><div class="pick" data-noic>${AVATARS.map(e => opt(e, e, e)).join('')}</div></div>`;
   if (!val) h = h.replace('name="kava" value="set:ga"', 'name="kava" value="set:ga" checked');
   return h;
 }
@@ -1417,7 +1418,7 @@ function kidForm(id) {
   <div class="field"><label for="kwb">Thưởng thêm khi làm đủ việc phải làm cả tuần (đồng)</label><input id="kwb" class="input num" type="number" min="0" step="5000" inputmode="numeric" value="${k ? weekBonusOf(k) : WEEK_BONUS}">
     <span class="muted small">Xong hết việc phải làm từ Thứ Hai đến Chủ nhật thì app tự cộng tiền này vào tài khoản. Để 0 nếu không thưởng.${k ? ' Đổi số tiền thì tính từ tuần này, các tuần trước giữ nguyên.' : ''}</span></div>
   <div class="field"><span class="lbl">Ảnh của con</span>
-    <div class="photo-pick"><span class="ava photo-prev" style="background:${k ? tintOf(k) : 'var(--t3)'}">${photoOf(k) ? `<img src="${photoOf(k)}" alt="">` : k ? avInner(avatarOf(k)) : '📷'}</span>
+    <div class="photo-pick"><span class="ava photo-prev" style="background:${k ? tintOf(k) : 'var(--t3)'}">${photoOf(k) ? `<img src="${photoOf(k)}" alt="">` : k ? avInner(avatarOf(k)) : icon('📷')}</span>
       <div class="col"><div class="row"><label class="btn quiet sm file-btn">Chọn ảnh<input type="file" id="kphoto" accept="image/*"></label><button class="btn quiet sm" data-act="photo-del" ${photoOf(k) ? '' : 'hidden'}>Bỏ ảnh</button></div>
       <div class="photo-adj" hidden><label class="small">Phóng to<input type="range" id="pzoom" min="1" max="4" step="0.05" value="2"></label><label class="small">Lên xuống<input type="range" id="py" min="0" max="1" step="0.01" value="0.4"></label><label class="small">Trái phải<input type="range" id="px" min="0" max="1" step="0.01" value="0.5"></label></div>
       <span class="muted small">Ảnh được thu nhỏ và chỉ lưu trong dữ liệu của gia đình. Không có ảnh thì dùng hình emoji bên dưới.</span></div></div></div>
@@ -2212,6 +2213,7 @@ async function startFirebase() {
 }
 
 // ---------- boot ----------
+autoIcons(); // emoji có hình trong js/icons.js được thay bằng hình vẽ 3D ở mọi chỗ app vẽ ra
 UI.view = viewOf(location.hash.slice(1));
 if (firebaseConfig) {
   const q = new URLSearchParams(location.search).get('gd');
