@@ -19,7 +19,6 @@ const money = n => (Number(n) < 0 ? '−' : '') + Math.abs(Math.round(Number(n) 
 const signed = n => (Number(n) > 0 ? '+' : '') + money(n);
 const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
 const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.85 5.9 6.5.85-4.75 4.5 1.2 6.45L12 17.2l-5.8 3.1 1.2-6.45L2.65 9.35l6.5-.85z"/></svg>';
-const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4.2 4.2L18.5 7.8"/></svg>';
 const CHEV = '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>';
 // Mũi tên ở cuối dòng: bấm vào bất kỳ chỗ nào trên dòng là mở form sửa (kiểu danh sách iOS).
 const editBtn = (act, id, name = '') => `<button class="edit" data-act="${act}" data-id="${id}" aria-label="Sửa${name ? ': ' + esc(name) : ''}">${CHEV}</button>`;
@@ -723,7 +722,7 @@ function viewToday() {
     const n = list.filter(c => isDone(d, k.id, c.id)).length;
     const pct = list.length ? Math.round(n / list.length * 100) : 0;
     // Thẻ tóm tắt của con: tên, số dư, tiến độ hôm nay, rồi các dòng nhắc. Các buổi nằm bên dưới, mỗi buổi một danh sách.
-    h += `<section class="kid-sec"><div class="card kid-card"><div class="kid-hero">${ava(k)}<div class="kid-hi"><div class="kid-name">${esc(k.name)}</div><div class="kid-sub">${streakChip(k)}${bdayChip(k, d)}</div></div><a href="#tai-khoan" class="acct-link" data-act="acct-go" data-kid="${k.id}" aria-label="Tài khoản của ${esc(k.name)}">${moneyChip(k)}${CHEV}</a></div>`;
+    h += `<section class="kid-sec" style="--tint:${tintOf(k)}"><div class="card kid-card"><div class="kid-hero">${ava(k)}<div class="kid-hi"><div class="kid-name">${esc(k.name)}</div><div class="kid-sub">${streakChip(k)}${bdayChip(k, d)}</div></div><a href="#tai-khoan" class="acct-link" data-act="acct-go" data-kid="${k.id}" aria-label="Tài khoản của ${esc(k.name)}">${moneyChip(k)}${CHEV}</a></div>`;
     if (list.length) h += progBox(n, list.length, n === list.length ? 'Xong hết việc phải làm 🎉' : `Việc phải làm · còn ${list.length - n} việc`);
     const sc = schoolNow(k, d, isT);
     let lines = '';
@@ -751,7 +750,7 @@ function viewToday() {
         if (x.type !== 'chore') { h += markRow(x); continue; }
         const c = x.c, on = isDone(d, k.id, c.id), steps = (c.steps || []).filter(Boolean), mask = stepMask(d, k.id, c.id);
         const right = isFun(c) ? `<span class="fun-badge ${x.locked ? '' : 'open'}">${x.locked ? '🔒 Chưa mở' : 'Được làm'}</span>`
-          : `<button class="stamp ${on ? 'on' : ''}" data-act="tick" data-kid="${k.id}" data-chore="${c.id}" ${future ? 'disabled' : ''} aria-pressed="${on}" aria-label="${on ? 'Bỏ dấu' : 'Đánh dấu xong'}: ${esc(c.name)}">${CHECK}</button>`;
+          : `<button class="stamp ${on ? 'on' : ''}" data-act="tick" data-kid="${k.id}" data-chore="${c.id}" ${future ? 'disabled' : ''} aria-pressed="${on}" aria-label="${on ? 'Bỏ dấu' : 'Đóng dấu'}: ${esc(c.name)}">${STAR}</button>`;
         h += `<div class="item ${on ? 'done' : ''} ${isFun(c) ? 'fun' + (x.locked ? ' locked' : '') : ''}"><span class="ico">${esc(c.icon || '✅')}</span><div class="txt"><div class="t">${esc(c.name)}</div><div class="s">${choreMeta(c, k.id, d, isT)}</div>
           ${steps.length && !isFun(c) ? `<div class="steps">${steps.map((st, i) => { const ok = on || (mask >> i) & 1; return `<button class="step ${ok ? 'on' : ''}" data-act="step" data-kid="${k.id}" data-chore="${c.id}" data-i="${i}" ${future ? 'disabled' : ''} aria-pressed="${!!ok}">${esc(st)}</button>`; }).join('')}</div>` : ''}</div>${right}</div>`;
       }
@@ -1269,9 +1268,9 @@ function drawKidMode() {
     const c = x.c, on = isDone(t, k.id, c.id), steps = (c.steps || []).filter(Boolean), mask = stepMask(t, k.id, c.id);
     const sub = `<span class="s">${choreMeta(c, k.id, t, true)}</span>`;
     if (isFun(c)) return `<div class="big-item fun ${x.locked ? 'locked' : 'open'}"><span class="ico">${esc(c.icon || '🎈')}</span><span><span class="t">${esc(c.name)}</span><br>${x.locked ? `<span class="s">Xong ${g.left} việc phải làm${g.id ? ' của ' + g.label.toLowerCase() : ''} là được làm việc này!</span>` : '<span class="s">Mở khoá rồi, con được làm việc này!</span>'}</span><span class="lockic">${x.locked ? '🔒' : ''}</span></div>`;
-    if (!steps.length) return `<button class="big-item ${on ? 'done' : ''}" data-act="tick" data-kid="${k.id}" data-chore="${c.id}" data-km="1" aria-pressed="${on}"><span class="ico">${esc(c.icon || '✅')}</span><span><span class="t">${esc(c.name)}</span><br>${sub}</span><span class="stamp ${on ? 'on' : ''}">${CHECK}</span></button>`;
+    if (!steps.length) return `<button class="big-item ${on ? 'done' : ''}" data-act="tick" data-kid="${k.id}" data-chore="${c.id}" data-km="1" aria-pressed="${on}"><span class="ico">${esc(c.icon || '✅')}</span><span><span class="t">${esc(c.name)}</span><br>${sub}</span><span class="stamp ${on ? 'on' : ''}">${STAR}</span></button>`;
     return `<div class="big-item has-steps ${on ? 'done' : ''}"><div class="big-top"><span class="ico">${esc(c.icon || '✅')}</span><span><span class="t">${esc(c.name)}</span><br>${sub}</span>
-      <button class="stamp ${on ? 'on' : ''}" data-act="tick" data-kid="${k.id}" data-chore="${c.id}" data-km="1" aria-pressed="${on}" aria-label="${on ? 'Bỏ dấu' : 'Xong hết'}: ${esc(c.name)}">${CHECK}</button></div>
+      <button class="stamp ${on ? 'on' : ''}" data-act="tick" data-kid="${k.id}" data-chore="${c.id}" data-km="1" aria-pressed="${on}" aria-label="${on ? 'Bỏ dấu' : 'Xong hết'}: ${esc(c.name)}">${STAR}</button></div>
       <div class="big-steps">${steps.map((st, i) => { const ok = on || (mask >> i) & 1; return `<button class="step ${ok ? 'on' : ''}" data-act="step" data-kid="${k.id}" data-chore="${c.id}" data-i="${i}" data-km="1" aria-pressed="${!!ok}">${esc(st)}</button>`; }).join('')}</div></div>`;
   };
   const timeline = plan.map(g => `<div class="km-slot ${g.id === cur ? 'now' : ''} ${g.extra ? 'extra' : ''}">${g.icon} ${g.label}${g.id === cur ? '<span class="nowpill">Bây giờ</span>' : ''}</div>`
@@ -1722,10 +1721,10 @@ function celebrate(kidId, got) {
   document.querySelector('.celebrate')?.remove();
   const n = streakOf(kidId), st = weekStats({ id: kidId, ...k }, weekStart(today())), wb = weekBonusOf(k);
   const el = document.createElement('div'); el.className = 'celebrate'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'cel-h');
-  el.innerHTML = `<div class="cel-box">
-    <div class="cel-ava">${ava({ ...k, id: kidId })}</div>
+  el.innerHTML = `<div class="cel-burst" aria-hidden="true"></div><div class="cel-box">
+    <div class="cel-ava">${ava({ ...k, id: kidId })}<span class="cel-sp s1">✨</span><span class="cel-sp s2">⭐</span><span class="cel-sp s3">✨</span></div>
+    ${got ? `<div class="cel-coin"><span class="coin3d" aria-hidden="true"></span><b class="num">+${money(got)}</b></div>` : ''}
     <h2 id="cel-h">Giỏi quá! ${esc(k.name)} đã xong hết việc hôm nay 🎉</h2>
-    ${got ? `<div class="cel-coin"><b class="num">+${money(got)}</b></div>` : ''}
     <div class="cel-cards"><div class="cel-row"><span>🔥 Chuỗi ngày</span><b class="num">${n} ngày</b></div>
       ${wb && st.possible ? `<div class="cel-row"><span>🏆 ${st.done >= st.possible ? `Đủ cả tuần, thưởng ${money(wb)}` : `Đủ tuần thưởng ${money(wb)}`}</span><b class="num">${st.done}/${st.possible}</b></div>` : ''}</div>
     <button class="btn primary go" data-cel-close>Tuyệt vời!</button></div>`;
@@ -1733,14 +1732,14 @@ function celebrate(kidId, got) {
   confetti();
   const close = () => { el.classList.add('out'); setTimeout(() => el.remove(), 250); document.removeEventListener('keydown', esc1); };
   const esc1 = e => { if (e.key === 'Escape') close(); };
-  el.addEventListener('click', e => { if (e.target.closest('[data-cel-close]') || e.target === el) close(); });
+  el.addEventListener('click', e => { if (e.target.closest('[data-cel-close]') || e.target === el || e.target.classList.contains('cel-burst')) close(); });
   document.addEventListener('keydown', esc1);
   el.querySelector('[data-cel-close]').focus();
 }
 function confetti() {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const box = document.createElement('div'); box.className = 'confetti';
-  const cols = ['#FFCC00', '#34C759', '#FF3B30', '#007AFF', '#AF52DE', '#FF9500'];
+  const cols = ['#FFC633', '#22B85C', '#FF6B6B', '#4DA8FF', '#B07CFF', '#FF9F2E'];
   for (let i = 0; i < 60; i++) { const s = document.createElement('i'); s.style.left = Math.random() * 100 + '%'; s.style.background = cols[i % cols.length]; s.style.animationDelay = Math.random() * 0.5 + 's'; s.style.animationDuration = 1.2 + Math.random() + 's'; box.appendChild(s); }
   document.body.appendChild(box); setTimeout(() => box.remove(), 2600);
 }
