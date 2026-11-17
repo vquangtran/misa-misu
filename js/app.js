@@ -110,7 +110,7 @@ const SAMPLE_PERIODS = [['08:00', '08:35'], ['08:45', '09:20'], ['09:40', '10:15
 
 // ---------- state ----------
 let S = Object.fromEntries(COLS.map(c => [c, {}]));
-const UI = { view: 'hom-nay', date: today(), acctKid: null, acctKind: 'penalty', histAll: false, slotOpen: {}, learn: 'sap-toi', todayMode: 'day', gridWs: null, planNext: false, agDate: null, taskDone: false, tkbKid: null, km: { on: false, kid: null }, sheet: false };
+const UI = { view: 'hom-nay', date: today(), acctKid: null, acctKind: 'penalty', histAll: false, slotOpen: {}, learn: 'sap-toi', todayMode: 'day', todayKid: null, gridWs: null, planNext: false, agDate: null, taskDone: false, tkbKid: null, km: { on: false, kid: null }, sheet: false };
 let store = null, loaded = false, stale = false, family = null;
 const FAMILY_KEY = 'be-cham-ngoan-family';
 const getFamily = () => { try { return localStorage.getItem(FAMILY_KEY); } catch (e) { return null; } };
@@ -376,7 +376,6 @@ const eventShort = e => { const a = parse(e.from), b = parse(e.to); return e.fro
 const eventLine = (e, cls, kid) => `<a class="${cls} ${esc(e.kind)}" href="#lich-hoc" data-act="tkb-go" data-tab="moc" data-kid="${kid}"><b>${esc(e.icon || '📌')} ${esc(eventWhen(e).txt)}:</b> ${esc(e.name)} <span class="muted">(${esc(cls === 'km-event' ? eventRange(e) : eventShort(e))})</span></a>`;
 // own: chỉ lấy mốc ghi riêng cho con này (mốc chung cả nhà đã hiện một lần ở đầu màn Hôm nay).
 const eventLines = (k, cls = 'event-line', own = false) => eventsSoon(k.id).filter(e => !own || (e.kids || []).length).map(e => eventLine(e, cls, k.id)).join('');
-const famEventLines = () => eventsList().filter(e => !(e.kids || []).length && isSoon(e)).map(e => eventLine(e, 'event-line', 'all')).join('');
 function missingYear() {
   const have = new Set(eventsList().map(e => norm(e.name) + e.from));
   return SAMPLE_YEAR.items.filter(e => !have.has(norm(e.name) + e.from));
@@ -643,14 +642,15 @@ function noKids() {
 }
 
 // ---------- bảng tuần (lưới việc × ngày) ----------
-// Một hàng điều khiển: xem từng ngày hay cả tuần, và nút mở chế độ cho bé.
-const todayBar = () => `<div class="seg modes"><label><input type="radio" name="tmode" value="day" ${UI.todayMode !== 'week' ? 'checked' : ''}><span>Từng ngày</span></label><label><input type="radio" name="tmode" value="week" ${UI.todayMode === 'week' ? 'checked' : ''}><span>Cả tuần</span></label></div>`;
-const kmBtn = kids => `<button class="btn quiet sm" data-act="km-open" ${kids.length ? '' : 'disabled'}>Chế độ cho bé</button>`;
+// Nút tròn nhỏ: dấu cộng, ba chấm, mũi tên xuống.
+const PLUS = '<svg class="gl" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+const DOTS = '<svg class="gl dots" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
+const DOWN = '<svg class="chev down" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
 const PREV = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>', NEXT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>';
 const skipNote = (k, d) => { const e = skipEntry(k.id, d); return e ? `<div class="skip-note">🎟️ ${key(d) === key(today()) ? 'Hôm nay' : 'Ngày này'} ${esc(k.name)} dùng phiếu “Một ngày không làm việc nhà”: việc phải làm được miễn, làm thì vẫn có tiền.</div>` : ''; };
 function viewWeekGrid() {
   const kids = kidsList(), t = today(), ws = UI.gridWs || weekStart(t), days = Array.from({ length: 7 }, (_, i) => addDays(ws, i));
-  let h = `<div class="head head-row"><div><h1>Cả tuần</h1><p>Bấm vào ô để đánh dấu hoặc bỏ dấu.</p></div>${kmBtn(kids)}</div>${todayBar()}
+  let h = `<div class="head"><button class="linkbtn back" data-act="today-mode" data-v="day">${PREV}Từng ngày</button><h1>Cả tuần</h1><p>Bấm vào ô để đánh dấu hoặc bỏ dấu.</p></div>
   <div class="daynav"><button class="iconbtn" data-act="grid-week" data-n="-7" aria-label="Tuần trước">${PREV}</button>
     <b>${dm(ws)} – ${dm(addDays(ws, 6))}</b>
     <button class="iconbtn" data-act="grid-week" data-n="7" aria-label="Tuần sau">${NEXT}</button>
@@ -688,65 +688,83 @@ function viewWeekGrid() {
   return h;
 }
 
-// Dải 7 ngày trong tuần: ✓ cả nhà làm đủ, ✗ còn thiếu, vòng tiến độ cho hôm nay. Những ngày trước khi con bắt đầu dùng app không tính là thiếu.
-function weekStrip(sel) {
-  const t = today(), ws = weekStart(sel), kids = kidsList();
+// Dải 7 ngày trong tuần của con đang xem: ✓ làm đủ, ✗ còn thiếu, vòng tiến độ cho hôm nay. Những ngày trước khi con bắt đầu dùng app không tính là thiếu.
+// Điện thoại: vuốt ngang để sang tuần khác. Máy tính: hai mũi tên ở hai đầu.
+function weekStrip(sel, kid) {
+  const t = today(), ws = weekStart(sel), kids = kid ? [kid] : kidsList();
   const cells = Array.from({ length: 7 }, (_, i) => addDays(ws, i)).map(d => {
     let all = 0, done = 0, any = false;
     for (const k of kids) { if (d < kidSince(k.id)) continue; const l = mustFor(k.id, d); all += l.length; done += l.filter(c => isDone(d, k.id, c.id)).length; if (l.length) any = true; }
     const isT = key(d) === key(t), pct = all ? Math.round(done / all * 100) : 0;
     const st = d > t ? 'fut' : !any ? 'rest' : done >= all ? 'ok' : isT ? 'now' : 'miss';
-    const ic = { ok: '✓', miss: '✕', rest: '·', fut: '', now: '' }[st];
+    const ic = { ok: '✓', miss: '✕', rest: '', fut: '', now: '' }[st];
     const lbl = { ok: 'đủ việc', miss: 'còn thiếu việc', rest: 'không có việc', fut: 'chưa tới', now: `xong ${pct}%` }[st];
     return `<button class="wd ${st} ${isT ? 'today' : ''} ${key(d) === key(sel) ? 'on' : ''}" data-act="day-set" data-d="${key(d)}" aria-label="${WD[d.getDay()]} ${dm(d)}: ${lbl}" ${key(d) === key(sel) ? 'aria-current="date"' : ''}>
       <span>${WDS[d.getDay()]}</span><b class="num">${d.getDate()}</b><i class="wd-s" ${st === 'now' ? `style="--p:${pct}%"` : ''}>${ic}</i></button>`;
   }).join('');
-  return `<div class="wk-row"><button class="iconbtn" data-act="day" data-n="-7" aria-label="Tuần trước">${PREV}</button><div class="wk">${cells}</div><button class="iconbtn" data-act="day" data-n="7" aria-label="Tuần sau">${NEXT}</button></div>`;
+  return `<div class="wk-row"><button class="wk-arrow" data-act="day" data-n="-7" aria-label="Tuần trước">${PREV}</button><div class="wk" data-swipe="week">${cells}</div><button class="wk-arrow" data-act="day" data-n="7" aria-label="Tuần sau">${NEXT}</button></div>`;
 }
+// Màn Hôm nay xem từng con một: chọn con ở hàng trên cùng, máy nhớ lần chọn gần nhất.
+const TODAY_KID = 'misa-misu-today-kid';
+function todayKid(kids = kidsList()) {
+  if (!S.kids[UI.todayKid]) { let v = null; try { v = localStorage.getItem(TODAY_KID); } catch (e) {} UI.todayKid = S.kids[v] ? v : kids[0]?.id || null; }
+  return kids.find(k => k.id === UI.todayKid) || kids[0] || null;
+}
+// Hàng trên cùng: các con (kèm số việc đã xong trong ngày đang xem) bên trái, nút ⋯ và + bên phải.
+function todayTop(kids, cur, d) {
+  const tabs = kids.map(k => {
+    const l = mustFor(k.id, d), n = l.filter(c => isDone(d, k.id, c.id)).length, full = l.length > 0 && n === l.length;
+    return `<button class="kid-tab ${k.id === cur?.id ? 'on' : ''}" data-act="today-kid" data-kid="${k.id}" ${k.id === cur?.id ? 'aria-current="true"' : ''} aria-label="${esc(k.name)}${l.length ? `, xong ${n} trên ${l.length} việc phải làm` : ''}">${ava(k, 'sm')}<b>${esc(k.name)}</b>${l.length ? `<i class="num ${full ? 'full' : ''}">${full ? '✓' : `${n}/${l.length}`}</i>` : ''}</button>`;
+  }).join('');
+  return `<div class="tbar"><div class="kid-tabs">${tabs}</div><div class="pillbar"><button data-act="today-menu" aria-label="Xem cả tuần, chế độ cho bé, in">${DOTS}</button><button class="add" data-act="quick-add" aria-label="Thêm việc" ${kids.length ? '' : 'disabled'}>${PLUS}</button></div></div>`;
+}
+const SLOT_ASK = { sang: 'Buổi sáng con làm gì?', chieu: 'Buổi chiều có việc gì?', toi: 'Buổi tối làm gì trước khi ngủ?', '': 'Việc làm lúc nào cũng được' };
 function viewToday() {
   if (UI.todayMode === 'week') return viewWeekGrid();
   const d = UI.date, t = today(), isT = key(d) === key(t), future = d > t;
-  const label = `${WD[d.getDay()]}, ${d.getDate()} tháng ${d.getMonth() + 1}`;
-  const kids = kidsList();
-  let h = `<div class="head head-row"><div><h1>${isT ? 'Hôm nay' : future ? 'Sắp tới' : 'Ngày ' + dm(d)}</h1><p>${label}${isT ? '' : ' · <button class="linkbtn" data-act="day" data-n="0">Về hôm nay</button>'}</p></div>${kmBtn(kids)}</div>
-  ${todayBar()}${kids.length ? weekStrip(d) : ''}`;
-  if (!kids.length) return h + noKids();
+  const kids = kidsList(), k = todayKid(kids);
+  const dateTxt = `${isT ? WD[d.getDay()] + ', ' : ''}${d.getDate()} tháng ${d.getMonth() + 1}${d.getFullYear() !== t.getFullYear() ? ' ' + d.getFullYear() : ''}`;
+  let h = `${todayTop(kids, k, d)}
+  <div class="day-head"><h1>${isT ? 'Hôm nay' : WD[d.getDay()]}</h1><div class="day-side"><label class="day-pick"><span>${dateTxt}</span>${CHEV}<input type="date" id="day-pick" value="${key(d)}" aria-label="Chọn ngày"></label>${isT ? '' : '<button class="linkbtn" data-act="day" data-n="0">Về hôm nay</button>'}</div></div>
+  ${k ? weekStrip(d, k) : ''}`;
+  if (!k) return h + noKids();
   if (future) h += `<p class="foot-note">Ngày này chưa tới nên chưa đánh dấu được.</p>`;
-  // Nhắc chung của cả nhà chỉ hiện một lần ở đây, không lặp lại trong thẻ của từng con.
-  const multi = kids.length > 1, fam = (stayLine(d.getDay(), isT) ? `<a class="stay-note ${stayInfo(d.getDay()).moved ? 'moved' : ''}" href="#lich-hoc" data-act="tkb-go" data-tab="hoc-them" data-kid="all">${esc(stayLine(d.getDay(), isT))}</a>` : '') + (multi ? famEventLines() : '');
-  if (fam) h += `<div class="fam-notes">${fam}</div>`;
-  // Nhà chưa có việc nào: chỉ ngay bước tiếp theo, không để màn trống.
-  if (!Object.keys(S.chores).length) h += `<section class="card empty"><div class="big">🧹</div><h2>Chưa có việc nhà nào</h2><p class="muted">Bắt đầu nhanh với bảng mẫu (${SAMPLE_CHORES.length} việc, kèm mục phạt, phí sử dụng và phiếu thưởng) rồi sửa lại sau, hoặc tự thêm từng việc.</p>
-    <div class="row" style="justify-content:center;margin-top:10px"><button class="btn primary" data-act="seed">Dùng bảng mẫu</button><button class="btn ghost" data-act="chore-form">Tự thêm việc</button></div></section>`;
-  for (const k of kids) {
-    const list = mustFor(k.id, d), plan = dayPlan(k.id, d);
-    const n = list.filter(c => isDone(d, k.id, c.id)).length;
-    const pct = list.length ? Math.round(n / list.length * 100) : 0;
-    // Thẻ tóm tắt của con: tên, số dư, tiến độ hôm nay, rồi các dòng nhắc. Các buổi nằm bên dưới, mỗi buổi một danh sách.
-    h += `<section class="kid-sec" style="--tint:${tintOf(k)}"><div class="card kid-card"><div class="kid-hero">${ava(k)}<div class="kid-hi"><div class="kid-name">${esc(k.name)}</div><div class="kid-sub">${streakChip(k)}${bdayChip(k, d)}</div></div><a href="#tai-khoan" class="acct-link" data-act="acct-go" data-kid="${k.id}" aria-label="Tài khoản của ${esc(k.name)}">${moneyChip(k)}${CHEV}</a></div>`;
-    if (list.length) h += progBox(n, list.length, n === list.length ? 'Xong hết việc phải làm 🎉' : `Việc phải làm · còn ${list.length - n} việc`);
-    const sc = schoolNow(k, d, isT);
-    let lines = '';
-    if (sc) lines += `<a class="school-line" href="#lich-hoc" data-act="tkb-go" data-tab="tkb" data-kid="${k.id}"><b>${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}:</b> ${esc(sc.subjects.join(', '))}</a>`;
-    lines += eventLines(k, 'event-line', multi) + skipNote(k, d);
-    if (lines) h += `<div class="kid-lines">${lines}</div>`;
-    const ts = isT ? tasksSoon(k.id) : [];
-    if (ts.length) h += `<div class="today-tasks"><a class="ag-h" href="#lich-hoc" data-act="tkb-go" data-tab="bai-tap" data-kid="${k.id}">Bài cần nộp (${ts.length}) <span class="more">Xem hết</span></a><div class="list">${ts.map(t => taskRow(t, false, 'mini')).join('')}</div></div>`;
-    if (!plan.length) { h += `<p class="muted kid-rest">${isT ? 'Hôm nay' : 'Ngày này'} ${esc(k.name)} không có việc nào${Object.keys(S.chores).length ? '. Nghỉ ngơi thôi!' : '.'}</p></div></section>`; continue; }
-    const cur = isT ? slotAt(nowMin()) : null;
-    h += `</div><div class="slots">`;
-    for (const g of plan) {
-      // Mỗi buổi mở/đóng được. Mặc định: buổi đã xong hết thì thu gọn (trừ buổi đang diễn ra và buổi có việc thích làm vừa mở khoá),
-      // việc làm thêm thu gọn cho tới khi có làm. Bố mẹ bấm mở/đóng thì giữ nguyên lựa chọn đó.
-      const sk = `${key(d)}|${k.id}|${g.id}`, isNow = !g.extra && g.id && g.id === cur;
-      if (g.extra) {
-        const nd = g.items.filter(x => isDone(d, k.id, x.c.id)).length;
-        h += `<details class="slot s-them" data-slot="${sk}" ${UI.slotOpen[sk] ?? nd > 0 ? 'open' : ''}><summary class="slot-h extra"><span class="slot-t">${g.icon} ${g.label}</span><span class="slot-n">${nd ? `đã làm ${nd}/` : ''}${g.items.length} việc</span>${CHEV}</summary><div class="list">`;
-      } else {
-        const mine = g.items.filter(x => x.type === 'chore' && !isFun(x.c)), nd = mine.filter(x => isDone(d, k.id, x.c.id)).length;
-        const full = mine.length > 0 && nd === mine.length, hasFun = g.items.some(x => x.type === 'chore' && isFun(x.c));
-        h += `<details class="slot s-${g.id || 'any'} ${isNow ? 'now' : ''} ${full ? 'full' : ''}" data-slot="${sk}" ${UI.slotOpen[sk] ?? (!full || isNow || hasFun) ? 'open' : ''}><summary class="slot-h"><span class="slot-t">${g.icon} ${g.label}</span>${isNow ? '<span class="nowpill">Bây giờ</span>' : ''}${mine.length ? `<span class="slot-n num">${full ? '✓ ' : ''}${nd}/${mine.length}</span>` : '<span class="slot-n"></span>'}${CHEV}</summary><div class="list">`;
-      }
+  const list = mustFor(k.id, d), plan = dayPlan(k.id, d);
+  const n = list.filter(c => isDone(d, k.id, c.id)).length, left = list.length - n;
+  // Một dòng tóm tắt: còn mấy việc, chuỗi ngày, số dư (bấm sang Tài khoản).
+  h += `<section class="kid-sum" style="--tint:${tintOf(k)}"><div class="kid-sum-row"><b class="kid-sum-t">${!list.length ? 'Không có việc phải làm' : left ? `Còn ${left} việc phải làm` : 'Xong hết việc phải làm 🎉'}</b><a href="#tai-khoan" class="acct-link" data-act="acct-go" data-kid="${k.id}" aria-label="Tài khoản của ${esc(k.name)}">${moneyChip(k)}${CHEV}</a></div>
+    ${list.length ? `<div class="bar ${left ? '' : 'full'}" role="progressbar" aria-valuemin="0" aria-valuemax="${list.length}" aria-valuenow="${n}"><b style="width:${Math.round(n / list.length * 100)}%"></b></div>` : ''}
+    ${streakChip(k) || bdayChip(k, d) ? `<div class="kid-sub">${streakChip(k)}${bdayChip(k, d)}</div>` : ''}</section>`;
+  // Các dòng nhắc gom vào một khối: con đang ở đâu, giờ ở trường, mốc sắp tới, phiếu nghỉ.
+  const st = stayLine(d.getDay(), isT), sc = schoolNow(k, d, isT);
+  let notes = st ? `<a class="stay-note ${stayInfo(d.getDay()).moved ? 'moved' : ''}" href="#lich-hoc" data-act="tkb-go" data-tab="hoc-them" data-kid="all">${esc(st)}</a>` : '';
+  if (sc) notes += `<a class="school-line" href="#lich-hoc" data-act="tkb-go" data-tab="tkb" data-kid="${k.id}"><b>${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}:</b> ${esc(sc.subjects.join(', '))}</a>`;
+  notes += eventLines(k) + skipNote(k, d);
+  if (notes) h += `<div class="notes">${notes}</div>`;
+  // Nhà chưa có việc nào: một dòng gợi ý bảng mẫu, gọn để các ô thêm việc vẫn nằm ngay bên dưới.
+  if (!Object.keys(S.chores).length) h += `<section class="suggest"><div><b>Chưa biết bắt đầu từ đâu?</b><span>Bảng mẫu có sẵn ${SAMPLE_CHORES.length} việc, kèm mục phạt, phí sử dụng và phiếu thưởng. Thêm xong sửa lại tuỳ ý.</span></div><button class="btn primary sm" data-act="seed">Dùng bảng mẫu</button></section>`;
+  h += `<div class="slots">`;
+  // Bài cần nộp: cùng kiểu với các buổi, nằm trước để thấy ngay.
+  const ts = isT ? tasksSoon(k.id) : [];
+  if (ts.length) h += `<section class="slot s-task"><div class="slot-h"><a class="slot-pill" href="#lich-hoc" data-act="tkb-go" data-tab="bai-tap" data-kid="${k.id}">📝<span>Bài cần nộp</span><i class="num">${ts.length}</i>${CHEV}</a></div><div class="slot-list list">${ts.map(x => taskRow(x, false, 'mini')).join('')}</div></section>`;
+  const cur = isT ? slotAt(nowMin()) : null, canAdd = d >= t;
+  // Luôn đủ bốn buổi (từ hôm nay trở đi): buổi chưa có việc hiện ô trống có dấu + để thêm ngay tại chỗ.
+  const groups = SLOTS.map(([id, label, icon]) => plan.find(g => !g.extra && g.id === id) || { id, label, icon, items: [], blank: true }).filter(g => !g.blank || canAdd);
+  const extra = plan.find(g => g.extra); if (extra) groups.push(extra);
+  for (const g of groups) {
+    // Mỗi buổi mở/đóng được. Mặc định: buổi đã xong hết thì thu gọn (trừ buổi đang diễn ra và buổi có việc thích làm vừa mở khoá),
+    // việc làm thêm thu gọn cho tới khi có làm. Bố mẹ bấm mở/đóng thì giữ nguyên lựa chọn đó.
+    const sk = `${key(d)}|${k.id}|${g.id}`, isNow = !g.extra && g.id && g.id === cur;
+    const mine = g.items.filter(x => x.type === 'chore' && !isFun(x.c)), nd = mine.filter(x => isDone(d, k.id, x.c.id)).length;
+    const full = !g.extra && mine.length > 0 && nd === mine.length, hasFun = g.items.some(x => x.type === 'chore' && isFun(x.c));
+    const open = UI.slotOpen[sk] ?? (g.extra ? nd > 0 : !full || isNow || hasFun);
+    const cnt = g.extra ? `${nd ? `${nd}/` : ''}${g.items.length}` : mine.length ? `${full ? '✓ ' : ''}${nd}/${mine.length}` : g.blank ? '0' : '';
+    const add = !canAdd ? '' : g.extra ? `<button class="mini-add" data-act="chore-form" data-kind="extra" aria-label="Thêm việc làm thêm">${PLUS}</button>`
+      : `<button class="mini-add" data-act="quick-add" data-slot="${g.id}" aria-label="Thêm việc: ${g.label}">${PLUS}</button>`;
+    h += `<section class="slot s-${g.extra ? 'them' : g.id || 'any'} ${isNow ? 'now' : ''} ${full ? 'full' : ''}" data-slot="${sk}"><div class="slot-h"><button class="slot-pill" data-act="slot-toggle" data-slot="${sk}" aria-expanded="${!!open}">${g.icon}<span>${g.label}</span>${cnt ? `<i class="num">${cnt}</i>` : ''}${DOWN}</button>${isNow ? '<span class="nowpill">Bây giờ</span>' : ''}${g.blank && open ? '' : add}</div>`;
+    if (open && g.blank) h += `<button class="slot-blank" data-act="quick-add" data-slot="${g.id}"><span>${SLOT_ASK[g.id]}</span>${PLUS}</button>`;
+    else if (open) {
+      h += `<div class="slot-list list">`;
       for (const x of g.items) {
         if (x.type !== 'chore') { h += markRow(x); continue; }
         const c = x.c, on = isDone(d, k.id, c.id), steps = (c.steps || []).filter(Boolean), mask = stepMask(d, k.id, c.id);
@@ -755,12 +773,54 @@ function viewToday() {
         h += `<div class="item ${on ? 'done' : ''} ${isFun(c) ? 'fun' + (x.locked ? ' locked' : '') : ''}"><span class="ico">${esc(c.icon || '✅')}</span><div class="txt"><div class="t">${esc(c.name)}</div><div class="s">${choreMeta(c, k.id, d, isT)}</div>
           ${steps.length && !isFun(c) ? `<div class="steps">${steps.map((st, i) => { const ok = on || (mask >> i) & 1; return `<button class="step ${ok ? 'on' : ''}" data-act="step" data-kid="${k.id}" data-chore="${c.id}" data-i="${i}" ${future ? 'disabled' : ''} aria-pressed="${!!ok}">${esc(st)}</button>`; }).join('')}</div>` : ''}</div>${right}</div>`;
       }
-      h += `</div></details>`;
+      h += `</div>`;
     }
-    h += `</div></section>`;
+    h += `</section>`;
   }
+  h += `</div>`;
   return h;
 }
+// Menu ⋯ của màn Hôm nay: những cách xem ít dùng hơn, để màn chính chỉ còn việc cần làm.
+function todayMenu() {
+  const on = kidsList().length > 0, row = (attr, ic, t, sub) => `<button class="item nav" ${attr} ${on ? '' : 'disabled'}><span class="ico">${ic}</span><span class="txt"><span class="t">${t}</span><span class="s">${sub}</span></span>${CHEV}</button>`;
+  openModal(`<h2>Hôm nay</h2><div class="list menu">
+    ${row('data-act="today-mode" data-v="week"', '✅', 'Xem cả tuần', 'Mỗi việc một dòng, mỗi ngày một cột')}
+    ${row('data-act="km-open"', '🙂', 'Chế độ cho bé', 'Chữ và nút to để con tự đánh dấu')}
+    ${row('data-act="sheet-open"', '🖨️', 'In kế hoạch tuần', 'Mỗi con một trang A4 dán bàn học')}
+    <a class="item nav" href="#gia-dinh" data-act="close"><span class="ico">✏️</span><span class="txt"><span class="t">Sửa danh sách việc nhà</span><span class="s">Đổi tên, ngày, buổi, tiền thưởng của từng việc</span></span>${CHEV}</a>
+  </div><div class="foot"><button class="btn quiet" data-act="close">Đóng</button></div>`);
+}
+
+// ---------- thêm việc nhanh ----------
+// Chỉ một ô gõ tên việc và vài lựa chọn bấm để đổi; còn lại lấy mặc định. Muốn chỉnh kỹ thì bấm ⋯ để mở form đầy đủ.
+let QA = null;
+const QA_PAY = [[5000, '+5.000đ mỗi lần'], [10000, '+10.000đ mỗi lần'], [0, 'Bắt buộc, thưởng tuần']];
+const qaReps = () => { const wd = UI.date.getDay(); return [[DAILY, 'Mỗi ngày'], [[1, 2, 3, 4, 5], 'Ngày thường'], [[0, 6], 'Cuối tuần'], [[wd], `${WDN(wd)} hằng tuần`]]; };
+function qaWho() {
+  const kids = kidsList(), k = todayKid(kids); if (!k) return [];
+  return [[[k.id], k.name], ...(kids.length > 1 ? [[kids.map(x => x.id), 'Cả nhà']] : []), ...kids.filter(x => x.id !== k.id).map(x => [[x.id], x.name])];
+}
+function qaChips() {
+  const sl = SLOTS.find(x => x[0] === QA.slot) || SLOTS[3], rep = qaReps()[QA.rep], who = qaWho()[QA.who], pay = QA_PAY[QA.pay];
+  const chip = (f, ic, txt, cls = '') => `<button class="qa-chip ${cls}" data-act="qa-cycle" data-f="${f}">${ic}<span>${esc(txt)}</span></button>`;
+  return chip('slot', sl[2], sl[0] ? sl[1] : 'Lúc nào cũng được', 's-' + (sl[0] || 'any')) + chip('rep', '🔁', rep[1])
+    + (qaWho().length > 1 ? chip('who', who[0].length > 1 ? '👪' : mini(S.kids[who[0][0]] ? { id: who[0][0], ...S.kids[who[0][0]] } : {}), who[1]) : '')
+    + chip('pay', pay[0] ? '💰' : '⭐', pay[1]) + `<button class="qa-chip more" data-act="qa-more" aria-label="Mở form đầy đủ">${DOTS}</button>`;
+}
+// Đoán biểu tượng theo tên việc, để thêm nhanh không phải chọn.
+const ICON_GUESS = [[/nhảy dây/, '🪢'], [/giường|chăn/, '🛏️'], [/răng|rửa mặt/, '🪥'], [/đồ chơi|lego/, '🧸'], [/bát|chén|dọn mâm/, '🍽️'], [/cây|tưới/, '🪴'], [/cặp/, '🎒'], [/quần áo|gấp áo/, '👕'], [/quét/, '🧹'], [/lau/, '🧽'],
+  [/rác/, '🗑️'], [/tắm|gội/, '🛁'], [/đàn|piano/, '🎹'], [/chạy|đi bộ|thể dục|bơi/, '🏃'], [/nghe/, '🎧'], [/sách|đọc|truyện/, '📚'], [/bài|học|viết|toán/, '✏️'], [/bàn/, '🪑'], [/ngủ/, '🌙'], [/phim/, '🎬'], [/tivi|tv/, '📺'],
+  [/game|chơi/, '🎮'], [/giày|dép/, '👟'], [/tất|vớ/, '🧦'], [/chó|mèo/, '🐶'], [/cá/, '🐟'], [/cơm|ăn/, '🍚'], [/giúp/, '🤝'], [/phơi|giặt/, '🧺']];
+const guessIcon = name => (ICON_GUESS.find(([rx]) => rx.test(String(name).toLowerCase())) || [0, '✅'])[1];
+function quickAdd(slot) {
+  if (!kidsList().length) return kidForm();
+  QA = { slot: SLOTS.some(x => x[0] === slot) ? slot : key(UI.date) === key(today()) ? slotAt(nowMin()) : '', rep: 0, who: 0, pay: 0 };
+  openModal(`<div class="qa"><div class="qa-row"><input id="qname" class="qa-input" maxlength="40" placeholder="Thêm một việc thôi" autocomplete="off" enterkeyhint="done" aria-label="Tên việc"><button class="qa-go" data-act="qa-save" aria-label="Thêm việc">${PLUS}</button></div>
+    <div class="qa-chips" id="qa-chips">${qaChips()}</div></div>`);
+  $('#qname').focus();
+}
+// Các lựa chọn đang có trong ô thêm nhanh, đổi sang dạng dữ liệu của một việc.
+const qaData = () => ({ name: $('#qname')?.value.trim() || '', slot: QA.slot, days: qaReps()[QA.rep][0], kids: qaWho()[QA.who][0], money: QA_PAY[QA.pay][0] });
 
 const LEARN_TABS = [['sap-toi', 'Sắp tới'], ['bai-tap', 'Bài tập'], ['tkb', 'Thời khoá biểu'], ['moc', 'Mốc năm học'], ['hoc-them', 'Học thêm']];
 function viewSchedule() {
@@ -1375,7 +1435,7 @@ function closeModal() { $('#modal').hidden = true; $('#modal').innerHTML = ''; U
 // Form đã gõ hoặc chọn gì đó thì bấm ra ngoài / phím Esc không đóng, tránh mất công nhập. Muốn bỏ thì bấm Huỷ.
 let modalDirty = false;
 function dismissModal() {
-  if (modalDirty && !UI.sheet) return toast('Chưa lưu. Bấm Lưu để giữ, hoặc Huỷ để bỏ.');
+  if (modalDirty && !UI.sheet && !$('#modal .qa')) return toast('Chưa lưu. Bấm Lưu để giữ, hoặc Huỷ để bỏ.');
   closeModal();
 }
 const pickGrid = (name, list, val) => `<div class="pick" role="radiogroup">${list.map((e, i) => `<label><input type="radio" name="${name}" value="${e}" ${(val ? val === e : i === 0) ? 'checked' : ''} aria-label="${e}"><span>${e}</span></label>`).join('')}</div>`;
@@ -1430,27 +1490,28 @@ const KIND_HELP = {
   extra: 'Không bắt buộc, làm lúc nào được tiền lúc đó (rửa bát, đổ rác...).',
   fun: 'Xem phim, chơi Lego... Không có tiền, bị khoá cho đến khi con xong việc phải làm của buổi đó.',
 };
-function choreForm(id, kindPre) {
+// pre: những gì đã gõ và chọn ở ô thêm nhanh ({ name, slot, days, kids, money }), điền sẵn vào form thêm mới.
+function choreForm(id, kindPre, pre) {
   const c = id ? S.chores[id] : null, kids = kidsList();
-  const ck = c ? (c.kids || []) : kids.map(k => k.id), days = c ? (c.days || []) : [0, 1, 2, 3, 4, 5, 6];
-  const kind = c ? (isFun(c) ? 'fun' : isExtra(c) ? 'extra' : 'must') : ['extra', 'fun'].includes(kindPre) ? kindPre : 'must', fun = kind === 'fun', slot = c ? choreSlot(c) : '', pw = c ? perWeekOf(c) : 0;
+  const ck = c ? (c.kids || []) : pre?.kids || kids.map(k => k.id), days = c ? (c.days || []) : pre?.days || [0, 1, 2, 3, 4, 5, 6];
+  const kind = c ? (isFun(c) ? 'fun' : isExtra(c) ? 'extra' : 'must') : ['extra', 'fun'].includes(kindPre) ? kindPre : 'must', fun = kind === 'fun', slot = c ? choreSlot(c) : pre?.slot || '', pw = c ? perWeekOf(c) : 0;
   // Việc mỗi ngày: bắt buộc (thưởng cuối tuần) hoặc có tiền từng lần. Việc mới mặc định có tiền từng lần, trừ khi thêm từ nhóm việc bắt buộc.
-  const pay = c ? (isWeekly(c) ? 'week' : 'each') : kindPre === 'week' ? 'week' : 'each';
+  const pay = c ? (isWeekly(c) ? 'week' : 'each') : kindPre === 'week' || pre?.money === 0 ? 'week' : 'each';
   const wbs = [...new Set(kids.map(weekBonusOf))].filter(Boolean).map(money).join(' / ');
   const adv = c && (pw || (c.steps || []).length || (c.variants || []).length || c.shared || toMin(c.time) !== null || Number(c.minutes));
   openModal(`<h2>${c ? 'Sửa việc' : 'Thêm việc'}</h2>
-  <div class="field"><label for="cname">Tên việc</label><input id="cname" class="input" maxlength="40" value="${esc(c?.name || '')}" placeholder="Ví dụ: Học bài, Gấp quần áo, Xem phim"></div>
+  <div class="field"><label for="cname">Tên việc</label><input id="cname" class="input" maxlength="40" value="${esc(c?.name || pre?.name || '')}" placeholder="Ví dụ: Học bài, Gấp quần áo, Xem phim"></div>
   <div class="field"><span class="lbl">Loại việc</span><div class="seg modes">
     <label><input type="radio" name="ckind" value="must" ${kind === 'must' ? 'checked' : ''}><span>Mỗi ngày</span></label>
     <label><input type="radio" name="ckind" value="extra" ${kind === 'extra' ? 'checked' : ''}><span>Làm thêm</span></label>
     <label><input type="radio" name="ckind" value="fun" ${fun ? 'checked' : ''}><span>Thích làm</span></label></div>
     <span class="muted small" id="ckind-help">${KIND_HELP[kind]}</span></div>
-  <div class="field"><span class="lbl">Biểu tượng</span>${pickGrid('cico', CHORE_ICONS, c?.icon)}</div>
+  <div class="field"><span class="lbl">Biểu tượng</span>${pickGrid('cico', CHORE_ICONS, c?.icon || (pre?.name && CHORE_ICONS.includes(guessIcon(pre.name)) ? guessIcon(pre.name) : ''))}</div>
   <div class="field cpay-f" ${kind === 'must' ? '' : 'hidden'}><span class="lbl">Cách thưởng</span><div class="seg modes">
     <label><input type="radio" name="cpay" value="week" ${pay === 'week' ? 'checked' : ''}><span>Bắt buộc, thưởng tuần</span></label>
     <label><input type="radio" name="cpay" value="each" ${pay === 'each' ? 'checked' : ''}><span>Tiền từng lần</span></label></div>
     <span class="muted small"><b>Bắt buộc:</b> ngày nào cũng phải làm, không cộng tiền từng lần; làm đủ tất cả các ngày thì cuối tuần được thưởng${wbs ? ` ${wbs}` : ''}. <b>Tiền từng lần:</b> làm lần nào cộng tiền lần đó, không tính vào thưởng đủ tuần.</span></div>
-  <div class="field cmoney-f" ${fun || (kind === 'must' && pay === 'week') ? 'hidden' : ''}><label for="cmoney">Được bao nhiêu tiền mỗi lần (đồng)</label><div class="stepper"><button class="iconbtn" data-act="num-step" data-t="cmoney" data-n="-5000" data-min="0" aria-label="Bớt 5.000đ">−</button><input id="cmoney" class="input num" type="number" min="0" step="1000" inputmode="numeric" value="${c && choreVnd(c) ? choreVnd(c) : 5000}"><button class="iconbtn" data-act="num-step" data-t="cmoney" data-n="5000" data-min="0" aria-label="Thêm 5.000đ">+</button></div>
+  <div class="field cmoney-f" ${fun || (kind === 'must' && pay === 'week') ? 'hidden' : ''}><label for="cmoney">Được bao nhiêu tiền mỗi lần (đồng)</label><div class="stepper"><button class="iconbtn" data-act="num-step" data-t="cmoney" data-n="-5000" data-min="0" aria-label="Bớt 5.000đ">−</button><input id="cmoney" class="input num" type="number" min="0" step="1000" inputmode="numeric" value="${c && choreVnd(c) ? choreVnd(c) : pre?.money || 5000}"><button class="iconbtn" data-act="num-step" data-t="cmoney" data-n="5000" data-min="0" aria-label="Thêm 5.000đ">+</button></div>
     <div class="row">${[5000, 10000, 15000, 20000].map(v => `<button class="btn quiet sm" data-act="who-fill" data-t="cmoney" data-v="${v}">${money(v)}</button>`).join('')}</div></div>
   <div class="field"><span class="lbl">Buổi</span><div class="seg modes">${SLOTS.map(([v, label]) => `<label><input type="radio" name="cslot" value="${v}" ${slot === v ? 'checked' : ''}><span>${v ? label.replace('Buổi ', '').replace(/^./, c => c.toUpperCase()) : 'Lúc nào'}</span></label>`).join('')}</div></div>
   <div class="field"><span class="lbl">Giao cho</span><div class="seg">${kids.map(k => `<label><input type="checkbox" name="ckid" value="${k.id}" ${ck.includes(k.id) ? 'checked' : ''}><span>${mini(k)} ${esc(k.name)}</span></label>`).join('')}</div></div>
@@ -1760,7 +1821,7 @@ document.addEventListener('click', e => {
   if (a === 'tick') {
     const d = b.dataset.km ? today() : UI.date, kid = b.dataset.kid; if (!S.chores[b.dataset.chore]) return;
     const on = isDone(d, kid, b.dataset.chore);
-    const sl = b.closest('details.slot'); if (sl) UI.slotOpen[sl.dataset.slot] = true;
+    const sl = b.closest('.slot[data-slot]'); if (sl) UI.slotOpen[sl.dataset.slot] = true;
     const st = b.classList.contains('stamp') ? b : b.querySelector('.stamp');
     if (!on && st) st.classList.add('on', 'pop');
     return markChore(d, kid, b.dataset.chore, !on);
@@ -1768,7 +1829,7 @@ document.addEventListener('click', e => {
   if (a === 'step') {
     const d = b.dataset.km ? today() : UI.date, kid = b.dataset.kid, cid = b.dataset.chore, ch = S.chores[cid]; if (!ch) return;
     const steps = (ch.steps || []).filter(Boolean), all = (1 << steps.length) - 1;
-    const sl = b.closest('details.slot'); if (sl) UI.slotOpen[sl.dataset.slot] = true;
+    const sl = b.closest('.slot[data-slot]'); if (sl) UI.slotOpen[sl.dataset.slot] = true;
     let mask = isDone(d, kid, cid) ? all : stepMask(d, kid, cid);
     mask ^= 1 << Number(b.dataset.i);
     b.classList.toggle('on', !!((mask >> Number(b.dataset.i)) & 1));
@@ -1917,13 +1978,33 @@ document.addEventListener('click', e => {
   }
   if (a === 'who-fill') { const i = $('#' + b.dataset.t); if (i) i.value = b.dataset.v; return; }
   if (a === 'lesson-del') { if (!armed(b, 'Bấm lần nữa để xoá')) return; closeModal(); del('lessons', id); return toast('Đã xoá buổi học thêm.'); }
-  if (a === 'km-open') { const ks = kidsList(); UI.km = { on: true, kid: ks.length === 1 ? ks[0].id : null }; return render(); }
+  if (a === 'km-open') { closeModal(); const ks = kidsList(); UI.km = { on: true, kid: ks.length === 1 ? ks[0].id : null }; return render(); }
   if (a === 'km-kid') { UI.km.kid = b.dataset.kid || null; return render(); }
   if (a === 'sheet-open') { UI.sheet = true; return render(); }
   if (a === 'print') return printSheet();
   if (a === 'kid-form') return kidForm(id);
   if (a === 'photo-del') { photoEdit = { img: null, out: '' }; const pv = $('#modal .photo-prev'); if (pv) pv.innerHTML = avInner(radioVal('kava')); b.hidden = true; $('#modal .photo-adj').hidden = true; return; }
   if (a === 'chore-form') return choreForm(id, b.dataset.kind);
+  if (a === 'today-kid') { UI.todayKid = b.dataset.kid; try { localStorage.setItem(TODAY_KID, UI.todayKid); } catch (err) {} return render(); }
+  if (a === 'today-menu') return todayMenu();
+  if (a === 'today-mode') { closeModal(); UI.todayMode = b.dataset.v === 'week' ? 'week' : 'day'; render(); return window.scrollTo(0, 0); }
+  if (a === 'slot-toggle') { UI.slotOpen[b.dataset.slot] = b.getAttribute('aria-expanded') !== 'true'; return render(); }
+  if (a === 'quick-add') return quickAdd(b.dataset.slot);
+  if (a === 'qa-cycle') {
+    const f = b.dataset.f, n = { slot: SLOTS.length, rep: qaReps().length, who: qaWho().length, pay: QA_PAY.length }[f]; if (!QA || !n) return;
+    if (f === 'slot') QA.slot = SLOTS[(SLOTS.findIndex(x => x[0] === QA.slot) + 1) % n][0]; else QA[f] = (QA[f] + 1) % n;
+    const had = document.activeElement === b;
+    $('#qa-chips').innerHTML = qaChips(); if (had) $(`#qa-chips [data-f="${f}"]`)?.focus({ preventScroll: true }); return;
+  }
+  if (a === 'qa-more') { if (!QA) return; const q = qaData(); choreForm(null, '', q); modalDirty = !!q.name; return; }
+  if (a === 'qa-save') {
+    if (!QA) return;
+    const q = qaData(); if (!q.name) { $('#qname').focus(); return toast('Gõ tên việc nhé.'); }
+    const cid = uid(), sl = SLOTS.find(x => x[0] === q.slot);
+    put('chores', cid, { name: q.name, icon: guessIcon(q.name), money: q.money, kids: q.kids, days: q.days, order: Object.keys(S.chores).length, kind: 'must', slot: q.slot, since: key(today()) });
+    closeModal();
+    return toast(`Đã thêm “${q.name}” vào ${sl[0] ? sl[1].toLowerCase() : 'mục lúc nào cũng được'}.`, () => { del('chores', cid); toast('Đã bỏ việc vừa thêm.'); });
+  }
   if (a === 'price-form') return priceForm(id, b.dataset.kind);
   if (a === 'prices-print') return printPrices();
   if (a === 'coupons-print') return printCoupons();
@@ -2107,7 +2188,7 @@ document.addEventListener('click', e => {
 document.addEventListener('change', e => {
   if (e.target.name === 'akind') { UI.acctKind = e.target.value; render(); }
   if (e.target.name === 'planw') { UI.planNext = e.target.value === '1'; drawSheet(); }
-  if (e.target.name === 'tmode') { UI.todayMode = e.target.value; render(); }
+  if (e.target.id === 'day-pick' && e.target.value) { UI.date = parse(e.target.value); render(); }
   if (e.target.name === 'tview') { UI.taskDone = e.target.value === '1'; UI.histAll = false; render(); }
   if (e.target.name === 'ckind' || e.target.name === 'cpay') {
     const kind = radioVal('ckind'), f = $('#modal .cmoney-f'), pf = $('#modal .cpay-f'), hp = $('#ckind-help');
@@ -2127,8 +2208,24 @@ document.addEventListener('input', e => { if (['pzoom', 'px', 'py'].includes(e.t
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') dismissModal(); else if (e.target.closest('button:not([data-act=close])')) modalDirty = true; });
 $('#modal').addEventListener('input', () => { modalDirty = true; });
 $('#modal').addEventListener('change', () => { modalDirty = true; });
-// Nhớ buổi nào bố mẹ đã tự mở/đóng (bấm vào tiêu đề buổi), để vẽ lại không tự đổi.
-document.addEventListener('click', e => { const sm = e.target.closest('details.slot > summary'); if (sm) UI.slotOpen[sm.parentElement.dataset.slot] = !sm.parentElement.open; });
+// Ô thêm nhanh: Enter là thêm. Bấm các lựa chọn thì con trỏ vẫn ở ô gõ, bàn phím không bị đóng.
+document.addEventListener('mousedown', e => { if (e.target.closest('.qa-chip, .qa-go') && document.activeElement?.id === 'qname') e.preventDefault(); });
+// Bấm vào ngày tháng ở đầu màn Hôm nay thì mở ô chọn ngày của máy.
+document.addEventListener('click', e => { if (e.target.id === 'day-pick') { try { e.target.showPicker(); } catch (err) {} } });
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'qname') { e.preventDefault(); $('#modal [data-act="qa-save"]')?.click(); } });
+// Dải tuần ở màn Hôm nay: vuốt ngang để sang tuần trước / tuần sau.
+let swipe = null;
+document.addEventListener('touchstart', e => { const w = e.target.closest('[data-swipe]'), p = e.touches[0]; swipe = w && e.touches.length === 1 ? { x: p.clientX, y: p.clientY } : null; }, { passive: true });
+document.addEventListener('touchend', e => {
+  if (!swipe) return;
+  const p = e.changedTouches[0], dx = p.clientX - swipe.x, dy = p.clientY - swipe.y; swipe = null;
+  if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.5) { UI.date = addDays(UI.date, dx < 0 ? 7 : -7); render(); }
+}, { passive: true });
+// Bàn phím điện thoại che mất sheet nằm sát đáy: đẩy ô thêm nhanh lên trên bàn phím.
+if (window.visualViewport) {
+  const vv = window.visualViewport, kb = () => document.documentElement.style.setProperty('--kb', Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) + 'px');
+  vv.addEventListener('resize', kb); vv.addEventListener('scroll', kb);
+}
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && !$('#modal').hidden) dismissModal();
   if (e.key === 'Enter' && e.target.id === 'seedpass') $('#modal [data-act="seed-load"]')?.click();
