@@ -1485,11 +1485,19 @@ function kidForm(id) {
   <div class="field"><span class="lbl">Hình đại diện</span>${avatarGrid(k ? avatarOf(k) : '')}</div>
   <div class="foot">${k ? `<button class="btn danger left" data-act="kid-del" data-id="${id}">Xoá</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="kid-save" data-id="${id || ''}">Lưu</button></div>`);
 }
+// ---------- form việc nhà: các nhóm thẻ, mỗi dòng một nhãn bên trái và giá trị bên phải ----------
 const KIND_HELP = {
-  must: 'Việc theo lịch mỗi ngày, nằm trong dòng thời gian Hôm nay của con.',
-  extra: 'Không bắt buộc, làm lúc nào được tiền lúc đó (rửa bát, đổ rác...).',
-  fun: 'Xem phim, chơi Lego... Không có tiền, bị khoá cho đến khi con xong việc phải làm của buổi đó.',
+  must: 'Nằm trong lịch mỗi ngày của con',
+  extra: 'Không bắt buộc, làm lúc nào được tiền lúc đó',
+  fun: 'Không có tiền, mở khoá khi xong việc phải làm của buổi',
 };
+const payHelp = (pay, wbs) => pay === 'week' ? `Không cộng tiền từng lần, làm đủ cả tuần thì thưởng${wbs ? ' ' + wbs : ''}` : 'Làm lần nào cộng tiền lần đó, không tính vào thưởng tuần';
+const DAY_SETS = [['0,1,2,3,4,5,6', 'Mỗi ngày'], ['1,2,3,4,5', 'Ngày thường'], ['0,6', 'Cuối tuần']];
+const daySet = days => { const k = [...days].map(Number).sort().join(); return DAY_SETS.some(x => x[0] === k) ? k : 'custom'; };
+// Một dòng: nhãn (kèm dòng giải thích nhỏ) bên trái, giá trị bên phải.
+const frow = (label, right, { sub = '', id = '', cls = '', hidden = false, subId = '' } = {}) => `<div class="fr ${cls}" ${hidden ? 'hidden' : ''}><div class="fl">${id ? `<label for="${id}">${label}</label>` : `<span class="lbl">${label}</span>`}${sub || subId ? `<span class="fs" ${subId ? `id="${subId}"` : ''}>${sub}</span>` : ''}</div>${right}</div>`;
+// Giá trị dạng viên: bấm vào là mở danh sách chọn của máy.
+const pillSel = (id, opts, val, cls = '') => `<select id="${id}" class="pillsel ${cls}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(val) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
 // pre: những gì đã gõ và chọn ở ô thêm nhanh ({ name, slot, days, kids, money }), điền sẵn vào form thêm mới.
 function choreForm(id, kindPre, pre) {
   const c = id ? S.chores[id] : null, kids = kidsList();
@@ -1498,38 +1506,33 @@ function choreForm(id, kindPre, pre) {
   // Việc mỗi ngày: bắt buộc (thưởng cuối tuần) hoặc có tiền từng lần. Việc mới mặc định có tiền từng lần, trừ khi thêm từ nhóm việc bắt buộc.
   const pay = c ? (isWeekly(c) ? 'week' : 'each') : kindPre === 'week' || pre?.money === 0 ? 'week' : 'each';
   const wbs = [...new Set(kids.map(weekBonusOf))].filter(Boolean).map(money).join(' / ');
-  const adv = c && (pw || (c.steps || []).length || (c.variants || []).length || c.shared || toMin(c.time) !== null || Number(c.minutes));
+  const adv = c && (pw || (c.variants || []).length || c.shared || toMin(c.time) !== null || Number(c.minutes));
+  const ico = c?.icon || (pre?.name && CHORE_ICONS.includes(guessIcon(pre.name)) ? guessIcon(pre.name) : CHORE_ICONS[0]);
   openModal(`<h2>${c ? 'Sửa việc' : 'Thêm việc'}</h2>
-  <div class="field"><label for="cname">Tên việc</label><input id="cname" class="input" maxlength="40" value="${esc(c?.name || pre?.name || '')}" placeholder="Ví dụ: Học bài, Gấp quần áo, Xem phim"></div>
-  <div class="field"><span class="lbl">Loại việc</span><div class="seg modes">
-    <label><input type="radio" name="ckind" value="must" ${kind === 'must' ? 'checked' : ''}><span>Mỗi ngày</span></label>
-    <label><input type="radio" name="ckind" value="extra" ${kind === 'extra' ? 'checked' : ''}><span>Làm thêm</span></label>
-    <label><input type="radio" name="ckind" value="fun" ${fun ? 'checked' : ''}><span>Thích làm</span></label></div>
-    <span class="muted small" id="ckind-help">${KIND_HELP[kind]}</span></div>
-  <div class="field"><span class="lbl">Biểu tượng</span>${pickGrid('cico', CHORE_ICONS, c?.icon || (pre?.name && CHORE_ICONS.includes(guessIcon(pre.name)) ? guessIcon(pre.name) : ''))}</div>
-  <div class="field cpay-f" ${kind === 'must' ? '' : 'hidden'}><span class="lbl">Cách thưởng</span><div class="seg modes">
-    <label><input type="radio" name="cpay" value="week" ${pay === 'week' ? 'checked' : ''}><span>Bắt buộc, thưởng tuần</span></label>
-    <label><input type="radio" name="cpay" value="each" ${pay === 'each' ? 'checked' : ''}><span>Tiền từng lần</span></label></div>
-    <span class="muted small"><b>Bắt buộc:</b> ngày nào cũng phải làm, không cộng tiền từng lần; làm đủ tất cả các ngày thì cuối tuần được thưởng${wbs ? ` ${wbs}` : ''}. <b>Tiền từng lần:</b> làm lần nào cộng tiền lần đó, không tính vào thưởng đủ tuần.</span></div>
-  <div class="field cmoney-f" ${fun || (kind === 'must' && pay === 'week') ? 'hidden' : ''}><label for="cmoney">Được bao nhiêu tiền mỗi lần (đồng)</label><div class="stepper"><button class="iconbtn" data-act="num-step" data-t="cmoney" data-n="-5000" data-min="0" aria-label="Bớt 5.000đ">−</button><input id="cmoney" class="input num" type="number" min="0" step="1000" inputmode="numeric" value="${c && choreVnd(c) ? choreVnd(c) : pre?.money || 5000}"><button class="iconbtn" data-act="num-step" data-t="cmoney" data-n="5000" data-min="0" aria-label="Thêm 5.000đ">+</button></div>
-    <div class="row">${[5000, 10000, 15000, 20000].map(v => `<button class="btn quiet sm" data-act="who-fill" data-t="cmoney" data-v="${v}">${money(v)}</button>`).join('')}</div></div>
-  <div class="field"><span class="lbl">Buổi</span><div class="seg modes">${SLOTS.map(([v, label]) => `<label><input type="radio" name="cslot" value="${v}" ${slot === v ? 'checked' : ''}><span>${v ? label.replace('Buổi ', '').replace(/^./, c => c.toUpperCase()) : 'Lúc nào'}</span></label>`).join('')}</div></div>
-  <div class="field"><span class="lbl">Giao cho</span><div class="seg">${kids.map(k => `<label><input type="checkbox" name="ckid" value="${k.id}" ${ck.includes(k.id) ? 'checked' : ''}><span>${mini(k)} ${esc(k.name)}</span></label>`).join('')}</div></div>
-  <div class="field"><span class="lbl">Những ngày</span><div class="seg days7">${WEEK_ORDER.map(d => `<label><input type="checkbox" name="cday" value="${d}" ${days.includes(d) ? 'checked' : ''}><span>${WDS[d]}</span></label>`).join('')}</div>
-    <div class="row"><button class="btn quiet sm" data-act="days" data-v="0,1,2,3,4,5,6">Mỗi ngày</button><button class="btn quiet sm" data-act="days" data-v="1,2,3,4,5">Ngày thường</button><button class="btn quiet sm" data-act="days" data-v="0,6">Cuối tuần</button></div></div>
-  <details class="adv" ${adv ? 'open' : ''}><summary>Thêm tuỳ chọn <span class="muted small">giờ, số lần mỗi tuần, danh sách con…</span></summary>
-    <div class="row2"><div class="field"><label for="ctime">Giờ</label><input id="ctime" class="input num" type="time" value="${esc(c?.time || '')}"></div>
-      <div class="field"><label for="cmin">Làm trong bao lâu (phút)</label><input id="cmin" class="input num" type="number" min="0" max="600" step="5" inputmode="numeric" value="${Number(c?.minutes) || ''}" placeholder="Ví dụ: 30"></div></div>
-    ${toggle('cby', 'Phải xong trước giờ này <span class="muted small">ví dụ: tắm trước 19:00</span>', c?.by)}
-    <div class="field"><label for="cpw">Số lần mỗi tuần</label><select id="cpw" class="input">${[0, 1, 2, 3, 4, 5, 6].map(n => `<option value="${n}" ${pw === n ? 'selected' : ''}>${n ? `${n} lần/tuần, ngày nào cũng được` : 'Mọi ngày đã chọn'}</option>`).join('')}</select>
-      <span class="muted small">Ví dụ: đi bộ hoặc chạy 3 buổi mỗi tuần. Việc hiện mỗi ngày cho tới khi đủ số lần.</span></div>
-    <div class="field"><label for="csteps">Danh sách con (mỗi dòng một mục)</label><textarea id="csteps" class="input" rows="4" placeholder="Cặp sách đã soạn&#10;Quần áo ngày mai&#10;Bàn học đã gọn&#10;Đánh răng, rửa mặt">${esc((c?.steps || []).join('\n'))}</textarea>
-      <span class="muted small">Con tick từng mục. Đủ hết các mục thì việc được tính là xong.</span></div>
-    <div class="field"><label for="cvar">Đổi nội dung xen kẽ (cách nhau bằng dấu phẩy)</label><input id="cvar" class="input" maxlength="80" value="${esc((c?.variants || []).join(', '))}" placeholder="Ví dụ: tiếng Việt, tiếng Anh">
-      <span class="muted small">Mỗi lần làm đổi sang nội dung tiếp theo. App ghi rõ “hôm nay: tiếng Anh”.</span></div>
-    ${toggle('cshared', 'Việc chung <span class="muted small">một con đánh dấu là tính cho cả nhà</span>', c?.shared)}
+  <div class="fg f-title"><div class="ft"><input id="cname" class="input ft-input" maxlength="40" value="${esc(c?.name || pre?.name || '')}" placeholder="Tên việc" aria-label="Tên việc" autocomplete="off" data-wbs="${esc(wbs)}" ${c ? '' : 'data-new="1"'}>
+      <button class="ico-btn" data-act="ico-toggle" aria-expanded="false" aria-label="Chọn biểu tượng"><span class="ico-now">${icon(ico)}</span></button></div>
+    <div class="ico-pick" hidden>${pickGrid('cico', CHORE_ICONS.includes(ico) ? CHORE_ICONS : [ico, ...CHORE_ICONS], ico)}</div></div>
+  <div class="fg">
+    ${frow('Loại việc', pillSel('ckind', [['must', 'Mỗi ngày'], ['extra', 'Làm thêm'], ['fun', 'Thích làm']], kind), { id: 'ckind', sub: KIND_HELP[kind], subId: 'ckind-help' })}
+    ${frow('Cách thưởng', pillSel('cpay', [['each', 'Tiền từng lần'], ['week', 'Bắt buộc mỗi ngày']], pay), { id: 'cpay', cls: 'cpay-f', hidden: kind !== 'must', sub: payHelp(pay, wbs), subId: 'cpay-help' })}
+    ${frow('Tiền mỗi lần', `<div class="pillnum"><button data-act="num-step" data-t="cmoney" data-n="-5000" data-min="0" aria-label="Bớt 5.000đ">−</button><input id="cmoney" class="num" type="number" min="0" step="1000" inputmode="numeric" value="${c && choreVnd(c) ? choreVnd(c) : pre?.money || 5000}"><span>đ</span><button data-act="num-step" data-t="cmoney" data-n="5000" data-min="0" aria-label="Thêm 5.000đ">+</button></div>`, { id: 'cmoney', cls: 'cmoney-f', hidden: fun || (kind === 'must' && pay === 'week') })}
+    ${frow('Buổi', pillSel('cslot', SLOTS.map(([v, label]) => [v, label]), slot, 's-' + (slot || 'any')), { id: 'cslot' })}
+    <div class="fr wrap">${frow('Lặp lại', pillSel('cdays', [...DAY_SETS, ['custom', 'Chọn ngày']], daySet(days)), { id: 'cdays', cls: 'in' })}
+      <div class="seg days7">${WEEK_ORDER.map(d => `<label><input type="checkbox" name="cday" value="${d}" ${days.includes(d) ? 'checked' : ''}><span>${WDS[d]}</span></label>`).join('')}</div></div>
+    ${frow('Giao cho', `<div class="seg kids">${kids.map(k => `<label><input type="checkbox" name="ckid" value="${k.id}" ${ck.includes(k.id) ? 'checked' : ''}><span>${mini(k)} ${esc(k.name)}</span></label>`).join('')}</div>`, { cls: kids.length > 2 ? 'stack' : '' })}
+  </div>
+  <div class="fg"><div class="fr wrap"><div class="fl"><label for="csteps">Danh sách con</label><span class="fs">Mỗi dòng một mục. Con tick đủ các mục thì việc được tính là xong.</span></div>
+    <textarea id="csteps" class="input f-area" rows="3" placeholder="Cặp sách đã soạn&#10;Quần áo ngày mai&#10;Bàn học đã gọn">${esc((c?.steps || []).join('\n'))}</textarea></div></div>
+  <details class="fg f-adv" ${adv ? 'open' : ''}><summary class="fr"><div class="fl"><span class="lbl">Thêm tuỳ chọn</span><span class="fs">Giờ, số phút, số lần mỗi tuần, việc chung</span></div>${DOWN}</summary>
+    ${frow('Giờ', `<input id="ctime" class="pillin num" type="time" value="${esc(c?.time || '')}">`, { id: 'ctime', sub: 'Có giờ thì việc tự xếp vào buổi theo giờ đó' })}
+    <div class="fr">${toggle('cby', 'Phải xong trước giờ này <span class="fs">Ví dụ: tắm trước 19:00, quá giờ thì app báo</span>', c?.by)}</div>
+    ${frow('Làm trong bao lâu', `<div class="pillnum"><input id="cmin" class="num" type="number" min="0" max="600" step="5" inputmode="numeric" value="${Number(c?.minutes) || ''}" placeholder="0"><span>phút</span></div>`, { id: 'cmin' })}
+    ${frow('Số lần mỗi tuần', pillSel('cpw', [0, 1, 2, 3, 4, 5, 6].map(n => [n, n ? `${n} lần mỗi tuần` : 'Mọi ngày đã chọn']), pw), { id: 'cpw', sub: 'Ví dụ: chạy bộ 3 buổi, ngày nào cũng được' })}
+    <div class="fr">${toggle('cshared', 'Việc chung <span class="fs">Một con đánh dấu là tính cho cả nhà</span>', c?.shared)}</div>
+    <div class="fr wrap"><div class="fl"><label for="cvar">Đổi nội dung xen kẽ</label><span class="fs">Cách nhau bằng dấu phẩy. Mỗi lần làm đổi sang nội dung tiếp theo, app ghi “hôm nay: tiếng Anh”.</span></div>
+      <input id="cvar" class="input f-area" maxlength="80" value="${esc((c?.variants || []).join(', '))}" placeholder="Ví dụ: tiếng Việt, tiếng Anh"></div>
   </details>
-  <div class="foot">${c ? `<button class="btn danger left" data-act="chore-del" data-id="${id}">Xoá</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="chore-save" data-id="${id || ''}">Lưu</button></div>`);
+  <div class="foot">${c ? `<button class="btn danger left" data-act="chore-del" data-id="${id}">Xoá việc này</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="chore-save" data-id="${id || ''}">Lưu</button></div>`);
 }
 function priceForm(id, kindPre) {
   const r = id ? S.rewards[id] : null, kind = r ? priceKind(r) : PRICE_KINDS.some(x => x[0] === kindPre) ? kindPre : 'penalty';
@@ -2036,7 +2039,7 @@ document.addEventListener('click', e => {
   if (a === 'num-step') { const i = $('#' + b.dataset.t), min = b.dataset.min != null ? Number(b.dataset.min) : 1; i.value = Math.max(min, Math.round(((Number(i.value) || 0) + Number(b.dataset.n)) * 100) / 100); return; }
   if (a === 'acct-go' || a === 'acct-kid') { UI.acctKid = b.dataset.kid; UI.histAll = false; if (a === 'acct-kid') render(); return; }
   if (a === 'hist-all') { UI.histAll = true; return render(); }
-  if (a === 'days') { const v = b.dataset.v.split(','); document.querySelectorAll('#modal input[name=cday]').forEach(x => (x.checked = v.includes(x.value))); return; }
+  if (a === 'ico-toggle') { const pk = $('#modal .ico-pick'), open = pk.hidden; pk.hidden = !open; b.setAttribute('aria-expanded', open); if (open) pk.querySelector('input:checked')?.focus({ preventScroll: true }); return; }
   if (a === 'export') return exportBackup();
   if (a === 'copy-invite') {
     const inp = $('#invite');
@@ -2101,9 +2104,9 @@ document.addEventListener('click', e => {
     if (!kids.length) return toast('Chọn ít nhất một con.');
     if (!days.length) return toast('Chọn ít nhất một ngày.');
     const old = id ? S.chores[id] : null, time = $('#ctime').value;
-    const kind = ['fun', 'extra'].includes(radioVal('ckind')) ? radioVal('ckind') : 'must';
-    const data = { name, icon: radioVal('cico') || '✅', money: kind === 'fun' || (kind === 'must' && radioVal('cpay') === 'week') ? 0 : Math.max(0, Math.round(Number($('#cmoney').value) || 0)), kids, days, order: old ? (old.order ?? 0) : Object.keys(S.chores).length,
-      kind, slot: radioVal('cslot') || '' };
+    const kind = ['fun', 'extra'].includes($('#ckind').value) ? $('#ckind').value : 'must';
+    const data = { name, icon: radioVal('cico') || '✅', money: kind === 'fun' || (kind === 'must' && $('#cpay').value === 'week') ? 0 : Math.max(0, Math.round(Number($('#cmoney').value) || 0)), kids, days, order: old ? (old.order ?? 0) : Object.keys(S.chores).length,
+      kind, slot: $('#cslot').value || '' };
     // Việc mới chỉ tính từ hôm nay. Việc đang có tiền chuyển sang bắt buộc thì tính từ tuần này.
     if (!old) data.since = key(today()); else if (old.since) data.since = old.since;
     if (kind === 'must' && !data.money) { if (old && !isWeekly(old)) data.weeklyFrom = key(weekStart(today())); else if (old?.weeklyFrom) data.weeklyFrom = old.weeklyFrom; }
@@ -2190,12 +2193,18 @@ document.addEventListener('change', e => {
   if (e.target.name === 'planw') { UI.planNext = e.target.value === '1'; drawSheet(); }
   if (e.target.id === 'day-pick' && e.target.value) { UI.date = parse(e.target.value); render(); }
   if (e.target.name === 'tview') { UI.taskDone = e.target.value === '1'; UI.histAll = false; render(); }
-  if (e.target.name === 'ckind' || e.target.name === 'cpay') {
-    const kind = radioVal('ckind'), f = $('#modal .cmoney-f'), pf = $('#modal .cpay-f'), hp = $('#ckind-help');
-    if (pf) pf.hidden = kind !== 'must';
-    if (f) f.hidden = kind === 'fun' || (kind === 'must' && radioVal('cpay') === 'week');
-    if (hp) hp.textContent = KIND_HELP[kind] || '';
+  if (e.target.id === 'ckind' || e.target.id === 'cpay') {
+    const kind = $('#ckind').value, pay = $('#cpay').value, f = $('#modal .cmoney-f'), pf = $('#modal .cpay-f');
+    pf.hidden = kind !== 'must';
+    f.hidden = kind === 'fun' || (kind === 'must' && pay === 'week');
+    $('#ckind-help').textContent = KIND_HELP[kind] || '';
+    $('#cpay-help').textContent = payHelp(pay, $('#cname').dataset.wbs);
   }
+  if (e.target.id === 'cslot') e.target.className = 'pillsel s-' + (e.target.value || 'any');
+  // Lặp lại: chọn sẵn một nhóm ngày, hoặc bấm từng thứ bên dưới.
+  if (e.target.id === 'cdays' && e.target.value !== 'custom') { const v = e.target.value.split(','); document.querySelectorAll('#modal input[name=cday]').forEach(x => (x.checked = v.includes(x.value))); }
+  if (e.target.name === 'cday') $('#cdays').value = daySet([...document.querySelectorAll('#modal input[name=cday]:checked')].map(x => x.value));
+  if (e.target.name === 'cico') { const n = $('#cname'); delete n.dataset.new; $('#modal .ico-now').innerHTML = icon(e.target.value); $('#modal .ico-pick').hidden = true; $('#modal .ico-btn').setAttribute('aria-expanded', 'false'); }
   if (e.target.name === 'pkind') { const f = $('#modal .pall-f'); if (f) f.hidden = e.target.value !== 'penalty'; document.querySelectorAll('#modal .pgift-f').forEach(x => (x.hidden = e.target.value !== 'gift')); }
   if (e.target.name === 'lwhere') { const g = $('#modal .lgo'); if (g) g.hidden = e.target.value !== 'out'; }
   if (e.target.name === 'tkbkid') { UI.tkbKid = e.target.value; render(); }
@@ -2204,7 +2213,14 @@ document.addEventListener('change', e => {
   if (e.target.id === 'kphoto' && e.target.files[0]) photoLoad(e.target.files[0]);
   if (e.target.name === 'kava' && !photoEdit.img && !(photoEdit.out ?? photoOf(S.kids[$('#modal [data-act=kid-save]')?.dataset.id]))) { const pv = $('#modal .photo-prev'); if (pv) pv.innerHTML = avInner(e.target.value); }
 });
-document.addEventListener('input', e => { if (['pzoom', 'px', 'py'].includes(e.target.id)) photoRender(); });
+document.addEventListener('input', e => {
+  if (['pzoom', 'px', 'py'].includes(e.target.id)) photoRender();
+  // Việc mới: biểu tượng tự đổi theo tên đang gõ, cho tới khi bố mẹ tự chọn một hình.
+  if (e.target.id === 'cname' && e.target.dataset.new) {
+    const g = guessIcon(e.target.value), r = g !== '✅' && [...document.querySelectorAll('#modal input[name=cico]')].find(x => x.value === g);
+    if (r && !r.checked) { r.checked = true; $('#modal .ico-now').innerHTML = icon(g); }
+  }
+});
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') dismissModal(); else if (e.target.closest('button:not([data-act=close])')) modalDirty = true; });
 $('#modal').addEventListener('input', () => { modalDirty = true; });
 $('#modal').addEventListener('change', () => { modalDirty = true; });
