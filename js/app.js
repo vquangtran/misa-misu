@@ -248,7 +248,6 @@ function balance(kidId) {
     return s;
   });
 }
-const progBox = (n, all, title) => `<div class="prog-box"><div class="prog-t">${title}</div><div class="prog"><div class="bar ${n >= all ? 'full' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="${all}" aria-valuenow="${n}"><b style="width:${all ? Math.round(n / all * 100) : 0}%"></b></div><span class="lv num ${n >= all ? 'full' : ''}">${n}/${all}</span></div></div>`;
 const moneyChip = (k, style = '') => `<span class="stars num ${balance(k.id) < 0 ? 'neg' : ''}" title="Số tiền trong tài khoản" ${style ? `style="${style}"` : ''}>${money(balance(k.id))}</span>`;
 function weekStats(kid, ws) {
   let possible = 0, done = 0;
@@ -267,13 +266,6 @@ function streakOf(kidId) {
     if (dayFull(kidId, d) !== true) d = addDays(d, -1);
     for (let i = 0; i < 400 && d >= from; i++, d = addDays(d, -1)) { const f = dayFull(kidId, d); if (f === true) n++; else if (f === false) break; }
     return n;
-  });
-}
-function bestStreak(kidId) {
-  return memoize('bs' + kidId, () => {
-    let best = 0, n = 0, d = kidSince(kidId); const t = today();
-    for (let i = 0; i < 800 && d <= t; i++, d = addDays(d, 1)) { const f = dayFull(kidId, d); if (f === true) best = Math.max(best, ++n); else if (f === false && key(d) !== key(t)) n = 0; }
-    return Math.max(best, streakOf(kidId));
   });
 }
 const streakChip = k => { const n = streakOf(k.id); return n ? `<span class="streak" title="Số ngày liên tiếp làm đủ việc phải làm">🔥 ${n} ngày liên tiếp</span>` : ''; };
@@ -1375,18 +1367,20 @@ function drawKidMode() {
   const hold = `<button class="hold" data-hold="1"><span>Giữ để thoát</span></button>`;
   const k = UI.km.kid && S.kids[UI.km.kid] ? kids.find(x => x.id === UI.km.kid) : null;
   if (!k) {
-    el.innerHTML = `<div class="wrap"><div class="km-top"><span></span>${hold}</div><div class="head" style="text-align:center"><h1>Ai đang làm việc nhà?</h1><p>Chạm vào tên của con</p></div>
-    <div class="who-grid">${kids.map(k => `<button class="who-btn" data-act="km-kid" data-kid="${k.id}">${ava(k)}<b>${esc(k.name)}</b>${moneyChip(k)}</button>`).join('')}</div></div>`;
+    // Chọn bạn nào: mỗi con một thẻ to, kèm hôm nay còn mấy việc và số dư.
+    const who = x => { const l = mustFor(x.id, t), n = l.filter(c => isDone(t, x.id, c.id)).length; return `<button class="who-btn" data-act="km-kid" data-kid="${x.id}">${ava(x)}<b>${esc(x.name)}</b><span class="who-s ${l.length && n === l.length ? 'full' : ''}">${!l.length ? 'Hôm nay được nghỉ' : n === l.length ? '✓ Xong hết rồi' : `Còn ${l.length - n} việc`}</span>${moneyChip(x)}</button>`; };
+    el.innerHTML = `<div class="wrap"><div class="km-top"><span></span>${hold}</div><div class="day-head"><h1>Ai đang làm việc nhà?</h1></div>
+    <div class="who-grid">${kids.map(who).join('')}</div></div>`;
     return;
   }
   const list = mustFor(k.id, t), n = list.filter(c => isDone(t, k.id, c.id)).length, plan = dayPlan(k.id, t), cur = slotAt(nowMin());
   const sc = schoolNow(k, t, true);
   const kst = stayNow(t.getDay());
-  const home = kst ? `<div class="km-date km-place ${kst.next ? 'moved' : ''}">📍 Con đang ở ${esc(placeLow(kst.here))}${kst.next ? ` · tối nay về ${esc(placeLow(kst.next))}` : ''}</div>` : '';
   const kts = tasksSoon(k.id), g1 = goalProgress(k.id)[0];
   const goal = g1 ? `<div class="km-goal"><div class="t">${esc(g1.icon || '🎁')} Con đang để dành mua <b>${esc(g1.name)}</b></div>${coins(g1, true)}<div class="muted">${g1.need ? `Còn thiếu ${money(g1.need)}` : 'Đủ tiền rồi! Nhờ bố mẹ mua cho con nhé 🎉'}</div></div>` : '';
   // Trên danh sách việc: những gì con phải làm hôm nay (bài cần nộp, soạn cặp). Dưới danh sách: mốc sắp tới và mục tiêu tiết kiệm.
-  const school = skipNote(k, t) + (kts.length ? `<div class="km-slot">Bài cần nộp</div>${kts.map(t => taskRow(t, false, 'big')).join('')}` : '') + (sc ? `<div class="km-school"><div class="t">${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}</div><div class="sj-list">${subjChips(sc.subjects)}</div></div>` : '');
+  const school = (kts.length ? `<section class="slot s-task">${secHead('📝', 'Bài cần nộp', { cnt: kts.length })}<div class="big-list">${kts.map(t => taskRow(t, false, 'big')).join('')}</div></section>` : '')
+    + (sc ? `<section class="slot tn4">${secHead(sc.bag ? '🎒' : '🏫', esc(sc.title))}<div class="slot-list pad"><div class="sj-list">${subjChips(sc.subjects)}</div></div></section>` : '');
   const after = eventLines(k, 'km-event') + goal;
   const bigChore = (x, g) => {
     const c = x.c, on = isDone(t, k.id, c.id), steps = (c.steps || []).filter(Boolean), mask = stepMask(t, k.id, c.id);
@@ -1397,19 +1391,28 @@ function drawKidMode() {
       <button class="stamp ${on ? 'on' : ''}" data-act="tick" data-kid="${k.id}" data-chore="${c.id}" data-km="1" aria-pressed="${on}" aria-label="${on ? 'Bỏ dấu' : 'Xong hết'}: ${esc(c.name)}">${STAR}</button></div>
       <div class="big-steps">${steps.map((st, i) => { const ok = on || (mask >> i) & 1; return `<button class="step ${ok ? 'on' : ''}" data-act="step" data-kid="${k.id}" data-chore="${c.id}" data-i="${i}" data-km="1" aria-pressed="${!!ok}">${esc(st)}</button>`; }).join('')}</div></div>`;
   };
-  const timeline = plan.map(g => `<div class="km-slot ${g.id === cur ? 'now' : ''} ${g.extra ? 'extra' : ''}">${g.icon} ${g.label}${g.id === cur ? '<span class="nowpill">Bây giờ</span>' : ''}</div>`
-    + g.items.map(x => x.type === 'chore' ? bigChore(x, g) : markRow(x, true)).join('')).join('');
-  const stk = streakOf(k.id), best = bestStreak(k.id), left = list.length - n;
+  // Mỗi buổi một nhãn màu như màn Hôm nay, chữ và nút to hơn. Buổi đã xong hết thì tự gập, việc làm thêm gập cho tới khi có làm; bấm nhãn để mở.
+  const timeline = plan.map(g => {
+    const sk = `km|${key(t)}|${k.id}|${g.id}`, isNow = !g.extra && g.id && g.id === cur;
+    const mine = g.items.filter(x => x.type === 'chore' && !isFun(x.c)), nd = mine.filter(x => isDone(t, k.id, x.c.id)).length;
+    const full = !g.extra && mine.length > 0 && nd === mine.length, hasFun = g.items.some(x => x.type === 'chore' && isFun(x.c));
+    const open = UI.slotOpen[sk] ?? (g.extra ? nd > 0 : !full || isNow || hasFun);
+    const cnt = g.extra ? `${nd ? `${nd}/` : ''}${g.items.length}` : mine.length ? `${full ? '✓ ' : ''}${nd}/${mine.length}` : '';
+    return `<section class="slot s-${g.extra ? 'them' : g.id || 'any'} ${full ? 'full' : ''}" data-slot="${sk}"><div class="slot-h"><button class="slot-pill" data-act="slot-toggle" data-slot="${sk}" aria-expanded="${!!open}">${g.icon}<span>${g.label}</span>${cnt ? `<i class="num">${cnt}</i>` : ''}${DOWN}</button>${isNow ? '<span class="nowpill">Bây giờ</span>' : ''}</div>
+      ${open ? `<div class="big-list">${g.items.map(x => x.type === 'chore' ? bigChore(x, g) : markRow(x, true)).join('')}</div>` : ''}</section>`;
+  }).join('');
+  const stk = streakOf(k.id), left = list.length - n;
   const wst = weekStats(k, weekStart(t)), wb = weekBonusOf(k);
-  const weekLine = wb && wst.possible ? `<div class="km-week">${wst.done >= wst.possible ? `Đủ việc cả tuần rồi! Con được thưởng ${money(wb)}` : `Tuần này ${wst.done}/${wst.possible} việc · làm đủ cả tuần được thưởng ${money(wb)}`}</div>` : '';
+  const weekLine = wb && wst.possible ? `<div class="km-week">${wst.done >= wst.possible ? `🏆 Đủ việc cả tuần rồi! Con được thưởng ${money(wb)}` : `Tuần này <span class="num">${wst.done}/${wst.possible}</span> việc · làm đủ cả tuần được thưởng ${money(wb)}`}</div>` : '';
   const bubble = isBirthday(k, t) ? `Chúc mừng sinh nhật ${esc(k.name)}! 🎂` : !list.length ? `Chào ${esc(k.name)}! Hôm nay thảnh thơi nhé!` : left ? `Chào ${esc(k.name)}! Cùng làm việc nào!` : `${esc(k.name)} giỏi quá! 🎉`;
+  // Đầu màn gọn trong một thẻ: hình của con, lời chào, rồi tiền đang có, chuỗi ngày và con đang ở đâu.
   el.innerHTML = `<div class="wrap"><div class="km-top">${kids.length > 1 ? `<button class="linkbtn back" data-act="km-kid" data-kid="">${PREV}Đổi bạn</button>` : '<span></span>'}${hold}</div>
-  <div class="km-hero" style="--tint:${tintOf(k)}"><div class="km-bubble">${bubble}</div>${ava(k)}<div class="km-date">${WD[t.getDay()]}, ${t.getDate()} tháng ${t.getMonth() + 1}</div>${home}</div>
-  ${list.length ? `<div class="card km-prog">${progBox(n, list.length, left ? `Hôm nay còn ${left} việc` : 'Xong hết việc hôm nay 🎉')}${weekLine}</div>` : ''}
-  <div class="km-stats"><div class="km-stat"><div><span>Tài khoản</span><b class="num ${balance(k.id) < 0 ? 'minus' : ''}">${money(balance(k.id))}</b></div></div>
-    <div class="km-stat"><div><span>${stk ? 'Chuỗi ngày 🔥' : 'Làm đủ hôm nay để bắt đầu chuỗi'}${best > stk ? ` · dài nhất ${best}` : ''}</span><b class="num">${stk} ngày</b></div></div></div>
-  ${school}
-  <div class="big-list">${list.length || plan.length ? timeline
+  <div class="km-hero" style="--tint:${tintOf(k)}">${ava(k)}<div class="km-hi"><div class="km-date">${WD[t.getDay()]}, ${t.getDate()} tháng ${t.getMonth() + 1}</div><div class="km-bubble">${bubble}</div>
+    <div class="km-chips"><span class="km-chip num ${balance(k.id) < 0 ? 'minus' : ''}">💰 ${money(balance(k.id))}</span>${stk ? `<span class="km-chip num">🔥 ${stk} ngày</span>` : ''}${kst ? `<span class="km-chip ${kst.next ? 'moved' : ''}">📍 ${esc(shortPlace(kst.here))}${kst.next ? ` · tối về ${esc(placeLow(kst.next))}` : ''}</span>` : ''}</div></div></div>
+  ${list.length ? `<section class="kid-sum km-sum"><div class="kid-sum-row"><b class="kid-sum-t">${left ? `Hôm nay còn ${left} việc` : 'Xong hết việc hôm nay 🎉'}</b><span class="lv num ${left ? '' : 'full'}">${n}/${list.length}</span></div>
+    <div class="bar ${left ? '' : 'full'}" role="progressbar" aria-valuemin="0" aria-valuemax="${list.length}" aria-valuenow="${n}"><b style="width:${Math.round(n / list.length * 100)}%"></b></div>${weekLine}</section>` : ''}
+  ${skipNote(k, t)}
+  <div class="slots">${school}${list.length || plan.length ? timeline
     : `<div class="card empty"><div class="big">🎈</div><h2>${school ? 'Hôm nay con không có việc nhà nào.' : 'Hôm nay con được nghỉ!'}</h2></div>`}</div>
   ${after}</div>`;
 }
