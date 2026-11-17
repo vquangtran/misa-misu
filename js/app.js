@@ -25,6 +25,24 @@ const CHEV = '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="
 const editBtn = (act, id, name = '') => `<button class="edit" data-act="${act}" data-id="${id}" aria-label="Sửa${name ? ': ' + esc(name) : ''}">${CHEV}</button>`;
 // Công tắc bật/tắt cho một lựa chọn đơn.
 const toggle = (id, label, on, cls = '', attr = '') => `<label class="toggle ${cls}" ${attr}><span>${label}</span><input type="checkbox" id="${id}" ${on ? 'checked' : ''}></label>`;
+// ---------- form dạng nhóm thẻ: mỗi dòng một nhãn bên trái và giá trị bên phải ----------
+// Một dòng: nhãn (kèm dòng giải thích nhỏ) bên trái, giá trị bên phải. cls 'col': giá trị nằm dưới nhãn, rộng hết dòng.
+const frow = (label, right, { sub = '', id = '', cls = '', hidden = false, subId = '' } = {}) => `<div class="fr ${cls}" ${hidden ? 'hidden' : ''}><div class="fl">${id ? `<label for="${id}">${label}</label>` : `<span class="lbl">${label}</span>`}${sub || subId ? `<span class="fs" ${subId ? `id="${subId}"` : ''}>${sub}</span>` : ''}</div>${right}</div>`;
+// Giá trị dạng viên: bấm vào là mở danh sách chọn của máy.
+const pillSel = (id, opts, val, cls = '') => `<select id="${id}" class="pillsel ${cls}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(val) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+// Ô số dạng viên, có đơn vị; step > 0 thì thêm nút − và +.
+const pillNum = (id, val, { step = 0, unit = 'đ', attr = '', ph = '' } = {}) => `<div class="pillnum">${step ? `<button data-act="num-step" data-t="${id}" data-n="${-step}" data-min="0" aria-label="Bớt ${step.toLocaleString('vi-VN')}">−</button>` : ''}<input id="${id}" class="num" type="number" inputmode="numeric" value="${val}" placeholder="${ph}" ${attr}><span>${unit}</span>${step ? `<button data-act="num-step" data-t="${id}" data-n="${step}" data-min="0" aria-label="Thêm ${step.toLocaleString('vi-VN')}">+</button>` : ''}</div>`;
+// Thẻ trên cùng của form: tên thật to; nếu có bộ biểu tượng thì hình đang chọn nằm bên phải, bấm để đổi.
+const titleCard = (id, val, ph, { max = 40, icoName = '', icons = [], ico = '', attr = '' } = {}) => {
+  const cur = ico || icons[0] || '';
+  return `<div class="fg f-title"><div class="ft"><input id="${id}" class="input ft-input" maxlength="${max}" value="${esc(val || '')}" placeholder="${ph}" aria-label="${ph}" autocomplete="off" ${attr}>
+    ${icoName ? `<button class="ico-btn" data-act="ico-toggle" aria-expanded="false" aria-label="Chọn biểu tượng"><span class="ico-now">${icon(cur)}</span></button>` : ''}</div>
+    ${icoName ? `<div class="ico-pick" hidden>${pickGrid(icoName, icons.includes(cur) ? icons : [cur, ...icons], cur)}</div>` : ''}</div>`;
+};
+// Dòng chọn con: một con (radio) hoặc nhiều con (checkbox). Nhà đông con thì các viên xuống dòng dưới nhãn.
+const kidRow = (label, name, type, sel, sub = '') => { const kids = kidsList();
+  return frow(label, `<div class="seg kids">${kids.map(k => `<label><input type="${type}" name="${name}" value="${k.id}" ${sel.includes(k.id) ? 'checked' : ''}><span>${mini(k)} ${esc(k.name)}</span></label>`).join('')}</div>`, { sub, cls: kids.length > 2 ? 'col' : '' }); };
+const formFoot = (delAct, id, saveAct, saveLabel = 'Lưu', delLabel = 'Xoá') => `<div class="foot">${delAct ? `<button class="btn danger left" data-act="${delAct}" data-id="${id}">${delLabel}</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="${saveAct}" data-id="${id || ''}">${saveLabel}</button></div>`;
 const AVATARS = ['🐔', '🐓', '🐣', '🐤', '🐥', '🐴', '🐎', '🦓', '🎠', '🦊', '🐯', '🐼', '🐨', '🦁', '🐸', '🐵', '🦄', '🐲', '🦖', '🐰', '🐱', '🐶', '🐧', '🐳', '🦋'];
 const CHORE_ICONS = ['🛏️', '🪥', '🧸', '🍽️', '🪴', '📚', '🎒', '👕', '🧹', '🧽', '🗑️', '📦', '🛋️', '🧦', '👟', '🧺', '🛁', '🥢', '🐶', '🐟', '🍚', '✏️', '🎹', '🏃', '🪢', '🏫', '🎧', '🪑', '🤝', '🌙', '🎬', '🎮', '📺', '🧩', '🗣️'];
 const PRICE_ICONS = {
@@ -395,29 +413,28 @@ function eventsCard(kidId) {
   if (past.length) h += `<details class="adv"><summary>Đã qua (${past.length} mốc)</summary><div class="list">${past.map(row).join('')}</div></details>`;
   return h + `</section>`;
 }
+const EVENT_HELP = { exam: 'App nhắc trước 14 ngày', holiday: 'Những ngày này app không báo giờ ở trường và soạn cặp', meeting: 'App nhắc trước 7 ngày', event: 'App nhắc trước 7 ngày' };
 function eventForm(id, kidPre) {
   const e = id ? S.events[id] : null, kids = kidsList();
   const sel = e ? (e.kids || []) : S.kids[kidPre] ? [kidPre] : [];
   const kind = e?.kind || 'event';
   openModal(`<h2>${e ? 'Sửa mốc' : 'Thêm mốc năm học'}</h2>
-  <div class="field"><label for="ename">Tên mốc</label><input id="ename" class="input" maxlength="60" value="${esc(e?.name || '')}" placeholder="Ví dụ: Kiểm tra học kì I"></div>
-  <div class="field"><span class="lbl">Loại</span><div class="seg">${EVENT_KINDS.map(([v, l, ic]) => `<label><input type="radio" name="ekind" value="${v}" ${v === kind ? 'checked' : ''}><span>${ic} ${l}</span></label>`).join('')}</div>
-    <span class="muted small">Những ngày <b>Nghỉ học</b> app không báo giờ ở trường và soạn cặp. <b>Kiểm tra</b> được nhắc trước 14 ngày, các mốc khác 7 ngày.</span></div>
-  <div class="field"><span class="lbl">Biểu tượng</span>${pickGrid('eico', EVENT_ICONS, e?.icon)}</div>
-  <div class="row2"><div class="field"><label for="efrom">Từ ngày</label><input id="efrom" class="input num" type="date" value="${esc(e?.from || '')}"></div>
-    <div class="field"><label for="eto">Đến ngày (nếu kéo dài)</label><input id="eto" class="input num" type="date" value="${esc(e?.to && e.to !== e.from ? e.to : '')}"></div></div>
-  ${kids.length > 1 ? `<div class="field"><span class="lbl">Của con nào</span><div class="seg">${kids.map(k => `<label><input type="checkbox" name="ekid" value="${k.id}" ${sel.includes(k.id) ? 'checked' : ''}><span>${mini(k)} ${esc(k.name)}</span></label>`).join('')}</div>
-    <span class="muted small">Không chọn ai thì là mốc chung của cả nhà.</span></div>` : ''}
-  <div class="foot">${e ? `<button class="btn danger left" data-act="event-del" data-id="${id}">Xoá</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="event-save" data-id="${id || ''}">Lưu</button></div>`);
+  ${titleCard('ename', e?.name, 'Tên mốc', { max: 60, icoName: 'eico', icons: EVENT_ICONS, ico: e?.icon || EVENT_KINDS.find(x => x[0] === kind)[2], attr: e ? '' : 'data-new="1"' })}
+  <div class="fg">
+    ${frow('Loại', pillSel('ekind', EVENT_KINDS.map(([v, l]) => [v, l]), kind), { id: 'ekind', sub: EVENT_HELP[kind], subId: 'ekind-help' })}
+    ${frow('Từ ngày', `<input id="efrom" class="pillin num" type="date" value="${esc(e?.from || '')}">`, { id: 'efrom' })}
+    ${frow('Đến ngày', `<input id="eto" class="pillin num" type="date" value="${esc(e?.to && e.to !== e.from ? e.to : '')}">`, { id: 'eto', sub: 'Bỏ trống nếu chỉ một ngày' })}
+    ${kids.length > 1 ? kidRow('Của con nào', 'ekid', 'checkbox', sel, 'Không chọn ai thì là mốc chung của cả nhà') : ''}
+  </div>
+  ${formFoot(e ? 'event-del' : '', id, 'event-save')}`);
 }
 function yearForm() {
   const kids = kidsList(), miss = missingYear();
   const pre = kids.filter(k => /(^|\D)4(\D|$)/.test(tkbOf(k.id)?.cls || '')).map(k => k.id);
   openModal(`<h2>Mốc ${SAMPLE_YEAR.label}</h2>
   <p class="muted small lead">Khung thời gian năm học khối 4 theo hướng dẫn của Bộ GD&ĐT và Sở GD&ĐT Hà Nội: ${miss.length} mốc, từ ngày tập trung đến bế giảng. Thêm xong sửa lại tuỳ ý.</p>
-  <div class="list">${miss.map(e => `<div class="item"><span class="ico">${e.icon}</span><div class="txt"><div class="t">${esc(e.name)}</div><div class="s num">${esc(eventRange({ ...e, to: e.to || e.from }))}</div></div></div>`).join('')}</div>
-  ${kids.length > 1 ? `<div class="field"><span class="lbl">Cho con nào</span><div class="seg">${kids.map(k => `<label><input type="checkbox" name="ykid" value="${k.id}" ${pre.includes(k.id) ? 'checked' : ''}><span>${mini(k)} ${esc(k.name)}</span></label>`).join('')}</div>
-    <span class="muted small">Không chọn ai thì là mốc chung của cả nhà.</span></div>` : ''}
+  ${kids.length > 1 ? `<div class="fg">${kidRow('Cho con nào', 'ykid', 'checkbox', pre, 'Không chọn ai thì là mốc chung của cả nhà')}</div>` : ''}
+  <div class="fg"><div class="list">${miss.map(e => `<div class="item"><span class="ico">${e.icon}</span><div class="txt"><div class="t">${esc(e.name)}</div><div class="s num">${esc(eventRange({ ...e, to: e.to || e.from }))}</div></div></div>`).join('')}</div></div>
   <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="year-add">Thêm ${miss.length} mốc</button></div>`);
 }
 // Màu cố định cho mỗi môn, để cùng một môn luôn cùng một màu.
@@ -535,12 +552,12 @@ function stayStrip() {
 function stayForm() {
   const names = placeNames();
   openModal(`<h2>Các con ở đâu</h2><p class="muted small lead">Mỗi thứ trong tuần, ban ngày và buổi tối các con ở nhà nào. Ban ngày bỏ trống nếu con đi học bình thường.</p>
-  <div class="stay-rows"><div></div><span class="lbl">Ban ngày</span><span class="lbl">Buổi tối</span>
+  <div class="fg f-pad"><div class="stay-rows"><div></div><span class="lbl">Ban ngày</span><span class="lbl">Buổi tối</span>
   ${WEEK_ORDER.map(d => { const x = (S.stays || {})[String(d)] || {}; return `<b>${WDN(d)}</b>
     <input class="input" list="place-list" maxlength="24" data-sd="${d}" value="${esc(placeName(x.day))}" placeholder="Đi học" aria-label="${WDN(d)} ban ngày">
     <input class="input" list="place-list" maxlength="24" data-sn="${d}" value="${esc(placeName(x.night))}" placeholder="Chưa ghi" aria-label="${WDN(d)} buổi tối">`; }).join('')}</div>
   <datalist id="place-list">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
-  <span class="muted small">Gõ vài chữ đầu để chọn: ${names.map(esc).join(', ')}.</span>
+  <span class="fs">Gõ vài chữ đầu để chọn: ${names.map(esc).join(', ')}.</span></div>
   <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="stay-save">Lưu</button></div>`);
 }
 
@@ -900,19 +917,19 @@ function taskForm(id, kidPre) {
   const subs = [...new Set(kids.flatMap(k => tkbOf(k.id) ? tkbStats(tkbOf(k.id)).subjects.map(x => x[0]) : []))];
   const kind = t?.kind || 'bt';
   openModal(`<h2>${t ? 'Sửa bài tập' : 'Thêm bài tập'}</h2>
-  ${kids.length > 1 ? `<div class="field"><span class="lbl">Con</span><div class="seg">${kids.map(k => `<label><input type="radio" name="tkid" value="${k.id}" ${k.id === kid ? 'checked' : ''}><span>${mini(k)} ${esc(k.name)}</span></label>`).join('')}</div></div>` : `<input type="hidden" name="tkid" value="${kid}">`}
-  <div class="field"><label for="ttitle">Bài gì</label><input id="ttitle" class="input" maxlength="80" value="${esc(t?.title || '')}" placeholder="Ví dụ: Bài 3, 4 trang 45 vở bài tập"></div>
-  <div class="field"><span class="lbl">Loại</span><div class="seg modes">${TASK_KINDS.map(([v, l]) => `<label><input type="radio" name="tkind" value="${v}" ${v === kind ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>
-  <div class="field"><label for="tsubj">Môn</label><input id="tsubj" class="input" list="tsubj-list" maxlength="24" value="${esc(t?.subj || '')}" placeholder="Ví dụ: Toán">
-    <datalist id="tsubj-list">${[...new Set([...subs, ...SUBJECTS])].map(x => `<option value="${esc(x)}">`).join('')}</datalist>
-    ${subs.length ? `<div class="row">${subs.map(x => `<button class="btn quiet sm" data-act="task-subj" data-v="${esc(x)}">${subjDot(x)}${esc(x)}</button>`).join('')}</div><span class="muted small">Chọn môn thì hạn nộp tự đặt vào buổi học tới của môn đó.</span>` : ''}</div>
-  <div class="field"><label for="tdue">Hạn nộp</label><input id="tdue" class="input num" type="date" value="${esc(t?.due || '')}">
-    <div class="row"><button class="btn quiet sm" data-act="task-due" data-v="next">Buổi học tới của môn</button><button class="btn quiet sm" data-act="task-due" data-v="1">Ngày mai</button><button class="btn quiet sm" data-act="task-due" data-v="mon">Thứ Hai tới</button><button class="btn quiet sm" data-act="task-due" data-v="">Không có hạn</button></div></div>
-  <details class="adv" ${(t?.steps || []).length || t?.notes ? 'open' : ''}><summary>Thêm tuỳ chọn <span class="muted small">các bước nhỏ, ghi chú</span></summary>
-    <div class="field"><label for="tsteps">Các bước (mỗi dòng một bước)</label><textarea id="tsteps" class="input" rows="3" placeholder="Đọc đề&#10;Làm nháp&#10;Chép vào vở">${esc((t?.steps || []).map(x => x.t).join('\n'))}</textarea></div>
-    <div class="field"><label for="tnotes">Ghi chú</label><textarea id="tnotes" class="input" rows="3" maxlength="1000" placeholder="Cô dặn gì, cần mang gì...">${esc(t?.notes || '')}</textarea></div>
-  </details>
-  <div class="foot">${t ? `<button class="btn danger left" data-act="task-del" data-id="${id}">Xoá</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="task-save" data-id="${id || ''}">Lưu</button></div>`);
+  ${titleCard('ttitle', t?.title, 'Bài gì?', { max: 80 })}
+  <div class="fg">
+    ${kids.length > 1 ? kidRow('Con', 'tkid', 'radio', [kid]) : `<input type="hidden" name="tkid" value="${kid}">`}
+    ${frow('Loại', pillSel('tkind', TASK_KINDS.map(([v, l]) => [v, l]), kind), { id: 'tkind' })}
+    <div class="fr col">${frow('Môn', `<input id="tsubj" class="pillin txt" list="tsubj-list" maxlength="24" value="${esc(t?.subj || '')}" placeholder="Toán">`, { id: 'tsubj', cls: 'in' })}
+      <datalist id="tsubj-list">${[...new Set([...subs, ...SUBJECTS])].map(x => `<option value="${esc(x)}">`).join('')}</datalist>
+      ${subs.length ? `<div class="row">${subs.map(x => `<button class="btn quiet sm" data-act="task-subj" data-v="${esc(x)}">${subjDot(x)}${esc(x)}</button>`).join('')}</div><span class="fs">Chọn môn thì hạn nộp tự đặt vào buổi học tới của môn đó.</span>` : ''}</div>
+    <div class="fr col">${frow('Hạn nộp', `<input id="tdue" class="pillin num" type="date" value="${esc(t?.due || '')}">`, { id: 'tdue', cls: 'in' })}
+      <div class="row"><button class="btn quiet sm" data-act="task-due" data-v="next">Buổi học tới của môn</button><button class="btn quiet sm" data-act="task-due" data-v="1">Ngày mai</button><button class="btn quiet sm" data-act="task-due" data-v="mon">Thứ Hai tới</button><button class="btn quiet sm" data-act="task-due" data-v="">Không có hạn</button></div></div>
+  </div>
+  <div class="fg">${frow('Các bước', `<textarea id="tsteps" class="input" rows="3" placeholder="Đọc đề&#10;Làm nháp&#10;Chép vào vở">${esc((t?.steps || []).map(x => x.t).join('\n'))}</textarea>`, { id: 'tsteps', cls: 'col', sub: 'Mỗi dòng một bước. Con tick từng bước.' })}</div>
+  <div class="fg">${frow('Ghi chú', `<textarea id="tnotes" class="input" rows="3" maxlength="1000" placeholder="Cô dặn gì, cần mang gì...">${esc(t?.notes || '')}</textarea>`, { id: 'tnotes', cls: 'col' })}</div>
+  ${formFoot(t ? 'task-del' : '', id, 'task-save')}`);
 }
 
 // ---------- sắp tới (lịch dạng tuần) ----------
@@ -1124,15 +1141,14 @@ function skipForm(rid, kidId) {
   const r = S.rewards[rid]; if (!r) return;
   openModal(`<h2>${esc(r.icon || '🎟️')} ${esc(r.name)}</h2>
   <p class="muted small lead">${esc(kidName(kidId))} đổi phiếu này mất ${money(priceVnd(r))}. Việc phải làm của ngày được chọn được miễn, vẫn giữ thưởng đủ tuần.</p>
-  <div class="field"><label for="askip">Nghỉ ngày nào</label><input id="askip" class="input num" type="date" value="${key(today())}" min="${key(today())}"></div>
+  <div class="fg">${frow('Nghỉ ngày nào', `<input id="askip" class="pillin num" type="date" value="${key(today())}" min="${key(today())}">`, { id: 'askip' })}</div>
   <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="acct-preset" data-id="${rid}" data-go="1">Đổi phiếu</button></div>`);
 }
 
 // Khớp số dư: bố mẹ gõ số tiền thật của từng con, app ghi một khoản "Khớp số dư" bằng phần chênh lệch.
 function balForm() {
   openModal(`<h2>Khớp số dư</h2><p class="muted small lead">Gõ số tiền thật đang có của từng con (ví dụ theo tài khoản ngân hàng). App ghi một khoản điều chỉnh bằng phần chênh lệch, lịch sử cũ giữ nguyên. Bỏ trống nếu không đổi.</p>
-  ${kidsList().map(k => `<div class="field"><label for="bal-${k.id}">${mini(k)} ${esc(k.name)} <span class="muted small">· trong app: ${money(balance(k.id))}</span></label>
-    <input id="bal-${k.id}" class="input num" type="number" step="1" inputmode="numeric" data-bal="${k.id}" placeholder="Ví dụ: ${Math.max(0, balance(k.id))}"></div>`).join('')}
+  <div class="fg">${kidsList().map(k => frow(`${mini(k)} ${esc(k.name)}`, pillNum(`bal-${k.id}`, '', { attr: `step="1" data-bal="${k.id}"`, ph: Math.max(0, balance(k.id)) }), { id: `bal-${k.id}`, sub: `Trong app: ${money(balance(k.id))}` })).join('')}</div>
   <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="bal-save">Lưu số dư</button></div>`);
 }
 
@@ -1195,12 +1211,13 @@ function goalsCard(kidId) {
 function goalForm(id, kidPre) {
   const g = id ? S.goals[id] : null, kids = kidsList();
   const kid = g?.kid || (S.kids[kidPre] ? kidPre : kids[0]?.id); if (!kid) return;
-  openModal(`<h2>${g ? 'Sửa mục tiêu' : 'Thêm mục tiêu tiết kiệm'}</h2>
-  ${kids.length > 1 ? `<div class="field"><span class="lbl">Của con</span><div class="seg">${kids.map(k => `<label><input type="radio" name="gkid" value="${k.id}" ${k.id === kid ? 'checked' : ''}><span>${mini(k)} ${esc(k.name)}</span></label>`).join('')}</div></div>` : `<input type="hidden" name="gkid" value="${kid}">`}
-  <div class="field"><label for="gname">Con muốn để dành mua gì</label><input id="gname" class="input" maxlength="40" value="${esc(g?.name || '')}" placeholder="Ví dụ: Xe đạp mới"></div>
-  <div class="field"><span class="lbl">Biểu tượng</span>${pickGrid('gico', GOAL_ICONS, g?.icon)}</div>
-  <div class="field"><label for="gprice">Giá (đồng)</label><div class="stepper"><button class="iconbtn" data-act="num-step" data-t="gprice" data-n="-50000" data-min="0" aria-label="Bớt 50.000đ">−</button><input id="gprice" class="input num" type="number" min="0" step="1000" inputmode="numeric" value="${g ? Number(g.price) || 0 : 200000}"><button class="iconbtn" data-act="num-step" data-t="gprice" data-n="50000" data-min="0" aria-label="Thêm 50.000đ">+</button></div></div>
-  <div class="foot">${g ? `<button class="btn danger left" data-act="goal-del" data-id="${id}">Xoá</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="goal-save" data-id="${id || ''}">Lưu</button></div>`);
+  openModal(`<h2>${g ? 'Sửa mục tiêu' : 'Thêm mục tiêu'}</h2>
+  ${titleCard('gname', g?.name, 'Con muốn mua gì?', { icoName: 'gico', icons: GOAL_ICONS, ico: g?.icon })}
+  <div class="fg">
+    ${kids.length > 1 ? kidRow('Của con', 'gkid', 'radio', [kid]) : `<input type="hidden" name="gkid" value="${kid}">`}
+    ${frow('Giá', pillNum('gprice', g ? Number(g.price) || 0 : 200000, { step: 50000, attr: 'min="0" step="1000"' }), { id: 'gprice' })}
+  </div>
+  ${formFoot(g ? 'goal-del' : '', id, 'goal-save')}`);
 }
 function printCoupons() {
   const gs = pricesList('gift');
@@ -1473,17 +1490,17 @@ function kidForm(id) {
   const k = id ? S.kids[id] : null;
   photoEdit = { img: null, out: undefined };
   openModal(`<h2>${k ? 'Sửa thông tin con' : 'Thêm con'}</h2>
-  <div class="field"><label for="kname">Tên</label><input id="kname" class="input" maxlength="30" value="${esc(k?.name || '')}" placeholder="Ví dụ: Bin"></div>
-  <div class="field"><label for="kbday">Ngày sinh</label><input id="kbday" class="input" type="date" value="${esc(k?.birthday || '')}"></div>
-  <div class="field"><label for="kwb">Thưởng thêm khi làm đủ việc phải làm cả tuần (đồng)</label><input id="kwb" class="input num" type="number" min="0" step="5000" inputmode="numeric" value="${k ? weekBonusOf(k) : WEEK_BONUS}">
-    <span class="muted small">Xong hết việc phải làm từ Thứ Hai đến Chủ nhật thì app tự cộng tiền này vào tài khoản. Để 0 nếu không thưởng.${k ? ' Đổi số tiền thì tính từ tuần này, các tuần trước giữ nguyên.' : ''}</span></div>
-  <div class="field"><span class="lbl">Ảnh của con</span>
+  ${titleCard('kname', k?.name, 'Tên của con', { max: 30 })}
+  <div class="fg">
+    ${frow('Ngày sinh', `<input id="kbday" class="pillin num" type="date" value="${esc(k?.birthday || '')}">`, { id: 'kbday' })}
+    ${frow('Thưởng đủ tuần', pillNum('kwb', k ? weekBonusOf(k) : WEEK_BONUS, { step: 5000, attr: 'min="0" step="5000"' }), { id: 'kwb', sub: `Xong hết việc phải làm từ Thứ Hai đến Chủ nhật thì app tự cộng tiền này. Để 0 nếu không thưởng.${k ? ' Đổi số tiền thì tính từ tuần này.' : ''}` })}
+  </div>
+  <div class="fg"><div class="fr col"><div class="fl"><span class="lbl">Ảnh của con</span><span class="fs">Ảnh được thu nhỏ và chỉ lưu trong dữ liệu của gia đình. Không có ảnh thì dùng hình đại diện bên dưới.</span></div>
     <div class="photo-pick"><span class="ava photo-prev" style="background:${k ? tintOf(k) : 'var(--t3)'}">${photoOf(k) ? `<img src="${photoOf(k)}" alt="">` : k ? avInner(avatarOf(k)) : icon('📷')}</span>
       <div class="col"><div class="row"><label class="btn quiet sm file-btn">Chọn ảnh<input type="file" id="kphoto" accept="image/*"></label><button class="btn quiet sm" data-act="photo-del" ${photoOf(k) ? '' : 'hidden'}>Bỏ ảnh</button></div>
-      <div class="photo-adj" hidden><label class="small">Phóng to<input type="range" id="pzoom" min="1" max="4" step="0.05" value="2"></label><label class="small">Lên xuống<input type="range" id="py" min="0" max="1" step="0.01" value="0.4"></label><label class="small">Trái phải<input type="range" id="px" min="0" max="1" step="0.01" value="0.5"></label></div>
-      <span class="muted small">Ảnh được thu nhỏ và chỉ lưu trong dữ liệu của gia đình. Không có ảnh thì dùng hình emoji bên dưới.</span></div></div></div>
-  <div class="field"><span class="lbl">Hình đại diện</span>${avatarGrid(k ? avatarOf(k) : '')}</div>
-  <div class="foot">${k ? `<button class="btn danger left" data-act="kid-del" data-id="${id}">Xoá</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="kid-save" data-id="${id || ''}">Lưu</button></div>`);
+      <div class="photo-adj" hidden><label class="small">Phóng to<input type="range" id="pzoom" min="1" max="4" step="0.05" value="2"></label><label class="small">Lên xuống<input type="range" id="py" min="0" max="1" step="0.01" value="0.4"></label><label class="small">Trái phải<input type="range" id="px" min="0" max="1" step="0.01" value="0.5"></label></div></div></div></div></div>
+  <div class="fg"><div class="fr col"><div class="fl"><span class="lbl">Hình đại diện</span></div><div>${avatarGrid(k ? avatarOf(k) : '')}</div></div></div>
+  ${formFoot(k ? 'kid-del' : '', id, 'kid-save')}`);
 }
 // ---------- form việc nhà: các nhóm thẻ, mỗi dòng một nhãn bên trái và giá trị bên phải ----------
 const KIND_HELP = {
@@ -1494,10 +1511,6 @@ const KIND_HELP = {
 const payHelp = (pay, wbs) => pay === 'week' ? `Không cộng tiền từng lần, làm đủ cả tuần thì thưởng${wbs ? ' ' + wbs : ''}` : 'Làm lần nào cộng tiền lần đó, không tính vào thưởng tuần';
 const DAY_SETS = [['0,1,2,3,4,5,6', 'Mỗi ngày'], ['1,2,3,4,5', 'Ngày thường'], ['0,6', 'Cuối tuần']];
 const daySet = days => { const k = [...days].map(Number).sort().join(); return DAY_SETS.some(x => x[0] === k) ? k : 'custom'; };
-// Một dòng: nhãn (kèm dòng giải thích nhỏ) bên trái, giá trị bên phải.
-const frow = (label, right, { sub = '', id = '', cls = '', hidden = false, subId = '' } = {}) => `<div class="fr ${cls}" ${hidden ? 'hidden' : ''}><div class="fl">${id ? `<label for="${id}">${label}</label>` : `<span class="lbl">${label}</span>`}${sub || subId ? `<span class="fs" ${subId ? `id="${subId}"` : ''}>${sub}</span>` : ''}</div>${right}</div>`;
-// Giá trị dạng viên: bấm vào là mở danh sách chọn của máy.
-const pillSel = (id, opts, val, cls = '') => `<select id="${id}" class="pillsel ${cls}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(val) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
 // pre: những gì đã gõ và chọn ở ô thêm nhanh ({ name, slot, days, kids, money }), điền sẵn vào form thêm mới.
 function choreForm(id, kindPre, pre) {
   const c = id ? S.chores[id] : null, kids = kidsList();
@@ -1517,11 +1530,11 @@ function choreForm(id, kindPre, pre) {
     ${frow('Cách thưởng', pillSel('cpay', [['each', 'Tiền từng lần'], ['week', 'Bắt buộc mỗi ngày']], pay), { id: 'cpay', cls: 'cpay-f', hidden: kind !== 'must', sub: payHelp(pay, wbs), subId: 'cpay-help' })}
     ${frow('Tiền mỗi lần', `<div class="pillnum"><button data-act="num-step" data-t="cmoney" data-n="-5000" data-min="0" aria-label="Bớt 5.000đ">−</button><input id="cmoney" class="num" type="number" min="0" step="1000" inputmode="numeric" value="${c && choreVnd(c) ? choreVnd(c) : pre?.money || 5000}"><span>đ</span><button data-act="num-step" data-t="cmoney" data-n="5000" data-min="0" aria-label="Thêm 5.000đ">+</button></div>`, { id: 'cmoney', cls: 'cmoney-f', hidden: fun || (kind === 'must' && pay === 'week') })}
     ${frow('Buổi', pillSel('cslot', SLOTS.map(([v, label]) => [v, label]), slot, 's-' + (slot || 'any')), { id: 'cslot' })}
-    <div class="fr wrap">${frow('Lặp lại', pillSel('cdays', [...DAY_SETS, ['custom', 'Chọn ngày']], daySet(days)), { id: 'cdays', cls: 'in' })}
+    <div class="fr col">${frow('Lặp lại', pillSel('cdays', [...DAY_SETS, ['custom', 'Chọn ngày']], daySet(days)), { id: 'cdays', cls: 'in' })}
       <div class="seg days7">${WEEK_ORDER.map(d => `<label><input type="checkbox" name="cday" value="${d}" ${days.includes(d) ? 'checked' : ''}><span>${WDS[d]}</span></label>`).join('')}</div></div>
-    ${frow('Giao cho', `<div class="seg kids">${kids.map(k => `<label><input type="checkbox" name="ckid" value="${k.id}" ${ck.includes(k.id) ? 'checked' : ''}><span>${mini(k)} ${esc(k.name)}</span></label>`).join('')}</div>`, { cls: kids.length > 2 ? 'stack' : '' })}
+    ${kidRow('Giao cho', 'ckid', 'checkbox', ck)}
   </div>
-  <div class="fg"><div class="fr wrap"><div class="fl"><label for="csteps">Danh sách con</label><span class="fs">Mỗi dòng một mục. Con tick đủ các mục thì việc được tính là xong.</span></div>
+  <div class="fg"><div class="fr col"><div class="fl"><label for="csteps">Danh sách con</label><span class="fs">Mỗi dòng một mục. Con tick đủ các mục thì việc được tính là xong.</span></div>
     <textarea id="csteps" class="input f-area" rows="3" placeholder="Cặp sách đã soạn&#10;Quần áo ngày mai&#10;Bàn học đã gọn">${esc((c?.steps || []).join('\n'))}</textarea></div></div>
   <details class="fg f-adv" ${adv ? 'open' : ''}><summary class="fr"><div class="fl"><span class="lbl">Thêm tuỳ chọn</span><span class="fs">Giờ, số phút, số lần mỗi tuần, việc chung</span></div>${DOWN}</summary>
     ${frow('Giờ', `<input id="ctime" class="pillin num" type="time" value="${esc(c?.time || '')}">`, { id: 'ctime', sub: 'Có giờ thì việc tự xếp vào buổi theo giờ đó' })}
@@ -1529,24 +1542,25 @@ function choreForm(id, kindPre, pre) {
     ${frow('Làm trong bao lâu', `<div class="pillnum"><input id="cmin" class="num" type="number" min="0" max="600" step="5" inputmode="numeric" value="${Number(c?.minutes) || ''}" placeholder="0"><span>phút</span></div>`, { id: 'cmin' })}
     ${frow('Số lần mỗi tuần', pillSel('cpw', [0, 1, 2, 3, 4, 5, 6].map(n => [n, n ? `${n} lần mỗi tuần` : 'Mọi ngày đã chọn']), pw), { id: 'cpw', sub: 'Ví dụ: chạy bộ 3 buổi, ngày nào cũng được' })}
     <div class="fr">${toggle('cshared', 'Việc chung <span class="fs">Một con đánh dấu là tính cho cả nhà</span>', c?.shared)}</div>
-    <div class="fr wrap"><div class="fl"><label for="cvar">Đổi nội dung xen kẽ</label><span class="fs">Cách nhau bằng dấu phẩy. Mỗi lần làm đổi sang nội dung tiếp theo, app ghi “hôm nay: tiếng Anh”.</span></div>
+    <div class="fr col"><div class="fl"><label for="cvar">Đổi nội dung xen kẽ</label><span class="fs">Cách nhau bằng dấu phẩy. Mỗi lần làm đổi sang nội dung tiếp theo, app ghi “hôm nay: tiếng Anh”.</span></div>
       <input id="cvar" class="input f-area" maxlength="80" value="${esc((c?.variants || []).join(', '))}" placeholder="Ví dụ: tiếng Việt, tiếng Anh"></div>
   </details>
   <div class="foot">${c ? `<button class="btn danger left" data-act="chore-del" data-id="${id}">Xoá việc này</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="chore-save" data-id="${id || ''}">Lưu</button></div>`);
 }
+const PRICE_HELP = { penalty: 'Trừ tiền khi con mắc lỗi', fee: 'Trừ tiền theo số giờ dùng điện thoại, tivi…', gift: 'Con dùng tiền trong tài khoản để đổi' }, PRICE_FEE = 'Tính cho mỗi giờ sử dụng';
 function priceForm(id, kindPre) {
   const r = id ? S.rewards[id] : null, kind = r ? priceKind(r) : PRICE_KINDS.some(x => x[0] === kindPre) ? kindPre : 'penalty';
   const icons = [...new Set([...PRICE_ICONS[kind], ...Object.values(PRICE_ICONS).flat()])];
   openModal(`<h2>${r ? 'Sửa mục' : 'Thêm mục'}</h2>
-  <div class="field"><span class="lbl">Loại</span><div class="seg modes">${PRICE_KINDS.map(([v, l]) => `<label><input type="radio" name="pkind" value="${v}" ${v === kind ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div>
-    <span class="muted small"><b>Phạt:</b> trừ tiền khi con mắc lỗi. <b>Phí sử dụng:</b> trừ tiền theo số giờ dùng điện thoại, tivi... <b>Đổi quà:</b> con dùng tiền trong tài khoản để đổi.</span></div>
-  <div class="field"><label for="pname">Tên</label><input id="pname" class="input" maxlength="40" value="${esc(r?.name || '')}" placeholder="Ví dụ: Nổi nóng, Điện thoại, Đi ăn kem"></div>
-  <div class="field"><span class="lbl">Biểu tượng</span>${pickGrid('pico', icons, r?.icon)}</div>
-  <div class="field"><label for="pprice">Số tiền (đồng). Phí sử dụng thì tính cho mỗi giờ</label><div class="stepper"><button class="iconbtn" data-act="num-step" data-t="pprice" data-n="-5000" data-min="0" aria-label="Bớt 5.000đ">−</button><input id="pprice" class="input num" type="number" min="0" step="1000" inputmode="numeric" value="${r ? priceVnd(r) : 10000}"><button class="iconbtn" data-act="num-step" data-t="pprice" data-n="5000" data-min="0" aria-label="Thêm 5.000đ">+</button></div></div>
-  <div class="field pgift-f" ${kind === 'gift' ? '' : 'hidden'}><label for="pnote">Mô tả trên phiếu (không bắt buộc)</label><input id="pnote" class="input" maxlength="70" value="${esc(r?.note || '')}" placeholder="Ví dụ: Con được chọn phim cả nhà xem tối nay"></div>
-  ${toggle('pskip', 'Phiếu nghỉ việc nhà <span class="muted small">đổi xong thì việc phải làm của ngày đó được miễn</span>', r?.skip, 'pgift-f', kind === 'gift' ? '' : 'hidden')}
-  ${toggle('pall', 'Mất hết tiền trong tài khoản <span class="muted small">không tính theo số tiền ở trên</span>', r?.all, 'pall-f', kind === 'penalty' ? '' : 'hidden')}
-  <div class="foot">${r ? `<button class="btn danger left" data-act="price-del" data-id="${id}">Xoá</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="price-save" data-id="${id || ''}">Lưu</button></div>`);
+  ${titleCard('pname', r?.name, 'Tên mục', { icoName: 'pico', icons, ico: r?.icon })}
+  <div class="fg">
+    ${frow('Loại', pillSel('pkind', PRICE_KINDS.map(([v, l]) => [v, l]), kind), { id: 'pkind', sub: PRICE_HELP[kind], subId: 'pkind-help' })}
+    ${frow('Số tiền', pillNum('pprice', r ? priceVnd(r) : 10000, { step: 5000, attr: 'min="0" step="1000"' }), { id: 'pprice', sub: kind === 'fee' ? PRICE_FEE : '', subId: 'pprice-help' })}
+    <div class="fr pall-f" ${kind === 'penalty' ? '' : 'hidden'}>${toggle('pall', 'Mất hết tiền trong tài khoản <span class="fs">Không tính theo số tiền ở trên</span>', r?.all)}</div>
+    <div class="fr pgift-f" ${kind === 'gift' ? '' : 'hidden'}>${toggle('pskip', 'Phiếu nghỉ việc nhà <span class="fs">Đổi xong thì việc phải làm của ngày đó được miễn</span>', r?.skip)}</div>
+    ${frow('Mô tả trên phiếu', `<input id="pnote" class="input" maxlength="70" value="${esc(r?.note || '')}" placeholder="Ví dụ: Con được chọn phim cả nhà xem tối nay">`, { id: 'pnote', cls: 'col pgift-f', hidden: kind !== 'gift' })}
+  </div>
+  ${formFoot(r ? 'price-del' : '', id, 'price-save')}`);
 }
 // Bản nháp đang sửa, để thêm/bớt tiết hay bật Thứ Bảy không làm mất chữ đã gõ.
 let tkbDraft = null;
@@ -1566,27 +1580,26 @@ function tkbForm(kidId, draft) {
   const subjects = [...new Set([...SUBJECTS, ...used.map(s => String(s).trim()).filter(Boolean)])];
   const filled = d => draft.rows.filter(r => String((r.d || {})[d] || '').trim()).length;
   openModal(`<h2>Thời khoá biểu của ${esc(k.name)}</h2>
-  <div class="row2"><div class="field"><label for="tcls">Lớp</label><input id="tcls" class="input" maxlength="20" value="${esc(draft.cls || '')}" placeholder="Ví dụ: Lớp 4A"></div>
-    <div class="field"><label for="tyear">Năm học</label><input id="tyear" class="input" maxlength="20" value="${esc(draft.year || '')}" placeholder="Ví dụ: 2026 – 2027"></div></div>
-  <div class="row2">${toggle('tsat', 'Học cả Thứ Bảy', days.includes(6))}
-    <div class="field"><label for="tlunch">Nghỉ trưa</label><select id="tlunch" class="input">
-      <option value="0" ${lunch <= 0 || lunch >= n ? 'selected' : ''}>Không nghỉ trưa</option>
-      ${Array.from({ length: Math.max(0, n - 1) }, (_, i) => `<option value="${i + 1}" ${lunch === i + 1 ? 'selected' : ''}>Sau tiết ${i + 1}</option>`).join('')}</select></div></div>
-  <div class="field"><span class="lbl">1. Giờ của các tiết</span>
+  <div class="fg">
+    ${frow('Lớp', `<input id="tcls" class="pillin txt" maxlength="20" value="${esc(draft.cls || '')}" placeholder="Lớp 4A">`, { id: 'tcls' })}
+    ${frow('Năm học', `<input id="tyear" class="pillin txt" maxlength="20" value="${esc(draft.year || '')}" placeholder="2026 – 2027">`, { id: 'tyear' })}
+    <div class="fr">${toggle('tsat', 'Học cả Thứ Bảy', days.includes(6))}</div>
+    ${frow('Nghỉ trưa', pillSel('tlunch', [[0, 'Không nghỉ trưa'], ...Array.from({ length: Math.max(0, n - 1) }, (_, i) => [i + 1, `Sau tiết ${i + 1}`])], lunch <= 0 || lunch >= n ? 0 : lunch), { id: 'tlunch' })}
+  </div>
+  <div class="fg"><div class="fr col"><div class="fl"><span class="lbl">1. Giờ của các tiết</span></div>
     <table class="tkb-times"><thead><tr><th>Tiết</th><th>Bắt đầu</th><th>Kết thúc</th><th></th></tr></thead><tbody>
     ${draft.rows.map((r, i) => `<tr data-r="${i}"><td class="num"><b>${i + 1}</b></td>
       <td><input class="input num" type="time" data-f="s" value="${esc(r.s || '')}" aria-label="Tiết ${i + 1} bắt đầu"></td>
       <td><input class="input num" type="time" data-f="e" value="${esc(r.e || '')}" aria-label="Tiết ${i + 1} kết thúc"></td>
       <td><button class="iconbtn del" data-act="tkb-row-del" data-i="${i}" aria-label="Xoá tiết ${i + 1}" ${n <= 1 ? 'disabled' : ''}>×</button></td></tr>`).join('')}
     </tbody></table>
-    <div><button class="btn quiet sm" data-act="tkb-row-add">+ Thêm tiết</button></div></div>
-  <div class="field"><span class="lbl">2. Môn học từng ngày</span>
+    <div class="row"><button class="btn quiet sm" data-act="tkb-row-add">+ Thêm tiết</button></div></div></div>
+  <div class="fg"><div class="fr col"><div class="fl"><span class="lbl">2. Môn học từng ngày</span><span class="fs">Nhập xong ${WDN(ed)} thì chọn ngày tiếp theo. Gõ vài chữ đầu để chọn môn có sẵn.</span></div>
     <div class="seg">${days.map(d => `<label><input type="radio" name="tday" value="${d}" ${d === ed ? 'checked' : ''}><span>${WDN(d)}${filled(d) ? ` <i class="cnt num">${filled(d)}</i>` : ''}</span></label>`).join('')}</div>
     <div class="subj-rows">${draft.rows.map((r, i) => `${i > 0 && i === lunch ? '<div class="subj-lunch">🍱 Nghỉ trưa</div>' : ''}
-      <label class="subj-row"><span class="num"><b>Tiết ${i + 1}</b> ${esc(r.s || '')}</span><input class="input" list="subj-list" maxlength="24" data-r="${i}" data-d="${ed}" value="${esc((r.d || {})[ed] || '')}" placeholder="Không có tiết"></label>`).join('')}</div>
-    <span class="muted small">Nhập xong ${WDN(ed)} thì chọn ngày tiếp theo. Gõ vài chữ đầu để chọn môn có sẵn.</span></div>
+      <label class="subj-row"><span class="num"><b>Tiết ${i + 1}</b> ${esc(r.s || '')}</span><input class="input" list="subj-list" maxlength="24" data-r="${i}" data-d="${ed}" value="${esc((r.d || {})[ed] || '')}" placeholder="Không có tiết"></label>`).join('')}</div></div></div>
   <datalist id="subj-list">${subjects.map(s => `<option value="${esc(s)}">`).join('')}</datalist>
-  <div class="foot">${saved ? `<button class="btn danger left" data-act="tkb-del" data-id="${kidId}">Xoá</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="tkb-save">Lưu</button></div>`, false, !!draft.keep);
+  ${formFoot(saved ? 'tkb-del' : '', kidId, 'tkb-save', 'Lưu', 'Xoá thời khoá biểu')}`, false, !!draft.keep);
 }
 // Đọc lại những gì đang gõ trong form. Môn của các ngày đang ẩn được giữ nguyên từ bản nháp.
 function readTkbForm() {
@@ -1612,25 +1625,26 @@ function lessonForm(id, kidPre) {
   const kid = l?.kid || (S.kids[kidPre] ? kidPre : (S.kids[UI.tkbKid] ? UI.tkbKid : kids[0].id));
   const names = [...new Set([...lessonsList().map(x => x.name), ...LESSON_NAMES])];
   const day = l ? Number(l.day) : null;
+  const where = l?.home === true ? 'home' : l?.home === false ? 'out' : '';
   openModal(`<h2>${l ? 'Sửa buổi học thêm' : 'Thêm buổi học thêm'}</h2>
-  <div class="field"><span class="lbl">Con</span><div class="seg">${kids.map(k => `<label><input type="radio" name="lkid" value="${k.id}" ${k.id === kid ? 'checked' : ''}><span>${mini(k)} ${esc(k.name)}</span></label>`).join('')}</div></div>
-  <div class="field"><label for="lname">Học gì</label><input id="lname" class="input" list="lesson-list" maxlength="40" value="${esc(l?.name || '')}" placeholder="Ví dụ: Tiếng Anh cô Huyền">
-    <datalist id="lesson-list">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
-  <div class="field"><span class="lbl">${l ? 'Ngày' : 'Những ngày (cùng giờ)'}</span><div class="seg days7">${WEEK_ORDER.map(d => `<label><input type="${l ? 'radio' : 'checkbox'}" name="lday" value="${d}" ${d === day ? 'checked' : ''}><span>${WDS[d]}</span></label>`).join('')}</div></div>
-  <div class="row2"><div class="field"><label for="ls">Từ</label><input id="ls" class="input num" type="time" value="${esc(l?.s || '17:30')}"></div>
-    <div class="field"><label for="le">Đến</label><input id="le" class="input num" type="time" value="${esc(l?.e || '19:30')}"></div></div>
-  <div class="field"><span class="lbl">Có phải đi lại không</span><div class="seg modes">
-    <label><input type="radio" name="lwhere" value="home" ${l?.home === true ? 'checked' : ''}><span>Học tại nhà</span></label>
-    <label><input type="radio" name="lwhere" value="out" ${l?.home === false ? 'checked' : ''}><span>Phải đưa đón</span></label></div>
-    <span class="muted small">Học tại nhà: học ngay ở nhà con đang ở hôm đó.</span></div>
-  <div class="field"><label for="lat">Học ở đâu (không bắt buộc)</label><input id="lat" class="input" list="place-list" maxlength="30" value="${esc(placeName(l?.at))}" placeholder="Ví dụ: 6th Element, CLB bóng rổ">
-    <datalist id="place-list">${placeNames().map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
-  <div class="lgo" ${l?.home === false ? '' : 'hidden'}>${[['lgo', 'Ai đưa đi', l?.go], ['lback', 'Ai đón về', l?.back]].map(([fid, lbl, v]) => `<div class="field"><label for="${fid}">${lbl}</label>
-    <input id="${fid}" class="input" list="who-list" maxlength="20" value="${esc(v || '')}" placeholder="Ví dụ: Bố, Grab">
+  ${titleCard('lname', l?.name, 'Học gì?', { attr: 'list="lesson-list"' })}
+  <datalist id="lesson-list">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+  <div class="fg">
+    ${kidRow('Con', 'lkid', 'radio', [kid])}
+    <div class="fr col"><div class="fl"><span class="lbl">${l ? 'Ngày' : 'Những ngày'}</span>${l ? '' : '<span class="fs">Các ngày học cùng giờ. Mỗi ngày một giờ hoặc một người đưa đón khác nhau thì thêm từng ngày một.</span>'}</div>
+      <div class="seg days7">${WEEK_ORDER.map(d => `<label><input type="${l ? 'radio' : 'checkbox'}" name="lday" value="${d}" ${d === day ? 'checked' : ''}><span>${WDS[d]}</span></label>`).join('')}</div></div>
+    ${frow('Từ', `<input id="ls" class="pillin num" type="time" value="${esc(l?.s || '17:30')}">`, { id: 'ls' })}
+    ${frow('Đến', `<input id="le" class="pillin num" type="time" value="${esc(l?.e || '19:30')}">`, { id: 'le' })}
+  </div>
+  <div class="fg">
+    ${frow('Đi lại', pillSel('lwhere', [['', 'Chưa ghi'], ['home', 'Học tại nhà'], ['out', 'Phải đưa đón']], where), { id: 'lwhere', sub: 'Học tại nhà: học ngay ở nhà con đang ở hôm đó' })}
+    ${frow('Học ở đâu', `<input id="lat" class="input" list="place-list" maxlength="30" value="${esc(placeName(l?.at))}" placeholder="Ví dụ: 6th Element, CLB bóng rổ">`, { id: 'lat', cls: 'col' })}
+    <datalist id="place-list">${placeNames().map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+  </div>
+  <div class="fg lgo" ${where === 'out' ? '' : 'hidden'}>${[['lgo', 'Ai đưa đi', l?.go], ['lback', 'Ai đón về', l?.back]].map(([fid, lbl, v]) => `<div class="fr col">${frow(lbl, `<input id="${fid}" class="pillin txt" list="who-list" maxlength="20" value="${esc(v || '')}" placeholder="Bố, Grab…">`, { id: fid, cls: 'in' })}
     <div class="row">${whoNames().map(w => `<button class="btn quiet sm" data-act="who-fill" data-t="${fid}" data-v="${esc(w)}">${esc(w)}</button>`).join('')}</div></div>`).join('')}
     <datalist id="who-list">${whoNames().map(w => `<option value="${esc(w)}">`).join('')}</datalist></div>
-  ${l ? '' : '<span class="muted small">Cùng một lớp mà mỗi ngày học một giờ khác nhau, hoặc mỗi ngày một người đưa đón khác nhau, thì thêm từng ngày một.</span>'}
-  <div class="foot">${l ? `<button class="btn danger left" data-act="lesson-del" data-id="${id}">Xoá</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="lesson-save" data-id="${id || ''}">Lưu</button></div>`);
+  ${formFoot(l ? 'lesson-del' : '', id, 'lesson-save')}`);
 }
 
 // ---------- backup ----------
@@ -1730,8 +1744,10 @@ async function autoSeed() {
 function seedForm() {
   openModal(`<h2>Nạp lịch gia đình</h2>
   <p class="muted small lead">Lịch của các con được lưu sẵn trong app dưới dạng mã hoá. Gõ mật khẩu gia đình để nạp vào máy này. Dữ liệu được gộp vào bảng hiện có, không xoá gì.</p>
-  <div class="field"><label for="seedpass">Mật khẩu</label><input id="seedpass" class="input" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false"></div>
-  ${toggle('seedmem', 'Nhớ trên máy này <span class="muted small">tự nạp khi lịch có bản mới</span>', true)}
+  <div class="fg">
+    ${frow('Mật khẩu', `<input id="seedpass" class="input" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false">`, { id: 'seedpass', cls: 'col' })}
+    <div class="fr">${toggle('seedmem', 'Nhớ trên máy này <span class="fs">Tự nạp khi lịch có bản mới</span>', true)}</div>
+  </div>
   <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="seed-load">Nạp lịch</button></div>`);
 }
 
@@ -1867,7 +1883,7 @@ document.addEventListener('click', e => {
     const kid = radioVal('tkid') || document.querySelector('#modal input[name=tkid]')?.value; if (!S.kids[kid]) return;
     const old = id ? S.tasks[id] : null, prev = old?.steps || [];
     const steps = $('#tsteps').value.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 15).map(x => ({ t: x, done: !!prev.find(p => p.t === x)?.done }));
-    const data = { kid, title, kind: radioVal('tkind') || 'bt', subj: $('#tsubj').value.trim(), due: $('#tdue').value || '', notes: $('#tnotes').value.trim(), steps,
+    const data = { kid, title, kind: $('#tkind').value || 'bt', subj: $('#tsubj').value.trim(), due: $('#tdue').value || '', notes: $('#tnotes').value.trim(), steps,
       done: !!old?.done, doneAt: old?.doneAt || '' };
     closeModal(); put('tasks', id || uid(), data); UI.learn = UI.view === 'lich-hoc' ? 'bai-tap' : UI.learn;
     return toast(data.due ? `Đã lưu. Hạn nộp: ${dueLabel(data.due)}.` : 'Đã lưu bài tập.');
@@ -1929,7 +1945,7 @@ document.addEventListener('click', e => {
     if (!days.length) return toast('Chọn ít nhất một ngày.');
     if (toMin(ls) === null || toMin(le) === null) return toast('Nhập đủ giờ bắt đầu và kết thúc.');
     if (toMin(le) <= toMin(ls)) return toast('Giờ kết thúc phải sau giờ bắt đầu.');
-    const where = radioVal('lwhere'), trip = {}, at = $('#lat').value.trim();
+    const where = $('#lwhere').value, trip = {}, at = $('#lat').value.trim();
     if (at) trip.at = at;
     if (where === 'home') trip.home = true;
     if (where === 'out') Object.assign(trip, { home: false, go: $('#lgo').value.trim(), back: $('#lback').value.trim() });
@@ -1961,7 +1977,7 @@ document.addEventListener('click', e => {
     const from = $('#efrom').value, to = $('#eto').value;
     if (!from) { $('#efrom').focus(); return toast('Chọn ngày nhé.'); }
     if (to && to < from) return toast('Ngày kết thúc phải sau ngày bắt đầu.');
-    const data = { name, icon: radioVal('eico') || '📌', kind: radioVal('ekind') || 'event', from, kids: [...document.querySelectorAll('#modal input[name=ekid]:checked')].map(x => x.value) };
+    const data = { name, icon: radioVal('eico') || '📌', kind: $('#ekind').value || 'event', from, kids: [...document.querySelectorAll('#modal input[name=ekid]:checked')].map(x => x.value) };
     if (to && to > from) data.to = to;
     closeModal(); put('events', id || uid(), data); return toast('Đã lưu mốc.');
   }
@@ -2122,7 +2138,7 @@ document.addEventListener('click', e => {
   if (a === 'chore-del') { if (!armed(b, 'Bấm lần nữa để xoá')) return; closeModal(); del('chores', id); return toast('Đã xoá việc.'); }
   if (a === 'price-save') {
     const name = $('#pname').value.trim(); if (!name) { $('#pname').focus(); return toast('Nhập tên nhé.'); }
-    const kind = PRICE_KINDS.some(x => x[0] === radioVal('pkind')) ? radioVal('pkind') : 'penalty';
+    const kind = PRICE_KINDS.some(x => x[0] === $('#pkind').value) ? $('#pkind').value : 'penalty';
     const data = { name, icon: radioVal('pico') || '•', kind, price: Math.max(0, Math.round(Number($('#pprice').value) || 0)) };
     if (kind === 'penalty' && $('#pall').checked) data.all = true;
     if (kind === 'gift') { const nt = $('#pnote').value.trim(); if (nt) data.note = nt; if ($('#pskip').checked) data.skip = true; }
@@ -2204,9 +2220,15 @@ document.addEventListener('change', e => {
   // Lặp lại: chọn sẵn một nhóm ngày, hoặc bấm từng thứ bên dưới.
   if (e.target.id === 'cdays' && e.target.value !== 'custom') { const v = e.target.value.split(','); document.querySelectorAll('#modal input[name=cday]').forEach(x => (x.checked = v.includes(x.value))); }
   if (e.target.name === 'cday') $('#cdays').value = daySet([...document.querySelectorAll('#modal input[name=cday]:checked')].map(x => x.value));
-  if (e.target.name === 'cico') { const n = $('#cname'); delete n.dataset.new; $('#modal .ico-now').innerHTML = icon(e.target.value); $('#modal .ico-pick').hidden = true; $('#modal .ico-btn').setAttribute('aria-expanded', 'false'); }
-  if (e.target.name === 'pkind') { const f = $('#modal .pall-f'); if (f) f.hidden = e.target.value !== 'penalty'; document.querySelectorAll('#modal .pgift-f').forEach(x => (x.hidden = e.target.value !== 'gift')); }
-  if (e.target.name === 'lwhere') { const g = $('#modal .lgo'); if (g) g.hidden = e.target.value !== 'out'; }
+  if (e.target.closest('.ico-pick')) { const n = $('#modal .ft-input'); delete n.dataset.new; $('#modal .ico-now').innerHTML = icon(e.target.value); $('#modal .ico-pick').hidden = true; $('#modal .ico-btn').setAttribute('aria-expanded', 'false'); }
+  if (e.target.id === 'pkind') { const v = e.target.value; $('#modal .pall-f').hidden = v !== 'penalty'; document.querySelectorAll('#modal .pgift-f').forEach(x => (x.hidden = v !== 'gift')); $('#pkind-help').textContent = PRICE_HELP[v] || ''; $('#pprice-help').textContent = v === 'fee' ? PRICE_FEE : ''; }
+  // Mốc mới: đổi loại thì biểu tượng đổi theo, cho tới khi bố mẹ tự chọn một hình.
+  if (e.target.id === 'ekind') {
+    $('#ekind-help').textContent = EVENT_HELP[e.target.value] || '';
+    const ic = EVENT_KINDS.find(x => x[0] === e.target.value)?.[2], r = $('#ename').dataset.new && [...document.querySelectorAll('#modal input[name=eico]')].find(x => x.value === ic);
+    if (r) { r.checked = true; $('#modal .ico-now').innerHTML = icon(ic); }
+  }
+  if (e.target.id === 'lwhere') { const g = $('#modal .lgo'); if (g) g.hidden = e.target.value !== 'out'; }
   if (e.target.name === 'tkbkid') { UI.tkbKid = e.target.value; render(); }
   if ((e.target.id === 'tsat' || e.target.id === 'tlunch' || e.target.name === 'tday') && tkbDraft && !$('#modal').hidden) tkbForm(tkbDraft.kid, { ...readTkbForm(), keep: true });
   if (e.target.id === 'import-file' && e.target.files[0]) importBackup(e.target.files[0]);
