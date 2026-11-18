@@ -2360,16 +2360,21 @@ function showSetup(err) {
   const el = $('#setup'); el.hidden = false;
   el.innerHTML = `<div class="setup"><div class="card">${brand()}
     <h1>Mở bảng việc nhà của gia đình</h1>
-    <p class="muted" style="margin:0">Máy đầu tiên tạo gia đình mới. Các máy khác mở bằng link mời hoặc nhập mã gia đình.</p>
+    <p class="muted" style="margin:0">Nhà đã có gia đình trên máy khác thì dán link mời vào đây. Chỉ máy đầu tiên mới tạo gia đình mới.</p>
     ${err ? `<div class="note">${esc(err)}</div>` : ''}
-    <button class="btn primary" data-setup="new">Tạo gia đình mới</button>
+    ${navigator.clipboard?.readText ? `<button class="btn primary" data-setup="paste">Dán link mời</button>` : ''}
+    <div class="field"><label for="famcode">Link mời hoặc mã gia đình</label><input id="famcode" class="input" placeholder="xxxxx-xxxxx-xxxxx-xxxxx" autocomplete="off" autocapitalize="off"></div>
+    <button class="btn ${navigator.clipboard?.readText ? 'ghost' : 'primary'}" data-setup="join">Vào gia đình</button>
     <div class="or">hoặc</div>
-    <div class="field"><label for="famcode">Mã gia đình</label><input id="famcode" class="input" placeholder="xxxxx-xxxxx-xxxxx-xxxxx" autocomplete="off" autocapitalize="off"></div>
-    <button class="btn ghost" data-setup="join">Vào gia đình</button>
+    <button class="btn ghost" data-setup="new">Tạo gia đình mới</button>
   </div></div>`;
 }
-document.addEventListener('click', e => {
+document.addEventListener('click', async e => {
   const b = e.target.closest('[data-setup]'); if (!b) return;
+  if (b.dataset.setup === 'paste') {
+    try { $('#famcode').value = await navigator.clipboard.readText(); }
+    catch (err) { return toast('Không đọc được bộ nhớ tạm. Bấm giữ vào ô bên dưới rồi chọn Dán.'); }
+  }
   if (b.dataset.setup === 'new') { family = newFamilyCode(); }
   else {
     const c = cleanCode($('#famcode').value);
@@ -2381,7 +2386,25 @@ document.addEventListener('click', e => {
   startFirebase();
 });
 
+// iPhone/iPad: app trên màn hình chính có bộ nhớ riêng, tách khỏi Safari, nên phải mang mã gia đình
+// theo địa chỉ mở app. Giữ ?gd= trên thanh địa chỉ và trỏ start_url của manifest vào đó, để
+// "Thêm vào MH chính" lưu luôn mã và app mở thẳng vào gia đình.
+function keepFamilyInUrl() {
+  if (!family) return;
+  const url = location.origin + location.pathname + '?gd=' + encodeURIComponent(family);
+  if (new URLSearchParams(location.search).get('gd') !== family) history.replaceState(null, '', url + location.hash);
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const link = document.querySelector('link[rel="manifest"]');
+  if (!ios || !link) return;
+  const base = location.origin + location.pathname.replace(/[^/]*$/, '');
+  const m = { name: 'Misa Misu', short_name: 'Misa Misu', lang: 'vi', start_url: url, scope: base, display: 'standalone',
+    background_color: '#FFF6E6', theme_color: '#FFF6E6',
+    icons: [{ src: base + 'icons/icon-192.png', sizes: '192x192', type: 'image/png' }, { src: base + 'icons/icon-512.png', sizes: '512x512', type: 'image/png' }] };
+  link.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(m));
+}
+
 async function startFirebase() {
+  keepFamilyInUrl();
   render();
   try {
     store = await firebaseStore(firebaseConfig, family, (data, meta) => {
@@ -2409,10 +2432,7 @@ autoIcons(); // emoji có hình trong js/icons.js được thay bằng hình v�
 UI.view = viewOf(location.hash.slice(1));
 if (firebaseConfig) {
   const q = new URLSearchParams(location.search).get('gd');
-  if (q && cleanCode(q).length >= 20) {
-    setFamily(cleanCode(q));
-    history.replaceState(null, '', location.pathname + location.hash);
-  }
+  if (q && cleanCode(q).length >= 20) setFamily(cleanCode(q));
   family = getFamily();
   if (family) startFirebase(); else showSetup();
 } else {
