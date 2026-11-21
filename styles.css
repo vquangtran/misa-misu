@@ -271,6 +271,9 @@ details.adv>summary .muted{display:block;font-weight:400}
 details.adv>summary::after{content:"";position:absolute;right:5px;top:50%;width:9px;height:9px;margin-top:-6px;border-right:3px solid var(--chev);border-bottom:3px solid var(--chev);border-radius:1px;transform:rotate(-45deg);transition:transform .2s}
 details.adv[open]>summary::after{transform:rotate(45deg)}
 details.adv>*+*{margin-top:14px}
+/* nhóm môn ít có bài tập trong form bài tập: dòng gập nhỏ, cùng cỡ chữ với chú thích */
+details.subj-more>summary{font-size:13px;font-weight:500;padding:2px 24px 2px 0}
+details.subj-more>*+*{margin-top:8px}
 .copyrow{display:flex;gap:8px;align-items:center}
 .copyrow .input{font-size:14px}
 .file-btn{position:relative;overflow:hidden;cursor:pointer}
