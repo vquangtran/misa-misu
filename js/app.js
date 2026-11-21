@@ -1320,15 +1320,15 @@ const getLop = () => { try { return localStorage.getItem(LOP_KEY); } catch (e) {
 const setLop = v => { try { localStorage.setItem(LOP_KEY, v); } catch (e) {} };
 const emptySo = () => ({ info: {}, sessions: {}, tasks: {} });
 const soOf = code => CLS[code]?.data || emptySo();
-// Các cô dạy thêm của nhà mình và học phí: app gợi ý tạo sẵn sổ học một lần bấm, mỗi con chỉ nhận sổ của mình.
-// Cô Ngân: buổi Offline 140.000đ, buổi Online một tiếng 65.000đ. Chưa có học phí thì để trống, sửa sau ở sổ.
+// Các cô dạy thêm của nhà mình và học phí: app tự tạo sẵn sổ học một lần trên máy của bố mẹ (xem autoAdds), mỗi con chỉ nhận sổ của mình.
+// Cô Ngân: buổi Offline 140.000đ, buổi Online một tiếng 65.000đ. Cô Hải chưa có học phí nên tạm ẩn phần học phí (feeOff), bật lại ở Sửa sổ.
 const SAMPLE_CLASSES = [
   { kids: ['su', 'misu'], name: 'Tiếng Việt', teacher: 'Cô Thảo', fee: 200000 }, { kids: ['su', 'misu'], name: 'Toán', teacher: 'Cô Trang', fee: 220000 },
-  { kids: ['sa', 'misa'], name: 'Tiếng Việt', teacher: 'Cô Ngân', fee: 140000, feeOn: 65000 }, { kids: ['sa', 'misa'], name: 'Toán', teacher: 'Cô Hải' },
+  { kids: ['sa', 'misa'], name: 'Tiếng Việt', teacher: 'Cô Ngân', fee: 140000, feeOn: 65000 }, { kids: ['sa', 'misa'], name: 'Toán', teacher: 'Cô Hải', feeOff: true },
 ];
-// Những sổ mẫu nhà chưa có (so theo con và môn). Đã tạo một lần rồi (cài đặt so: 1) thì không gợi ý nữa, kể cả khi bố mẹ xoá bớt.
-const classSamples = () => S.paid?.[SETTINGS_ID]?.so ? [] : kidsList().flatMap(k => SAMPLE_CLASSES.filter(sp => sp.kids.includes(norm(k.name)) && !classesOf(k.id).some(c => norm(c.name) === norm(sp.name)))
-  .map(sp => ({ kid: k.id, name: sp.name, teacher: sp.teacher, fee: sp.fee || 0, feeOn: sp.feeOn || 0, feeBy: 'buoi' })));
+// Những sổ mẫu nhà chưa có (so theo con và môn). id cố định theo con và thứ tự mẫu: hai máy cùng tạo thì vẫn chỉ ra một sổ.
+const classSamples = () => kidsList().flatMap(k => SAMPLE_CLASSES.map((sp, i) => ({ sp, i })).filter(({ sp }) => sp.kids.includes(norm(k.name)) && !classesOf(k.id).some(c => norm(c.name) === norm(sp.name)))
+  .map(({ sp, i }) => ({ id: `lop-${k.id}-${i}`, kid: k.id, name: sp.name, teacher: sp.teacher, fee: sp.fee || 0, feeOn: sp.feeOn || 0, feeBy: 'buoi', feeOff: !!sp.feeOff })));
 // Danh sách sổ học của nhà, lưu trong nhóm `paid` với id "lop-…" (nhóm này đã có trong Rules).
 const classesList = () => Object.entries(S.paid || {}).filter(([id, c]) => id.startsWith('lop-') && c && c.code && S.kids[c.kid]).map(([id, c]) => ({ id, ...c }))
   .sort((a, b) => (S.kids[a.kid].order ?? 0) - (S.kids[b.kid].order ?? 0) || String(a.at || '').localeCompare(String(b.at || '')) || String(a.name).localeCompare(String(b.name), 'vi'));
@@ -1338,16 +1338,17 @@ const classLessons = c => lessonsOf(c.kid).filter(l => { const a = norm(l.name),
 const classSubj = c => classLessons(c)[0]?.name || c.name;
 // Gợi ý tạo sổ từ các buổi học thêm đã ghi: mỗi môn của mỗi con chưa có sổ là một nút, bấm là mở form đã điền sẵn môn và con.
 const classOffers = ks => ks.flatMap(k => [...new Set(lessonsOf(k.id).map(l => String(l.name || '').trim()).filter(Boolean))]
-  .filter(n => !classesOf(k.id).some(c => classLessons(c).some(l => norm(l.name) === norm(n))) && !classSamples().some(sp => sp.kid === k.id && (norm(n).includes(norm(sp.name)) || norm(sp.name).includes(norm(n))))).map(n => ({ kid: k.id, name: n }))).slice(0, 8);
+  .filter(n => !classesOf(k.id).some(c => classLessons(c).some(l => norm(l.name) === norm(n)))).map(n => ({ kid: k.id, name: n }))).slice(0, 8);
 const classTitle = c => `${c.name}${c.teacher ? ' · ' + c.teacher : ''}`;
 const teacherLink = code => location.origin + location.pathname + '?lop=' + encodeURIComponent(code);
 // Học phí do bố mẹ ghi ở sổ: fee (đồng), feeBy 'buoi' = mỗi buổi, 'gio' = mỗi giờ; feeOn: mức riêng cho buổi Online (0 = như buổi thường).
 // Chép sang sổ để màn của cô tính cùng một con số.
-const feeOf = x => ({ fee: Math.max(0, Math.round(Number(x?.fee) || 0)), on: Math.max(0, Math.round(Number(x?.feeOn) || 0)), by: x?.feeBy === 'gio' ? 'gio' : 'buoi' });
+// feeOff: tạm ẩn cả phần học phí của sổ này (bảng số buổi và học phí theo tháng), ở màn của cô, phần bố mẹ xem và bản in.
+const feeOf = x => ({ fee: Math.max(0, Math.round(Number(x?.fee) || 0)), on: Math.max(0, Math.round(Number(x?.feeOn) || 0)), by: x?.feeBy === 'gio' ? 'gio' : 'buoi', off: !!x?.feeOff });
 // Học phí của một buổi: buổi cô ghi là Online thì tính mức Online (nếu có), còn lại tính mức thường.
 const sessFee = (f, s) => { const rate = s.mode === 'on' && f.on ? f.on : f.fee; return f.by === 'gio' ? rate * (Number(s.mins) || 0) / 60 : rate; };
-const feeTxt = f => { const u = f.by === 'gio' ? 'giờ' : 'buổi'; return f.fee || f.on ? (f.on ? `${money(f.fee)} mỗi ${u} Offline, ${money(f.on)} mỗi ${u} Online` : `${money(f.fee)} mỗi ${u}`) : ''; };
-const classInfo = c => ({ name: c.name, teacher: c.teacher || '', student: kidName(c.kid), fee: feeOf(c).fee, feeOn: feeOf(c).on, feeBy: feeOf(c).by, days: classLessons(c).map(l => ({ day: Number(l.day) || 0, s: l.s || '', e: l.e || '' })).sort((a, b) => a.day - b.day || String(a.s).localeCompare(String(b.s))) });
+const feeTxt = f => { const u = f.by === 'gio' ? 'giờ' : 'buổi'; return !f.off && (f.fee || f.on) ? (f.on ? `${money(f.fee)} mỗi ${u} Offline, ${money(f.on)} mỗi ${u} Online` : `${money(f.fee)} mỗi ${u}`) : ''; };
+const classInfo = c => ({ name: c.name, teacher: c.teacher || '', student: kidName(c.kid), fee: feeOf(c).fee, feeOn: feeOf(c).on, feeBy: feeOf(c).by, feeOff: feeOf(c).off, days: classLessons(c).map(l => ({ day: Number(l.day) || 0, s: l.s || '', e: l.e || '' })).sort((a, b) => a.day - b.day || String(a.s).localeCompare(String(b.s))) });
 
 function openClass(code) {
   if (CLS[code]) return CLS[code];
@@ -1373,7 +1374,7 @@ function classHeal(code) {
   const c = classesList().find(x => x.code === code), k = CLS[code];
   if (!c || !k || !k.loaded || k.stale || k.err || !k.st) return;
   const want = classInfo(c), have = k.data.info.lop;
-  if (!have || JSON.stringify(want) !== JSON.stringify({ name: have.name, teacher: have.teacher || '', student: have.student, fee: feeOf(have).fee, feeOn: feeOf(have).on, feeBy: feeOf(have).by, days: have.days || [] })) clsPut(code, 'info', 'lop', want);
+  if (!have || JSON.stringify(want) !== JSON.stringify({ name: have.name, teacher: have.teacher || '', student: have.student, fee: feeOf(have).fee, feeOn: feeOf(have).on, feeBy: feeOf(have).by, feeOff: feeOf(have).off, days: have.days || [] })) clsPut(code, 'info', 'lop', want);
 }
 // Ghi vào sổ: sửa luôn bản đang giữ trên máy để màn hình đổi ngay, rồi mới gửi đi.
 function clsWrite(code, op, col, id, data) {
@@ -1544,6 +1545,10 @@ function soStats(d) {
   const ss = sessList(d), done = ss.filter(s => s.state !== 'plan' && s.date), mk = key(today()).slice(0, 7), hw = hwList(d);
   return { ss, done, month: done.filter(s => s.date.startsWith(mk)).length, mins: done.reduce((a, s) => a + (Number(s.mins) || 0), 0), hw, got: hw.filter(t => t.got).length, wait: hw.filter(t => t.done && !t.got).length, open: hw.filter(t => !t.done && !t.got).length };
 }
+// Tài khoản nhận học phí do cô tự ghi (info/bank): { bank, number, holder, note }. Bố mẹ xem để chuyển khoản.
+const bankOf = d => { const b = d.info?.bank || {}, t = (v, n) => String(v || '').trim().slice(0, n); return { bank: t(b.bank, 40), number: t(b.number, 30), holder: t(b.holder, 60), note: t(b.note, 200) }; };
+// Các tháng bố mẹ đã xác nhận chuyển khoản học phí (info/paid): { "YYYY-MM": { at: ngày xác nhận, amount } }. Bố mẹ bấm, cô chỉ xem.
+const paidOf = d => Object.fromEntries(Object.entries(d.info?.paid || {}).filter(([mk, v]) => /^\d{4}-\d{2}$/.test(mk) && v && okDate(v.at)).map(([mk, v]) => [mk, { at: v.at, amount: Math.max(0, Number(v.amount) || 0) }]));
 // Số buổi đã dạy, tổng thời lượng và học phí của từng tháng (tháng mới nhất ở trên). Chỉ tính buổi Đã học có ngày.
 // on: số buổi Online, unk: số buổi chưa ghi Offline hay Online (tính theo mức thường).
 function soFees(d, f) {
@@ -1551,14 +1556,40 @@ function soFees(d, f) {
   return sessMonths(done).map(mk => { const l = done.filter(s => s.date.startsWith(mk));
     return { mk, n: l.length, on: l.filter(s => s.mode === 'on').length, unk: l.filter(s => s.mode !== 'on' && s.mode !== 'off').length, mins: l.reduce((a, s) => a + (Number(s.mins) || 0), 0), amount: Math.round(l.reduce((a, s) => a + sessFee(f, s), 0)) }; });
 }
-function feeSection(d, f, parent) {
-  const rows = soFees(d, f), has = f.fee || f.on, unk = f.on ? rows.reduce((a, r) => a + r.unk, 0) : 0; if (!rows.length) return '';
-  return `<section class="slot tn3">${secHead('💰', 'Số buổi và học phí theo tháng')}<div class="slot-list list">${rows.map(r => `<div class="item"><span class="ico">🗓️</span><div class="txt"><div class="t">${monthTxt(r.mk)}</div><div class="s"><b class="num">${r.n} buổi</b>${f.on ? ` · ${r.n - r.on} Offline, ${r.on} Online` : ''}${r.mins ? ` · ${durTxt(r.mins)}` : ''}</div></div>${has ? `<div class="acts"><span class="delta num">${money(r.amount)}</span></div>` : ''}</div>`).join('')}</div>
-    <p class="foot-note">${has ? `Học phí ${feeTxt(f)}, tính theo các buổi cô ghi là Đã học.${unk ? ` Có ${unk} buổi chưa ghi Offline hay Online, đang tính theo mức Offline.` : ''}` : parent ? 'Muốn app tính luôn học phí thì bấm Sửa ở trên rồi ghi học phí mỗi buổi hoặc mỗi giờ.' : 'Số buổi tính theo các buổi cô ghi là Đã học. Phụ huynh ghi mức học phí thì app tính luôn số tiền mỗi tháng.'}</p></section>`;
+// cls: sổ của nhà (phần bố mẹ xem), có thì mỗi tháng có nút xác nhận đã chuyển khoản. Màn của cô (không có cls) chỉ xem tình trạng.
+function feeSection(d, f, cls) {
+  const rows = soFees(d, f), has = f.fee || f.on, unk = f.on ? rows.reduce((a, r) => a + r.unk, 0) : 0, paid = paidOf(d); if (!rows.length || f.off) return '';
+  const pay = r => { const p = paid[r.mk];
+    if (p) return `<span class="fee-ok">✓ ${cls ? 'Đã đóng' : 'Phụ huynh đã chuyển'} ${dm(parse(p.at))}</span>${cls ? `<button class="linkbtn undo" data-act="fee-unpaid" data-id="${cls.id}" data-mk="${r.mk}">Huỷ</button>` : ''}`;
+    return cls ? `<button class="btn primary sm" data-act="fee-paid" data-id="${cls.id}" data-mk="${r.mk}" data-amount="${r.amount}">Đã chuyển khoản</button>` : '<span class="muted small">Chưa đóng</span>'; };
+  return `<section class="slot tn3">${secHead('💰', 'Số buổi và học phí theo tháng')}<div class="slot-list list">${rows.map(r => `<div class="item fee-row"><span class="ico">🗓️</span><div class="txt"><div class="t">${monthTxt(r.mk)}</div><div class="s"><b class="num">${r.n} buổi</b>${f.on ? ` · ${r.n - r.on} Offline, ${r.on} Online` : ''}${r.mins ? ` · ${durTxt(r.mins)}` : ''}</div></div><div class="acts col">${has ? `<span class="delta num">${money(r.amount)}</span>` : ''}${pay(r)}</div></div>`).join('')}</div>
+    <p class="foot-note">${has ? `Học phí ${feeTxt(f)}, tính theo các buổi cô ghi là Đã học.${unk ? ` Có ${unk} buổi chưa ghi Offline hay Online, đang tính theo mức Offline.` : ''}` : cls ? 'Muốn app tính luôn học phí thì bấm Sửa ở trên rồi ghi học phí mỗi buổi hoặc mỗi giờ.' : 'Số buổi tính theo các buổi cô ghi là Đã học. Phụ huynh ghi mức học phí thì app tính luôn số tiền mỗi tháng.'}${cls ? ' Chuyển khoản xong thì bấm Đã chuyển khoản, cô sẽ thấy ngay.' : ' Phụ huynh chuyển khoản xong sẽ bấm xác nhận ở đây.'}</p></section>`;
+}
+// Tài khoản nhận học phí. Màn của cô (edit): bấm để ghi, sửa. Phần bố mẹ xem: có nút sao chép số tài khoản.
+function bankSection(d, edit, teacher) {
+  const b = bankOf(d), has = b.number || b.bank || b.holder;
+  const head = secHead('🏦', 'Tài khoản nhận học phí');
+  if (!has) return `<section class="slot tn4">${head}${edit ? `<button class="slot-blank" data-act="bank-form"><span>Ghi ngân hàng và số tài khoản để phụ huynh chuyển khoản học phí</span>${PLUS}</button>` : `<div class="slot-blank ro"><span>${esc(teacher || 'Cô')} chưa ghi số tài khoản. Cô ghi ở tab Báo cáo trên màn của cô.</span></div>`}</section>`;
+  return `<section class="slot tn4">${head}<div class="slot-list list"><div class="item"><span class="ico">🏦</span><div class="txt"><div class="t">${esc(b.bank || 'Ngân hàng')}${b.number ? ` · <span class="num">${esc(b.number)}</span>` : ''}</div>${b.holder ? `<div class="s">${esc(b.holder)}</div>` : ''}${b.note ? `<div class="s so-p">${esc(b.note)}</div>` : ''}</div>
+    <div class="acts">${edit ? `<button class="edit" data-act="bank-form" aria-label="Sửa tài khoản">${CHEV}</button>` : b.number ? `<button class="btn quiet sm" data-act="cls-copy" data-link="${esc(b.number)}" data-msg="Đã sao chép số tài khoản.">Sao chép số</button>` : ''}</div></div></div></section>`;
+}
+const BANKS = ['Vietcombank', 'VietinBank', 'BIDV', 'Agribank', 'Techcombank', 'MB Bank', 'ACB', 'VPBank', 'TPBank', 'Sacombank', 'VIB', 'HDBank', 'SHB', 'MSB', 'OCB', 'SeABank', 'Eximbank', 'LPBank', 'Nam A Bank', 'Cake', 'Timo'];
+function bankForm() {
+  const b = bankOf(soOf(TEACH));
+  openModal(`<h2>Tài khoản nhận học phí</h2>
+  <div class="fg">
+    ${frow('Ngân hàng', `<input id="bbank" class="pillin txt" list="bank-list" maxlength="40" value="${esc(b.bank)}" placeholder="Vietcombank">`, { id: 'bbank' })}
+    <datalist id="bank-list">${BANKS.map(x => `<option value="${x}">`).join('')}</datalist>
+    ${frow('Số tài khoản', `<input id="bnumber" class="pillin txt num" inputmode="numeric" maxlength="30" autocomplete="off" value="${esc(b.number)}" placeholder="0123456789">`, { id: 'bnumber' })}
+    ${frow('Chủ tài khoản', `<input id="bholder" class="pillin txt" maxlength="60" autocomplete="off" value="${esc(b.holder)}" placeholder="NGUYEN THI A">`, { id: 'bholder' })}
+  </div>
+  <div class="fg">${frow('Ghi chú', `<textarea id="bnote" class="input" rows="2" maxlength="200" placeholder="Ví dụ: nội dung chuyển khoản ghi tên con và tháng">${esc(b.note)}</textarea>`, { id: 'bnote', cls: 'col', sub: 'Phụ huynh thấy thông tin này khi xem sổ. Cô sửa lại lúc nào cũng được.' })}</div>
+  <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="bank-save">Lưu</button></div>`);
+  $('#modal .dialog')?.focus();
 }
 const soTiles = (st, f, d) => { const cur = soFees(d, f).find(r => r.mk === key(today()).slice(0, 7));
   return `<div class="tiles"><div class="tile"><span class="muted small">Đã học</span><span class="amt num">${st.done.length} buổi</span>${st.mins ? `<span class="muted small">${durTxt(st.mins)}</span>` : ''}</div>
-  <div class="tile"><span class="muted small">Tháng ${today().getMonth() + 1}</span><span class="amt num">${st.month} buổi</span>${cur && (f.fee || f.on) ? `<span class="muted small">học phí <b class="num">${money(cur.amount)}</b></span>` : cur && cur.mins ? `<span class="muted small">${durTxt(cur.mins)}</span>` : ''}</div>
+  <div class="tile"><span class="muted small">Tháng ${today().getMonth() + 1}</span><span class="amt num">${st.month} buổi</span>${cur && (f.fee || f.on) && !f.off ? `<span class="muted small">học phí <b class="num">${money(cur.amount)}</b></span>` : cur && cur.mins ? `<span class="muted small">${durTxt(cur.mins)}</span>` : ''}</div>
   <div class="tile"><span class="muted small">Bài tập về nhà</span><span class="amt num">${st.got}/${st.hw.length}</span><span class="muted small">cô đã nhận${st.open ? ` · ${st.open} bài đang làm` : ''}</span></div></div>`; };
 // Các buổi theo tháng, tháng mới nhất ở trên, mỗi tháng đếm số buổi đã học (để tính học phí).
 function soMonths(code, d, mode) {
@@ -1567,13 +1598,13 @@ function soMonths(code, d, mode) {
     return `<section class="slot">${secHead('', monthTxt(mk), { cnt: mk ? `${n} buổi` : l.length })}<div class="slot-list list">${l.map(s => sessRow(code, s, hws.filter(t => t.session === s.id), mode)).join('')}</div></section>`; }).join('');
 }
 function printSo(code, title, student, teacher, f) {
-  const d = soOf(code), fees = soFees(d, f).reverse(), ss = sessList(d).filter(s => s.state !== 'plan' && s.date), hws = hwList(d), free = hws.filter(t => !ss.some(s => s.id === t.session));
+  const d = soOf(code), fees = soFees(d, f).reverse(), paid = paidOf(d), ss = sessList(d).filter(s => s.state !== 'plan' && s.date), hws = hwList(d), free = hws.filter(t => !ss.some(s => s.id === t.session));
   const hwCell = l => l.map(t => `<div>${esc(t.title)}${t.due ? ` (hạn ${dm(parse(t.due))})` : ''}</div>`).join(''), rvCell = l => l.map(t => `<div>${esc([hwState(t).txt, t.review].filter(Boolean).join('. '))}</div>`).join('');
   printHtml(`<h1 style="font-family:var(--display);margin:0;font-size:28px">Sổ học ${esc(title)}</h1>
     <div style="font-size:14px;margin:2px 0 10px">Học sinh: ${esc(student)}${teacher ? ' · ' + esc(teacher) : ''} · đã học ${ss.length} buổi · in ngày ${dm(today())}/${today().getFullYear()}</div>
-    <table class="ptable so-table so-fee"><thead><tr><th>Tháng</th><th>Số buổi</th><th>Thời lượng</th>${f.fee || f.on ? `<th>Học phí (${esc(feeTxt(f))})</th>` : ''}</tr></thead><tbody>
-      ${fees.map(r => `<tr><td>${monthTxt(r.mk)}</td><td class="num">${r.n}${f.on ? ` (${r.n - r.on} Offline, ${r.on} Online)` : ''}</td><td class="num">${r.mins ? durTxt(r.mins) : ''}</td>${f.fee || f.on ? `<td class="num">${money(r.amount)}</td>` : ''}</tr>`).join('')}
-      <tr><td><b>Tổng</b></td><td class="num"><b>${fees.reduce((a, r) => a + r.n, 0)}</b></td><td class="num">${durTxt(fees.reduce((a, r) => a + r.mins, 0))}</td>${f.fee || f.on ? `<td class="num"><b>${money(fees.reduce((a, r) => a + r.amount, 0))}</b></td>` : ''}</tr></tbody></table>
+    ${f.off ? '' : `<table class="ptable so-table so-fee"><thead><tr><th>Tháng</th><th>Số buổi</th><th>Thời lượng</th>${f.fee || f.on ? `<th>Học phí (${esc(feeTxt(f))})</th>` : ''}<th>Đã đóng</th></tr></thead><tbody>
+      ${fees.map(r => `<tr><td>${monthTxt(r.mk)}</td><td class="num">${r.n}${f.on ? ` (${r.n - r.on} Offline, ${r.on} Online)` : ''}</td><td class="num">${r.mins ? durTxt(r.mins) : ''}</td>${f.fee || f.on ? `<td class="num">${money(r.amount)}</td>` : ''}<td class="num">${paid[r.mk] ? '✓ ' + dm(parse(paid[r.mk].at)) : ''}</td></tr>`).join('')}
+      <tr><td><b>Tổng</b></td><td class="num"><b>${fees.reduce((a, r) => a + r.n, 0)}</b></td><td class="num">${durTxt(fees.reduce((a, r) => a + r.mins, 0))}</td>${f.fee || f.on ? `<td class="num"><b>${money(fees.reduce((a, r) => a + r.amount, 0))}</b></td>` : ''}<td></td></tr></tbody></table>`}
     ${sessMonths(ss).reverse().map(mk => { const l = ss.filter(s => s.date.startsWith(mk));
       return `<h2 style="font-family:var(--display);margin:12px 0 4px;font-size:17px">${monthTxt(mk)} · ${l.length} buổi</h2><table class="ptable so-table"><thead><tr><th>Buổi</th><th>Ngày</th><th>Nội dung</th><th>Nhận xét</th><th>Bài tập về nhà</th><th>Kết quả bài tập</th></tr></thead><tbody>
       ${l.map(s => { const h = hws.filter(t => t.session === s.id); return `<tr><td class="num">${s.no}</td><td class="num">${dm(parse(s.date))}</td><td><b>${esc(s.topic || '')}</b>${s.content ? `<div>${esc(s.content)}</div>` : ''}</td><td>${esc(s.note || '')}${s.next ? `<div><i>Buổi sau: ${esc(s.next)}</i></div>` : ''}</td><td>${hwCell(h)}</td><td>${rvCell(h)}</td></tr>`; }).join('')}</tbody></table>`; }).join('')}
@@ -1615,7 +1646,7 @@ function drawTeacher() {
       return l.length ? `<section class="slot ${tint}">${secHead('', label, { cnt: l.length, key: k, closed: l.length > 5 })}${secIsOpen(k, l.length > 5) ? `<div class="slot-list list">${l.map(t => hwRow(TEACH, t, d, 'edit')).join('')}</div>` : ''}</section>` : ''; }).join('')}</div>`
       : `<p class="foot-note" style="margin-top:0">Bài cô giao hiện ngay trong mục Bài tập trên máy của ${esc(info.student)}, kèm file cô đính kèm. Con tick làm xong thì cô thấy ở đây.</p>`;
   } else {
-    h += soTiles(st, feeOf(info), d) + (st.done.length ? `<div class="row"><button class="btn quiet sm" data-act="so-print">🖨️ In báo cáo</button></div><div class="slots">${feeSection(d, feeOf(info), false)}${soMonths(TEACH, d, 'view')}</div>` : `<p class="foot-note" style="margin-top:0">Báo cáo theo tháng (số buổi đã dạy để tính học phí, nội dung, nhận xét, bài tập) sẽ hiện ở đây sau buổi học đầu tiên. Phụ huynh xem được đúng phần này.</p>`);
+    h += soTiles(st, feeOf(info), d) + (st.done.length ? `<div class="row"><button class="btn quiet sm" data-act="so-print">🖨️ In báo cáo</button></div><div class="slots">${feeSection(d, feeOf(info), null)}${bankSection(d, true)}${soMonths(TEACH, d, 'view')}</div>` : `<p class="foot-note" style="margin-top:0">Báo cáo theo tháng (số buổi đã dạy để tính học phí, nội dung, nhận xét, bài tập) sẽ hiện ở đây sau buổi học đầu tiên. Phụ huynh xem được đúng phần này.</p><div class="slots">${bankSection(d, true)}</div>`);
   }
   el.innerHTML = h + `</div>`;
   const tb = $('#km .tabbar .on'); if (tb) tb.parentElement.scrollLeft = Math.max(0, tb.offsetLeft - 60);
@@ -1677,14 +1708,15 @@ function hwForm(id, sessPre) {
 function classesSection(ks) {
   if (RO) return '';
   const ids = ks.map(k => k.id), list = classesList().filter(c => ids.includes(c.kid)), multi = ks.length > 1, kidAttr = `data-kid="${multi ? '' : ids[0]}"`;
-  const offers = classOffers(ks), samples = classSamples();
+  const offers = classOffers(ks);
   const item = c => { const k = CLS[c.code], st = soStats(soOf(c.code)), last = st.done[st.done.length - 1];
+    // Học phí các tháng đã qua mà bố mẹ chưa xác nhận chuyển khoản.
+    const fp = paidOf(soOf(c.code)), due = feeOf(c).off ? [] : soFees(soOf(c.code), feeOf(c)).filter(r => r.mk < key(today()).slice(0, 7) && !fp[r.mk]).reverse();
     const sub = !k || !k.loaded ? 'Đang mở sổ…' : !st.ss.length && !st.hw.length ? `Sổ còn trống${feeTxt(feeOf(c)) ? ' · ' + feeTxt(feeOf(c)) : ''}. Gửi link cho cô để cô bắt đầu ghi.`
-      : [`${st.done.length} buổi đã học`, last ? `gần nhất ${dateTxt(last.date)}` : '', st.open ? `${st.open} bài đang làm` : '', st.wait ? `${st.wait} bài chờ cô nhận` : ''].filter(Boolean).join(' · ');
+      : [`${st.done.length} buổi đã học`, last ? `gần nhất ${dateTxt(last.date)}` : '', st.open ? `${st.open} bài đang làm` : '', st.wait ? `${st.wait} bài chờ cô nhận` : '', due.length ? `chưa đóng học phí tháng ${due.map(r => Number(r.mk.slice(5))).join(', ')}` : ''].filter(Boolean).join(' · ');
     return `<button class="item nav" data-act="cls-open" data-id="${c.id}">${multi ? ava({ id: c.kid, ...S.kids[c.kid] }, 'sm') : `<span class="ico">${lessonIcon(c.name) === '📚' ? '📒' : lessonIcon(c.name)}</span>`}<span class="txt"><span class="t">${multi ? esc(kidName(c.kid)) + ' · ' : ''}${esc(classTitle(c))}</span><span class="s">${esc(sub)}</span></span>${CHEV}</button>`; };
-  return `<section class="slot tn2">${secHead('📒', 'Sổ học của cô', { cnt: list.length || '', add: addBtn('cls-form', 'Thêm sổ học cho một cô', kidAttr) })}
-    ${samples.length ? suggest('Tạo sẵn sổ học cho các cô?', samples.map(o => `${esc(o.teacher)} (${esc(o.name)} của ${esc(kidName(o.kid))}${o.fee ? `, ${esc(feeTxt(feeOf(o)))}` : ''})`).join('; ') + '. Mỗi cô một link riêng, sửa lại được sau.', 'Tạo', 'cls-seed') : ''}
-    ${list.length ? `<div class="slot-list list">${list.map(item).join('')}</div>` : samples.length ? '' : blankAdd('Mời cô ghi sổ học và giao bài: tạo sổ rồi gửi link cho cô', 'cls-form', kidAttr)}
+  return `<section class="slot tn2">${secHead('📒', 'Sổ học của cô', { cnt: list.length || '', side: list.length ? `<button class="linkbtn so-links" data-act="cls-links" ${kidAttr}>Link cho các cô</button>` : '', add: addBtn('cls-form', 'Thêm sổ học cho một cô', kidAttr) })}
+    ${list.length ? `<div class="slot-list list">${list.map(item).join('')}</div>` : blankAdd('Mời cô ghi sổ học và giao bài: tạo sổ rồi gửi link cho cô', 'cls-form', kidAttr)}
     ${offers.length ? `<div class="row so-offers"><span class="muted small">Tạo sổ cho buổi học thêm:</span>${offers.map(o => `<button class="btn quiet sm" data-act="cls-form" data-kid="${o.kid}" data-name="${esc(o.name)}">${PLUS}${esc(o.name)}${multi ? ` · ${esc(kidName(o.kid))}` : ''}</button>`).join('')}</div>` : ''}
     ${list.length ? '' : '<p class="foot-note">Mỗi cô một link riêng, cô chỉ thấy sổ học của lớp mình. Bài cô giao tự hiện trong Bài tập của con.</p>'}</section>`;
 }
@@ -1703,6 +1735,7 @@ function classForm(id, kidPre, namePre) {
     ${frow('Học phí', pillNum('clfee', feeOf(c).fee || '', { step: 10000, ph: '0' }), { id: 'clfee', sub: 'Không bắt buộc. App đếm số buổi cô đã dạy mỗi tháng rồi nhân ra học phí; cô cũng thấy con số này.' })}
     ${frow('Buổi Online', pillNum('clfeeon', feeOf(c).on || '', { step: 5000, ph: '0' }), { id: 'clfeeon', sub: 'Chỉ ghi khi buổi Online có mức khác. App tính theo hình thức cô ghi ở từng buổi.' })}
     ${frow('Tính theo', pillSel('clfeeby', [['buoi', 'Mỗi buổi'], ['gio', 'Mỗi giờ']], feeOf(c).by), { id: 'clfeeby' })}
+    <div class="fr">${toggle('clfeeshow', 'Hiện phần học phí <span class="fs">Bảng số buổi và học phí theo tháng, ở màn của cô và phần bố mẹ xem. Tắt để tạm ẩn</span>', !feeOf(c).off)}</div>
   </div>
   <p class="muted small lead">Lưu xong app tạo một link riêng cho cô. Cô mở link là ghi được buổi học, nhận xét và giao bài tập; cô không thấy việc nhà, tiền hay phần khác của gia đình. Đặt tên môn trùng với buổi học thêm (ví dụ Toán) thì hạn nộp bài tự đặt vào buổi học tới.</p>
   ${formFoot(c ? 'cls-del' : '', id, 'cls-save', 'Lưu', 'Xoá sổ')}`);
@@ -1714,15 +1747,26 @@ function classLinkSheet(id, c = classesList().find(x => x.id === id)) {
   <div class="fg"><div class="fr col"><div class="copyrow"><input class="input" id="cl-link" readonly value="${esc(teacherLink(c.code))}" onfocus="this.select()"><button class="btn primary sm" data-act="cls-copy" data-id="${c.id}">Sao chép</button></div></div></div>
   <div class="foot"><button class="btn quiet" data-act="close">Xong</button></div>`);
 }
-function classSheet(id) {
+// Link của tất cả các cô trong một chỗ: sao chép từng link, hoặc cả danh sách để lưu lại.
+function classLinksSheet(kidId) {
+  const list = classesList().filter(c => !kidId || c.kid === kidId); if (!list.length) return;
+  const all = list.map(c => `${c.teacher || 'Cô'} – ${c.name} của ${kidName(c.kid)}:\n${teacherLink(c.code)}`).join('\n\n');
+  openModal(`<h2>Link cho các cô</h2>
+  <p class="muted small lead">Mỗi cô một link riêng. Gửi đúng link cho từng cô qua Zalo: cô mở là vào thẳng sổ học của lớp mình, không cần đăng ký hay mật khẩu. Link là chìa khoá của sổ, đừng gửi nhầm cô.</p>
+  <div class="fg">${list.map(c => `<div class="fr col"><div class="fl"><span class="lbl">${esc(c.teacher || 'Cô')} · ${esc(c.name)} của ${esc(kidName(c.kid))}</span></div>
+    <div class="copyrow"><input class="input" readonly value="${esc(teacherLink(c.code))}" onfocus="this.select()" aria-label="Link của ${esc(c.teacher || 'cô')}"><button class="btn primary sm" data-act="cls-copy" data-link="${esc(teacherLink(c.code))}" data-who="${esc(c.teacher || 'cô')}">Sao chép</button></div></div>`).join('')}</div>
+  ${list.length > 1 ? `<div class="row"><button class="btn quiet sm" data-act="cls-copy" data-link="${esc(all)}" data-who="">Sao chép cả ${list.length} link kèm tên cô</button></div>` : ''}
+  <div class="foot"><button class="btn quiet" data-act="close">Xong</button></div>`);
+}
+function classSheet(id, keep) {
   const c = classesList().find(x => x.id === id); if (!c) return;
   const k = CLS[c.code], d = soOf(c.code), st = soStats(d), free = st.hw.filter(t => !st.ss.some(s => s.id === t.session && s.state !== 'plan'));
   openModal(`<h2>${esc(classTitle(c))}</h2>
   <div class="row">${ava({ id: c.kid, ...S.kids[c.kid] }, 'sm')}<b>${esc(kidName(c.kid))}</b><span style="flex:1"></span><button class="btn primary sm" data-act="cls-link" data-id="${c.id}">🔗 Link cho cô</button>${st.done.length ? `<button class="btn quiet sm" data-act="cls-print" data-id="${c.id}">🖨️ In</button>` : ''}<button class="btn quiet sm" data-act="cls-form" data-id="${c.id}">Sửa</button></div>
   ${!k || !k.loaded ? '<p class="muted">Đang mở sổ…</p>' : k.err ? '<div class="note">Chưa mở được sổ học. Kiểm tra mạng rồi thử lại.</div>'
-    : !st.ss.length && !st.hw.length ? `<div class="card empty"><div class="big">📒</div><h2>Sổ còn trống</h2><p class="muted">Gửi link cho ${esc(c.teacher || 'cô')}. Cô ghi buổi học và giao bài thì hiện ngay ở đây.</p></div>`
-    : `${soTiles(st, feeOf(c), d)}<div class="slots">${feeSection(d, feeOf(c), true)}${free.length ? `<section class="slot tn0">${secHead('', 'Bài tập', { cnt: free.length })}<div class="slot-list list">${free.map(t => hwRow(c.code, t, d, 'view')).join('')}</div></section>` : ''}${soMonths(c.code, d, 'view')}</div>`}
-  <div class="foot"><button class="btn quiet" data-act="close">Đóng</button></div>`, true);
+    : !st.ss.length && !st.hw.length ? `<div class="card empty"><div class="big">📒</div><h2>Sổ còn trống</h2><p class="muted">Gửi link cho ${esc(c.teacher || 'cô')}. Cô ghi buổi học và giao bài thì hiện ngay ở đây.</p></div><div class="slots">${bankSection(d, false, c.teacher)}</div>`
+    : `${soTiles(st, feeOf(c), d)}<div class="slots">${feeSection(d, feeOf(c), c)}${bankSection(d, false, c.teacher)}${free.length ? `<section class="slot tn0">${secHead('', 'Bài tập', { cnt: free.length })}<div class="slot-list list">${free.map(t => hwRow(c.code, t, d, 'view')).join('')}</div></section>` : ''}${soMonths(c.code, d, 'view')}</div>`}
+  <div class="foot"><button class="btn quiet" data-act="close">Đóng</button></div>`, true, keep);
 }
 // Bài cô giao, mở từ phần Bài tập của nhà hoặc máy của con: hướng dẫn, file đính kèm, điểm và nhận xét của cô. Chỉ xem, tick xong ở ngoài danh sách.
 function hwView(tid) {
@@ -2051,6 +2095,13 @@ function autoAdds() {
     flags.nodone = 1;
   }
   for (const [id, steps] of Object.entries(work)) { const next = { ...S.chores[id], steps }; if (!steps.length) delete next.steps; put('chores', id, next); }
+  // Sổ học của các cô nhà mình: tạo sẵn một lần. Sau đó bố mẹ sửa, xoá tuỳ ý, app không tự tạo lại.
+  if (!set.so) {
+    const samples = classSamples();
+    samples.forEach(({ id, ...o }, i) => put('paid', id, { lop: 1, ...o, code: newFamilyCode(), at: new Date(Date.now() + i).toISOString() }));
+    flags.so = 1;
+    if (samples.length) toast(`Đã tạo sẵn ${samples.length} sổ học của các cô. Vào Học tập → Học thêm, bấm Link cho các cô để gửi.`);
+  }
   if (Object.keys(flags).length) put('paid', SETTINGS_ID, { ...set, ...flags });
 }
 // Cập nhật bảng giá một lần theo bảng mẫu bản mới: những gì sẽ đổi trong dữ liệu đang dùng.
@@ -2243,7 +2294,7 @@ const kidLink = id => inviteLink() + '&con=' + encodeURIComponent(id);
 const KID_ACTS = new Set(['close', 'tick', 'step', 'slot-toggle', 'task-done', 'task-step', 'role-kid', 'role-kid-ok', 'role-parent', 'pin-ok',
   'tkb-go', 'learn-tab', 'tkb-day', 'ag-day', 'ag-week', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel', 'km-acct', 'task-form', 'task-save', 'task-del', 'task-subj', 'task-due', 'hw-view', 'file-open']);
 // Việc màn của cô được làm: chỉ những gì thuộc sổ học.
-const TEACH_ACTS = new Set(['close', 't-tab', 'sess-form', 'sess-save', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'att-del', 'so-print', 'sec-toggle', 'num-step']);
+const TEACH_ACTS = new Set(['close', 't-tab', 'sess-form', 'sess-save', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'att-del', 'so-print', 'sec-toggle', 'num-step', 'bank-form', 'bank-save']);
 function kidMay(a, b) {
   const r = deviceRole(); if (r === 'parent') return true;
   if (!KID_ACTS.has(a)) return false;
@@ -3065,10 +3116,27 @@ document.addEventListener('click', e => {
   if (a === 'cls-open') return classSheet(id);
   if (a === 'cls-link') return classLinkSheet(id);
   if (a === 'cls-print') { const c = classesList().find(x => x.id === id); return c && printSo(c.code, c.name, kidName(c.kid), c.teacher || '', feeOf(c)); }
+  if (a === 'bank-form') return bankForm();
+  if (a === 'bank-save') {
+    const v = (i, n) => $('#' + i).value.trim().slice(0, n), data = { bank: v('bbank', 40), number: v('bnumber', 30).replace(/[^\dA-Za-z .-]/g, ''), holder: v('bholder', 60), note: v('bnote', 200), at: new Date().toISOString() };
+    if (!clsPut(TEACH, 'info', 'bank', data)) return;
+    closeModal(); return toast('Đã lưu tài khoản. Phụ huynh thấy ngay khi xem sổ.');
+  }
+  // Bố mẹ xác nhận đã chuyển khoản học phí của một tháng (hoặc huỷ khi bấm nhầm). Ghi cả danh sách các tháng trong một tài liệu của sổ.
+  if (a === 'fee-paid' || a === 'fee-unpaid') {
+    const c = classesList().find(x => x.id === id), mk = b.dataset.mk; if (!c || !/^\d{4}-\d{2}$/.test(mk || '')) return;
+    const cur = paidOf(soOf(c.code)), next = { ...cur };
+    if (a === 'fee-paid') next[mk] = { at: key(today()), amount: Math.max(0, Number(b.dataset.amount) || 0) }; else delete next[mk];
+    if (!clsPut(c.code, 'info', 'paid', next)) return;
+    classSheet(id, true);
+    return a === 'fee-paid' ? toast(`Đã xác nhận đóng học phí ${monthTxt(mk).toLowerCase()} cho ${c.teacher || 'cô'}.`, () => { clsPut(c.code, 'info', 'paid', cur); if (!$('#modal').hidden) classSheet(id, true); }) : toast('Đã huỷ xác nhận.');
+  }
+  if (a === 'cls-links') return classLinksSheet(b.dataset.kid);
   if (a === 'cls-copy') {
-    const inp = $('#cl-link'), link = inp?.value; if (!link) return;
-    const manual = () => { inp.focus(); inp.select(); toast('Bấm giữ vào link rồi chọn Sao chép.'); };
-    if (navigator.clipboard) navigator.clipboard.writeText(link).then(() => toast('Đã sao chép link. Dán vào Zalo gửi cho cô.'), manual); else manual();
+    const inp = b.parentElement.querySelector('input') || $('#cl-link'), link = b.dataset.link || inp?.value; if (!link) return;
+    const manual = () => { if (inp) { inp.focus(); inp.select(); } toast('Bấm giữ vào link rồi chọn Sao chép.'); };
+    const ok = () => toast(b.dataset.msg ? b.dataset.msg : b.dataset.who === '' ? 'Đã sao chép tất cả link kèm tên từng cô.' : `Đã sao chép link${b.dataset.who ? ' của ' + b.dataset.who : ''}. Dán vào Zalo gửi cho cô.`);
+    if (navigator.clipboard) navigator.clipboard.writeText(link).then(ok, manual); else manual();
     return;
   }
   if (a === 'cls-save') {
@@ -3076,16 +3144,10 @@ document.addEventListener('click', e => {
     const kid = radioVal('clkid') || document.querySelector('#modal input[name=clkid]')?.value; if (!S.kids[kid]) return;
     const old = id ? S.paid[id] : null, cid = id || 'lop-' + uid();
     const data = { lop: 1, kid, name, teacher: $('#clteacher').value.trim(), code: old?.code || newFamilyCode(), at: old?.at || new Date().toISOString(),
-      fee: Math.max(0, Math.round(Number($('#clfee').value) || 0)), feeOn: Math.max(0, Math.round(Number($('#clfeeon').value) || 0)), feeBy: $('#clfeeby').value === 'gio' ? 'gio' : 'buoi' };
+      fee: Math.max(0, Math.round(Number($('#clfee').value) || 0)), feeOn: Math.max(0, Math.round(Number($('#clfeeon').value) || 0)), feeBy: $('#clfeeby').value === 'gio' ? 'gio' : 'buoi', feeOff: !$('#clfeeshow').checked };
     closeModal(); put('paid', cid, data);
     if (old) return toast('Đã lưu sổ học.');
     return classLinkSheet(cid, { id: cid, ...data });
-  }
-  if (a === 'cls-seed') {
-    const samples = classSamples(); if (!samples.length) return;
-    samples.forEach((o, i) => put('paid', 'lop-' + uid(), { lop: 1, ...o, code: newFamilyCode(), at: new Date(Date.now() + i).toISOString() }));
-    put('paid', SETTINGS_ID, { ...(S.paid[SETTINGS_ID] || {}), so: 1 });
-    return toast(`Đã tạo ${samples.length} sổ học. Bấm vào từng sổ để lấy link gửi cho cô.`);
   }
   if (a === 'cls-del') {
     if (!armed(b, 'Bấm lần nữa để xoá cả sổ')) return;
@@ -3095,7 +3157,7 @@ document.addEventListener('click', e => {
     if (k?.st && k.loaded) {
       for (const [sid, x] of Object.entries(k.data.sessions || {})) { delFiles(c.code, x.files); Promise.resolve(k.st.del('sessions', sid)).catch(() => {}); }
       for (const [tid, x] of Object.entries(k.data.tasks || {})) { delFiles(c.code, x.files); Promise.resolve(k.st.del('tasks', tid)).catch(() => {}); }
-      Promise.resolve(k.st.del('info', 'lop')).catch(() => {});
+      for (const iid of ['lop', 'bank', 'paid']) Promise.resolve(k.st.del('info', iid)).catch(() => {});
     }
     del('paid', id); return toast('Đã xoá sổ học.');
   }

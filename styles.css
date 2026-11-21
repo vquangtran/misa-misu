@@ -949,6 +949,12 @@ body.locked .shell,body.locked>.tabs{display:none}
 /* ----- sổ học của cô: màn của cô, bài cô giao, file đính kèm ----- */
 .so-sub{margin:-6px 0 0;font-size:14px;color:var(--muted)}
 .so-sub b{color:var(--ink);font-weight:600}
+.fee-row .acts.col{flex-direction:column;align-items:flex-end;gap:4px}
+.fee-ok{font-size:13px;font-weight:600;color:var(--good);white-space:nowrap}
+.fee-row .btn{position:relative;z-index:1;white-space:nowrap}
+.fg .copyrow .btn.primary{flex:none;background:var(--accent);color:var(--on-accent);font-weight:600;white-space:nowrap}
+.fg .copyrow .input{min-width:0}
+.linkbtn.so-links{font-size:13px;padding:0 6px 0 0;margin-left:auto}
 .so-offers{margin:0 6px;gap:6px}
 .so-offers .btn{display:inline-flex;align-items:center;gap:5px}
 .so-offers .btn .gl{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.6;stroke-linecap:round}
