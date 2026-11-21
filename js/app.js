@@ -351,6 +351,24 @@ const meritSeeded = () => !!S.paid?.caidat?.merit;
 const meritList = () => { const l = pricesList('merit'); return l.length || meritSeeded() ? l : SAMPLE_MERITS.map((m, i) => ({ id: 'merit-' + (i + 1), kind: 'merit', ...m })); };
 // Thành tích con đã báo, đang chờ bố mẹ duyệt. Nằm trong sổ tài khoản với amount = 0 (chưa tính vào số dư, cả với máy chưa cập nhật app),
 // số tiền sẽ cộng ghi ở ask. Duyệt: amount = ask, bỏ pending. Không duyệt: xoá.
+// Việc thích làm con xin thêm hoặc xin sửa, chờ bố mẹ duyệt. Nằm trong nhóm `paid`, id "xin-<mã>":
+//   { xin: 'fun', kid, chore: mã việc đang có (xin sửa; không có = xin thêm việc mới), name, icon, minutes, slot, days, at }.
+// Chưa duyệt thì lịch của con chưa đổi. Duyệt: thêm việc mới, hoặc sửa việc đang có cho riêng con đó. Không duyệt: xoá yêu cầu.
+const funAsks = kidId => Object.entries(S.paid || {}).filter(([id, x]) => id.startsWith('xin-') && x && x.xin === 'fun' && S.kids[x.kid] && (!kidId || x.kid === kidId)
+  && (!x.chore || (S.chores[x.chore] && isFun(S.chores[x.chore]) && (S.chores[x.chore].kids || []).includes(x.kid)))).map(([id, x]) => ({ id, ...x })).sort((a, b) => String(a.at).localeCompare(String(b.at)));
+const funOf = kidId => choresList().filter(c => isFun(c) && (c.kids || []).includes(kidId));
+const slotName = v => (SLOTS.find(x => x[0] === (v || '')) || SLOTS[3])[1];
+// Một dòng tả việc thích làm: số phút, buổi, ngày.
+const funLine = x => [Number(x.minutes) ? `${Number(x.minutes)} phút` : '', slotName(choreSlot(x)).toLowerCase(), daysLabel(x.days)].filter(Boolean).join(' · ');
+// Con xin sửa thì đổi những gì so với việc đang có: ['30 phút → 45 phút', ...].
+function funDiff(x) {
+  const c = S.chores[x.chore]; if (!c) return [];
+  const mins = v => Number(v) ? `${Number(v)} phút` : 'không ghi số phút', p = [];
+  if ((Number(c.minutes) || 0) !== (Number(x.minutes) || 0)) p.push(`${mins(c.minutes)} → ${mins(x.minutes)}`);
+  if (choreSlot(c) !== (x.slot || '')) p.push(`${slotName(choreSlot(c)).toLowerCase()} → ${slotName(x.slot).toLowerCase()}`);
+  if (daysLabel(c.days) !== daysLabel(x.days)) p.push(`${daysLabel(c.days)} → ${daysLabel(x.days)}`);
+  return p;
+}
 const pendingList = kidId => Object.entries(S.ledger).filter(([, l]) => l.pending && S.kids[l.kid] && (!kidId || l.kid === kidId)).map(([id, l]) => ({ id, ...l })).sort((a, b) => String(a.at).localeCompare(String(b.at)));
 // Tiền thưởng ngày đủ việc từ ngày a đến ngày b (khoá "YYYY-MM-DD").
 const dayBonusIn = (kidId, a = '', b = '9999') => dayBonuses(kidId).reduce((s, x) => s + (x.dk >= a && x.dk <= b ? x.amount : 0), 0);
@@ -974,7 +992,7 @@ function viewToday() {
   <div class="day-head"><h1>${isT ? 'Hôm nay' : WD[d.getDay()]}</h1><div class="day-side"><label class="day-pick"><span>${dateTxt}</span>${CHEV}<input type="date" id="day-pick" value="${key(d)}" aria-label="Chọn ngày"></label>${isT ? '' : '<button class="linkbtn" data-act="day" data-n="0">Về hôm nay</button>'}</div></div>
   ${k ? weekStrip(d, k) : ''}`;
   if (!k) return h + noKids();
-  h += pendingCard();
+  h += pendingCard('', true);
   if (future) h += `<p class="foot-note">Ngày này chưa tới nên chưa đánh dấu được.</p>`;
   const list = mustFor(k.id, d), plan = dayPlan(k.id, d);
   const n = list.filter(c => isDone(d, k.id, c.id)).length, left = list.length - n;
@@ -1901,13 +1919,50 @@ function histSection(kidId) {
 }
 
 // Thành tích con báo, chờ bố mẹ duyệt. Chưa duyệt thì chưa tính vào số dư.
-function pendingCard(kidId) {
-  const list = pendingList(kidId); if (!list.length) return '';
-  return `<section class="slot tn3">${secHead('🏅', 'Chờ bố mẹ duyệt', { cnt: list.length })}<div class="slot-list list">${list.map(l => {
+// withFun: kèm việc thích làm con xin thêm, xin sửa (màn Hôm nay); màn Tài khoản chỉ có thành tích vì chỉ thành tích mới có tiền.
+function pendingCard(kidId, withFun) {
+  const list = pendingList(kidId), asks = withFun ? funAsks(kidId) : []; if (!list.length && !asks.length) return '';
+  return `<section class="slot tn3">${secHead(list.length ? '🏅' : '🎈', 'Chờ bố mẹ duyệt', { cnt: list.length + asks.length })}<div class="slot-list list">${list.map(l => {
     const dt = new Date(l.at);
     return `<div class="item pend"><span class="ico">${esc(l.icon || '🏅')}</span><div class="txt"><div class="t">${esc(l.note || 'Thành tích')}</div><div class="s">${esc(kidName(l.kid))} báo ${WDN(dt.getDay())} ${dm(dt)} · <b class="num plus">+${money(l.ask)}</b></div></div>
       <div class="acts"><button class="linkbtn undo" data-act="merit-no" data-id="${l.id}">Không</button><button class="btn primary sm" data-act="merit-ok" data-id="${l.id}">Duyệt</button></div></div>`;
+  }).join('')}${asks.map(x => {
+    const c = x.chore ? S.chores[x.chore] : null, who = esc(kidName(x.kid)), diff = c ? funDiff(x) : [];
+    const shared = c && (c.kids || []).filter(y => S.kids[y]).length > 1;
+    const sub = c ? `${who} xin sửa việc thích làm${norm(c.name) !== norm(x.name) ? ` “${esc(c.name)}”` : ''}${diff.length ? ` · ${diff.map(esc).join(' · ')}` : ''}${shared ? ` · chỉ đổi cho ${who}` : ''}` : `${who} xin thêm việc thích làm · ${esc(funLine(x))}`;
+    return `<div class="item pend"><span class="ico">${esc(x.icon || '🎈')}</span><div class="txt"><div class="t">${esc(x.name)}</div><div class="s">${sub}</div></div>
+      <div class="acts"><button class="linkbtn undo" data-act="fun-no" data-id="${x.id}">Không</button><button class="btn primary sm" data-act="fun-ok" data-id="${x.id}">Duyệt</button></div></div>`;
   }).join('')}</div></section>`;
+}
+// Việc thích làm trên màn của con: các việc con đang có (bấm để xin sửa), việc con xin thêm đang chờ duyệt, và nút + để xin thêm.
+function funSection(k) {
+  const asks = funAsks(k.id), rows = funOf(k.id).map(c => {
+    const x = asks.find(y => y.chore === c.id);
+    return `<div class="item ${x ? 'pend' : ''}"><span class="ico">${esc(c.icon || '🎈')}</span><div class="txt"><div class="t">${esc(c.name)}</div><div class="s">${x ? `⏳ Chờ bố mẹ duyệt: ${norm(x.name) !== norm(c.name) ? `đổi thành “${esc(x.name)}”` : 'đổi'}${funDiff(x).length ? ` · ${funDiff(x).map(esc).join(' · ')}` : ''}` : esc(funLine(c))}</div></div>
+      <div class="acts"><button class="edit" data-act="fun-form" data-kid="${k.id}" data-id="${c.id}" aria-label="Sửa: ${esc(c.name)}">${CHEV}</button></div></div>`;
+  }).concat(asks.filter(x => !x.chore).map(x => `<div class="item pend"><span class="ico">${esc(x.icon || '🎈')}</span><div class="txt"><div class="t">${esc(x.name)}</div><div class="s">⏳ Chờ bố mẹ duyệt · ${esc(funLine(x))}</div></div>
+      <div class="acts"><button class="edit" data-act="fun-form" data-kid="${k.id}" data-ask="${x.id}" aria-label="Sửa: ${esc(x.name)}">${CHEV}</button></div></div>`));
+  return `<section class="slot tn5">${secHead('🎈', 'Việc con thích làm', { cnt: rows.length || '' })}
+    ${rows.length ? `<div class="slot-list list">${rows.join('')}</div>` : ''}
+    <button class="slot-blank" data-act="fun-form" data-kid="${k.id}"><span>${rows.length ? 'Con thích làm gì nữa? Bấm để xin bố mẹ thêm' : 'Con thích làm gì khi xong việc? Bấm để xin bố mẹ thêm'}</span>${PLUS}</button></section>`;
+}
+// Con xin thêm một việc thích làm, hoặc xin sửa việc đang có (choreId), hoặc sửa lại yêu cầu đang chờ (askId). Gửi xong phải chờ bố mẹ duyệt.
+function funForm(kidId, choreId, askId) {
+  if (!S.kids[kidId]) return;
+  const asks = funAsks(kidId), c = choreId ? funOf(kidId).find(x => x.id === choreId) : null; if (choreId && !c) return;
+  const x = c ? asks.find(y => y.chore === c.id) : asks.find(y => y.id === askId && !y.chore);
+  const cur = x || (c ? { name: c.name, minutes: c.minutes, slot: choreSlot(c), days: c.days } : { name: '', minutes: 30, slot: slotAt(nowMin()), days: DAILY });
+  const dk = [...(cur.days || [])].map(Number).sort().join(), sets = DAY_SETS.some(y => y[0] === dk) ? DAY_SETS : [[dk, daysLabel(cur.days).replace(/^./, m => m.toUpperCase())], ...DAY_SETS];
+  openModal(`<h2>${c ? 'Sửa việc thích làm' : 'Thêm việc thích làm'}</h2>
+  <p class="muted small lead">${x ? 'Yêu cầu này đang chờ bố mẹ duyệt. Con sửa lại rồi gửi lần nữa cũng được.' : c ? 'Con sửa xong thì gửi; bố mẹ xem và duyệt thì việc này mới đổi.' : 'Việc con thích làm khi đã xong việc phải làm. Bố mẹ xem và duyệt thì việc này mới có trong lịch của con.'}</p>
+  ${titleCard('fname', cur.name, 'Con thích làm gì?')}
+  <div class="fg">
+    ${frow('Làm trong bao lâu', pillNum('fmin', Number(cur.minutes) || '', { step: 5, unit: 'phút', attr: 'min="0" max="600"', ph: '0' }), { id: 'fmin' })}
+    ${frow('Buổi', pillSel('fslot', SLOTS.map(([v, label]) => [v, label]), cur.slot || ''), { id: 'fslot', sub: 'Xong việc phải làm của buổi đó là được làm' })}
+    ${frow('Lặp lại', pillSel('fdays', sets, dk), { id: 'fdays' })}
+  </div>
+  <div class="foot">${x ? `<button class="btn danger left" data-act="fun-cancel" data-id="${x.id}">Huỷ yêu cầu</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="fun-ask" data-kid="${kidId}" data-id="${c ? c.id : ''}" data-ask="${x ? x.id : ''}">Gửi bố mẹ duyệt</button></div>`);
+  if (!c && !x) $('#fname').focus();
 }
 // Con báo thành tích: chọn một mục có sẵn, ghi thêm môn nếu muốn, rồi gửi bố mẹ duyệt.
 function meritSheet(kidId) {
@@ -2312,10 +2367,10 @@ function deviceRole() {
   return kid && S.kids[r] ? r : 'ask';
 }
 const kidLink = id => inviteLink() + '&con=' + encodeURIComponent(id);
-// Việc máy của con được làm: đánh dấu việc, bài tập của chính mình, gập mở các buổi, và xin vào phần bố mẹ.
+// Việc máy của con được làm: đánh dấu việc, bài tập của chính mình, gập mở các buổi, xin thêm hoặc xin sửa việc thích làm (bố mẹ duyệt), và xin vào phần bố mẹ.
 // Thêm các nút chỉ để xem ở mục Học tập: đổi tab, chọn ngày, chọn thứ, mở nhóm đã qua.
 const KID_ACTS = new Set(['close', 'tick', 'step', 'slot-toggle', 'task-done', 'task-step', 'role-kid', 'role-kid-ok', 'role-parent', 'pin-ok',
-  'tkb-go', 'learn-tab', 'tkb-day', 'ag-day', 'ag-week', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel', 'km-acct', 'task-form', 'task-save', 'task-del', 'task-subj', 'task-due', 'hw-view', 'file-open']);
+  'tkb-go', 'learn-tab', 'tkb-day', 'ag-day', 'ag-week', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel', 'fun-form', 'fun-ask', 'fun-cancel', 'num-step', 'km-acct', 'task-form', 'task-save', 'task-del', 'task-subj', 'task-due', 'hw-view', 'file-open']);
 // Việc màn của cô được làm: chỉ những gì thuộc sổ học.
 const TEACH_ACTS = new Set(['close', 't-tab', 'sess-form', 'sess-save', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'att-del', 'so-print', 'sec-toggle', 'num-step', 'bank-form', 'bank-save']);
 function kidMay(a, b) {
@@ -2333,6 +2388,9 @@ function kidMay(a, b) {
   // Thành tích: con chỉ báo cho chính mình và chỉ huỷ mục của mình đang chờ duyệt. Duyệt là việc của bố mẹ.
   if (a === 'merit-open' || a === 'merit-pick' || a === 'merit-ask') return b.dataset.kid === r;
   if (a === 'merit-cancel') { const l = S.ledger[b.dataset.id]; return !!l && !!l.pending && l.kid === r; }
+  // Việc thích làm: con chỉ xin thêm, xin sửa cho chính mình và chỉ huỷ yêu cầu của mình. Duyệt là việc của bố mẹ.
+  if (a === 'fun-form' || a === 'fun-ask') return b.dataset.kid === r;
+  if (a === 'fun-cancel') return funAsks(r).some(x => x.id === b.dataset.id);
   return true;
 }
 // mode 'unlock': nhập PIN để máy này thành máy của bố mẹ. mode 'set': đặt hoặc đổi PIN (chỉ máy của bố mẹ).
@@ -2444,7 +2502,7 @@ function drawKidMode() {
     + (kts.length ? `<section class="slot s-task">${secHead('📝', 'Bài cần nộp', { cnt: kts.length })}<div class="big-list">${kts.map(t => taskRow(t, false, 'big')).join('')}</div></section>` : '')
     + (sc ? `<section class="slot tn4">${secHead(sc.bag ? '🎒' : '🏫', esc(sc.title))}<div class="slot-list pad"><div class="sj-list">${subjChips(sc.subjects)}</div></div></section>` : '');
   const after = eventLines(k, 'km-event') + goal;
-  const merit = meritSection(k);
+  const merit = meritSection(k) + funSection(k);
   const bigChore = (x, g) => {
     const c = x.c, on = isDone(t, k.id, c.id), steps = stepsOf(c, k.id, t), mask = stepMask(t, k.id, c.id);
     const sub = `<span class="s">${choreMeta(c, k.id, t, true)}</span>`;
@@ -3417,7 +3475,7 @@ document.addEventListener('click', e => {
     for (const l of Object.entries(S.lessons || {})) if (l[1].kid === id) del('lessons', l[0]);
     for (const [tid, t] of Object.entries(S.tasks || {})) if (t.kid === id) del('tasks', tid);
     for (const [gid, g] of Object.entries(S.goals || {})) if (g.kid === id) del('goals', gid);
-    for (const [pid, c] of Object.entries(S.paid || {})) if (pid.startsWith('lop-') && c.kid === id) del('paid', pid);
+    for (const [pid, c] of Object.entries(S.paid || {})) if ((pid.startsWith('lop-') || pid.startsWith('xin-')) && c.kid === id) del('paid', pid);
     for (const [eid, ev] of Object.entries(S.events || {})) if ((ev.kids || []).includes(id)) put('events', eid, { ...ev, kids: ev.kids.filter(x => x !== id) });
     for (const c of choresList()) if ((c.kids || []).includes(id)) { const { id: cid, ...rest } = c; put('chores', cid, { ...rest, kids: rest.kids.filter(x => x !== id) }); }
     return toast('Đã xoá.');
@@ -3531,6 +3589,38 @@ document.addEventListener('click', e => {
     closeModal();
     put('ledger', uid(), { kid, amount: 0, ask: vnd, kind: 'bonus', note: r.name + (extra ? ` (${extra})` : ''), icon: r.icon || '🏅', at: new Date().toISOString(), pending: true });
     return toast(`Đã gửi “${r.name}”. Bố mẹ duyệt thì con được +${money(vnd)}.`);
+  }
+  if (a === 'fun-form') return funForm(b.dataset.kid, id, b.dataset.ask);
+  if (a === 'fun-ask') {
+    const kid = b.dataset.kid, c = id ? funOf(kid).find(x => x.id === id) : null; if (!S.kids[kid] || (id && !c)) return closeModal();
+    const name = $('#fname').value.trim(); if (!name) { $('#fname').focus(); return toast('Con thích làm gì? Gõ tên việc nhé.'); }
+    const days = $('#fdays').value.split(',').filter(Boolean).map(Number), g = guessIcon(name);
+    const old = funAsks(kid).find(y => y.id === b.dataset.ask), keep = old && norm(old.name) === norm(name) ? old.icon : c && norm(c.name) === norm(name) ? c.icon : '';
+    const x = { xin: 'fun', kid, name, icon: keep || (g !== '✅' ? g : c?.icon || '🎈'), minutes: Math.max(0, Math.min(600, Math.round(Number($('#fmin').value) || 0))), slot: $('#fslot').value || '', days, at: new Date().toISOString() };
+    if (c) { x.chore = c.id; if (c.name === name && !funDiff(x).length) { closeModal(); if (old) del('paid', old.id); return toast('Con chưa đổi gì nên không cần gửi.'); } }
+    closeModal(); put('paid', old ? old.id : 'xin-' + uid(), x);
+    return toast(c ? 'Đã gửi. Bố mẹ duyệt thì việc này mới đổi nhé.' : 'Đã gửi. Bố mẹ duyệt thì việc này mới có trong lịch của con nhé.');
+  }
+  if (a === 'fun-cancel') { const x = S.paid[id]; if (!String(id).startsWith('xin-') || !x || !armed(b, 'Chắc chưa?')) return; closeModal(); del('paid', id); return toast('Đã huỷ yêu cầu.'); }
+  if (a === 'fun-ok' || a === 'fun-no') {
+    const x = funAsks().find(y => y.id === id); if (!x) return;
+    const { id: _, ...raw } = x, who = kidName(x.kid);
+    if (a === 'fun-no') { del('paid', id); return toast(`Không duyệt “${x.name}” của ${who}.`, () => { put('paid', id, raw); toast('Đã hoàn tác, mục này lại chờ duyệt.'); }); }
+    const data = { name: x.name, icon: x.icon || '🎈', slot: x.slot || '', days: x.days };
+    if (!x.chore) {
+      const cid = uid(); put('chores', cid, { ...data, ...(x.minutes ? { minutes: x.minutes } : {}), money: 0, kind: 'fun', kids: [x.kid], order: Object.keys(S.chores).length, since: key(today()) });
+      del('paid', id);
+      return toast(`Đã duyệt: thêm việc thích làm “${x.name}” cho ${who}.`, () => { del('chores', cid); put('paid', id, raw); toast('Đã hoàn tác, mục này lại chờ duyệt.'); });
+    }
+    // Sửa việc đang có. Đổi buổi thì bỏ giờ cũ (có giờ thì việc tự xếp theo giờ). Việc giao cho nhiều con: chỉ đổi cho con xin sửa,
+    // các con khác giữ việc cũ, nên tách thành một việc riêng của con này.
+    const c = S.chores[x.chore], { minutes, time, by, ...rest } = c, moved = choreSlot(c) !== (x.slot || '');
+    const next = { ...rest, ...(moved || !time ? {} : { time, ...(by ? { by } : {}) }), ...data, ...(x.minutes ? { minutes: x.minutes } : {}) };
+    const others = (c.kids || []).filter(y => y !== x.kid && S.kids[y]), nid = uid();
+    if (others.length) { put('chores', x.chore, { ...c, kids: others }); put('chores', nid, { ...next, kids: [x.kid], order: Object.keys(S.chores).length }); }
+    else put('chores', x.chore, { ...next, kids: [x.kid] });
+    del('paid', id);
+    return toast(`Đã duyệt: sửa việc thích làm “${x.name}” cho ${who}.`, () => { put('chores', x.chore, c); if (others.length) del('chores', nid); put('paid', id, raw); toast('Đã hoàn tác, mục này lại chờ duyệt.'); });
   }
   if (a === 'merit-cancel') { const l = S.ledger[id]; if (!l?.pending || !armed(b, 'Chắc chưa?')) return; del('ledger', id); return toast('Đã huỷ mục này.'); }
   if (a === 'merit-ok' || a === 'merit-no') {

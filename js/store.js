@@ -24,6 +24,7 @@
 //   events   mốc năm học    { name, icon, kind: exam|holiday|meeting|event, from, to, kids: [] = cả nhà }
 //   Sổ học của cô: danh sách lớp của nhà nằm trong nhóm `paid`, id "lop-<mã>": { lop: 1, kid, name (môn), teacher, code (mã lớp), at, fee, feeOn, feeBy, feeOff }.
 //   Cài đặt `caidat` có thêm so: 1 = đã tạo sẵn sổ học cho các cô của nhà.
+//   Việc thích làm con xin thêm, xin sửa (chờ bố mẹ duyệt) cũng nằm trong nhóm `paid`, id "xin-<mã>": { xin: 'fun', kid, chore (mã việc xin sửa; không có = xin thêm), name, icon, minutes, slot, days, at }.
 //   Nội dung sổ (buổi học, bài cô giao, file đính kèm) nằm ở một nhánh riêng cho từng lớp, xem classStore ở cuối file.
 
 export const COLS = ['kids', 'chores', 'rewards', 'done', 'ledger', 'paid', 'timetables', 'lessons', 'stays', 'events', 'tasks', 'goals'];
