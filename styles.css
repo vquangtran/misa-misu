@@ -419,6 +419,8 @@ details.adv>*+*{margin-top:14px}
 .slot-blank{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:58px;padding:8px 10px 8px 16px;border:1.5px dashed var(--ring);border-radius:var(--r);background:none;color:var(--muted);font-size:15px;font-weight:400;text-align:left}
 .slot-blank .gl{box-sizing:content-box;padding:9px;border-radius:50%;background:var(--fill)}
 .slot-blank:active{background:var(--fill)}
+.slot-blank.ro{padding-right:16px}
+.slot-blank.ro:active{background:none}
 /* thêm việc nhanh: một ô gõ, vài lựa chọn bấm để đổi */
 .overlay:has(.qa){padding-bottom:var(--kb,0px)}
 .dialog:has(.qa){padding-top:20px;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))}
@@ -638,15 +640,17 @@ a.item{color:var(--ink)}
 .km-week{font-size:14px;font-weight:400;color:var(--muted)}
 .who-s{font-size:14px;font-weight:500;color:var(--muted)}
 .who-s.full{color:var(--good)}
-/* nhãn buổi trong chế độ cho bé: to hơn */
-.km .slots{gap:18px}
-.km .slot{gap:10px}
-.km .slot-pill{min-height:44px;padding:6px 2px;font-size:19px}
-.km .slot-pill .ic{width:26px;height:26px}
-.km .slot-pill .chev{width:14px;height:14px}
-.km .slot-list .sj-chip{font-size:16px;padding:6px 14px}
-.km .day-head{margin:8px 0 4px}
-.km .day-head h1{font-size:32px;text-align:center;width:100%}
+/* hai tab của con: Hôm nay, Học tập */
+.km-tabs label>span{min-height:40px;font-size:15px;font-weight:600}
+/* nhãn buổi trong chế độ cho bé: to hơn (mục Học tập, .plain, giữ cỡ như bên bố mẹ) */
+.km:not(.plain) .slots{gap:18px}
+.km:not(.plain) .slot{gap:10px}
+.km:not(.plain) .slot-pill{min-height:44px;padding:6px 2px;font-size:19px}
+.km:not(.plain) .slot-pill .ic{width:26px;height:26px}
+.km:not(.plain) .slot-pill .chev{width:14px;height:14px}
+.km:not(.plain) .slot-list .sj-chip{font-size:16px;padding:6px 14px}
+.km:not(.plain) .day-head{margin:8px 0 4px}
+.km:not(.plain) .day-head h1{font-size:32px;text-align:center;width:100%}
 .big-list{display:flex;flex-direction:column;gap:10px}
 .big-item{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:12px 14px;min-height:76px;width:100%;text-align:left;transition:transform .08s}
 button.big-item:active{transform:scale(.98)}
