@@ -437,6 +437,8 @@ textarea.hw-in{resize:none;overflow:hidden;min-height:44px}
 .mini-add{margin-left:auto;width:32px;height:32px;border-radius:50%;border:0;padding:0;background:none;color:var(--muted);display:grid;place-items:center;flex:none}
 .mini-add .gl,.slot-blank .gl{width:16px;height:16px;stroke-width:2.4}
 .mini-add:active{opacity:.55}
+.mini-add.has-txt{width:auto;height:34px;padding:0 12px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;background:var(--fill);color:var(--ink);font-size:14px;font-weight:600}
+.linkbtn.so-more{margin:8px 6px 0;font-size:14px}
 .slot-list{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-sm);padding:0 14px}
 /* tiêu đề nhỏ của từng nhóm việc trong một buổi: quan trọng (đỏ), phải làm, có tiền, thích làm */
 .sub-h{display:flex;align-items:baseline;gap:6px;padding:0 4px;font-size:13px;font-weight:600;line-height:1.4;color:var(--muted)}

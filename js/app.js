@@ -1758,7 +1758,11 @@ function soMonths(code, d, mode) {
   const need = edit && (mi.miss.length || mi.stale.length) ? `<section class="slot so-need">${secHead('⚠️', 'Cần điền', { cnt: mi.miss.length + mi.stale.length })}<div class="slot-list list">${[...mi.miss.map(dk => ({ dk, h: missRow(dk) })), ...mi.stale.map(s => ({ dk: s.date, h: sessRow(code, s, hws.filter(t => t.session === s.id), mode, true) }))].sort((a, b) => b.dk.localeCompare(a.dk)).map(x => x.h).join('')}</div>
     <p class="foot-note">Ngày có lịch học đã qua mà chưa ghi buổi, hoặc buổi đã học chưa có nhận xét. Cô bấm vào để ghi, hôm đó nghỉ thì bấm Nghỉ.</p></section>` : '';
   plan.splice(0, plan.length, ...plan.filter(s => !staleIds.has(s.id)));
-  return need + (plan.length ? `<section class="slot tn0">${secHead('🗓️', 'Sắp tới', { cnt: plan.length, key: 'so-plan', closed: plan.length > 5 })}${secIsOpen('so-plan', plan.length > 5) ? `<div class="slot-list list">${plan.map(row).join('')}</div>` : ''}</section>` : '')
+  // Sắp tới: chỉ hiện các buổi trong tháng này (tháng này hết buổi thì hiện 2 buổi kế tiếp), bấm Xem thêm để hiện hết.
+  const mk = key(today()).slice(0, 7), soon = plan.filter(s => s.date && s.date.slice(0, 7) === mk), first = soon.length ? soon : plan.slice(0, 2), showAll = !!UI.secOpen['so-plan-all'];
+  const shown = showAll ? plan : first, more = plan.length - first.length;
+  return need + (plan.length ? `<section class="slot tn0">${secHead('🗓️', 'Sắp tới', { cnt: plan.length })}<div class="slot-list list">${shown.map(row).join('')}</div>
+    ${more > 0 ? `<button class="linkbtn so-more" data-act="so-plan-more">${showAll ? 'Thu gọn' : `Xem thêm ${more} buổi`}</button>` : ''}</section>` : '')
     + months.map((mk, i) => { const l = ss.filter(s => (s.date || '').slice(0, 7) === mk).reverse(), key = edit ? 'so-m-' + (mk || 'none') : '';
       return `<section class="slot">${secHead('', monthTxt(mk), { cnt: `${l.length} buổi`, key, closed: i > 0 })}${secIsOpen(key, i > 0) ? `<div class="slot-list list">${l.map(row).join('')}</div>` : ''}</section>`; }).join('');
 }
@@ -1980,7 +1984,7 @@ function drawTeacher() {
   let h = `${head(esc(bookName(info)), add)}
     <p class="so-sub">Học sinh: <b>${esc(info.student)}</b>${info.teacher ? ` · ${esc(info.teacher)}` : ''}${days ? ` · lịch học ${esc(days)}` : ''}</p>${soTiles(st, feeOf(info), d)}`;
   if (tab === 'buoi') {
-    h += `<section class="slot">${secHead('📒', 'Buổi học', { cnt: st.ss.length || '', add: addBtn('sess-form', 'Ghi buổi học') })}${st.ss.length ? '' : blankAdd('Ghi buổi học: hôm nay học gì, nhận xét, bài tập về nhà', 'sess-form')}</section>`;
+    h += `<section class="slot">${secHead('📒', 'Buổi học', { cnt: st.ss.length || '', add: `<button class="mini-add has-txt" data-act="sess-form">${PLUS}<span>Thêm buổi</span></button>` })}${st.ss.length ? '' : blankAdd('Ghi buổi học: hôm nay học gì, nhận xét, bài tập về nhà', 'sess-form')}</section>`;
     h += st.ss.length ? `<div class="slots">${soMonths(TEACH, d, 'edit')}</div>` : `<p class="foot-note" style="margin-top:0">Mỗi buổi cô ghi nội dung, nhận xét và giao bài tập. Phụ huynh xem được ngay, bài tập tự hiện trên máy của ${esc(info.student)}.</p>`;
   } else if (tab === 'bai') {
     // Bài tập giao kèm từng buổi học (form Ghi buổi học), tab này chỉ để xem, nhận bài và cho điểm.
@@ -2719,7 +2723,7 @@ const kidLink = id => inviteLink() + '&con=' + encodeURIComponent(id);
 const KID_ACTS = new Set(['close', 'tick', 'step', 'slot-toggle', 'task-done', 'task-step', 'role-kid', 'role-kid-ok', 'role-parent', 'pin-ok',
   'tkb-go', 'learn-tab', 'tkb-day', 'ag-day', 'ag-week', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel', 'fun-form', 'fun-ask', 'fun-cancel', 'num-step', 'km-acct', 'task-form', 'task-save', 'task-del', 'task-subj', 'task-due', 'hw-view', 'file-open']);
 // Việc màn của cô được làm: chỉ những gì thuộc sổ học.
-const TEACH_ACTS = new Set(['close', 't-tab', 'sess-form', 'sess-view', 'sess-toggle', 'none', 'so-off', 'sess-save', 'hw-row-add', 'so-import', 'so-import-go', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'att-del', 'so-print', 'sec-toggle', 'num-step', 'bank-form', 'bank-save']);
+const TEACH_ACTS = new Set(['close', 't-tab', 'sess-form', 'sess-view', 'sess-toggle', 'none', 'so-plan-more', 'so-off', 'sess-save', 'hw-row-add', 'so-import', 'so-import-go', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'att-del', 'so-print', 'sec-toggle', 'num-step', 'bank-form', 'bank-save']);
 function kidMay(a, b) {
   const r = deviceRole(); if (r === 'parent') return true;
   if (!KID_ACTS.has(a)) return false;
@@ -3538,6 +3542,7 @@ document.addEventListener('click', e => {
   }
   if (a === 'sess-view') return sessView(id);
   if (a === 'none') return;
+  if (a === 'so-plan-more') { UI.secOpen['so-plan-all'] = !UI.secOpen['so-plan-all']; return render(); }
   if (a === 'sess-toggle') {
     const on = !UI.secOpen[b.dataset.key]; UI.secOpen[b.dataset.key] = on;
     b.classList.toggle('open', on); b.setAttribute('aria-expanded', on); const body = b.querySelector('.sess-body'); if (body) body.hidden = !on;
