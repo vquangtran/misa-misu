@@ -882,10 +882,11 @@ function secHead(ic, label, { cnt = '', key = '', closed = false, add = '', side
 const addBtn = (act, label, attr = '') => `<button class="mini-add" data-act="${act}" ${attr} aria-label="${label}">${PLUS}</button>`;
 // Chỗ chưa có gì: ô nét đứt, bấm để thêm ngay tại chỗ.
 const blankAdd = (text, act, attr = '') => `<button class="slot-blank" data-act="${act}" ${attr}><span>${text}</span>${PLUS}</button>`;
-// Thanh tiến độ có vạch mốc. Đếm việc (tới 12 việc): mỗi việc một khấc, xong việc nào đầy khấc đó. Số lớn hơn hoặc phần trăm: vạch ở 25, 50, 75%.
+// Thanh tiến độ có mốc. Đếm việc (tới 12 việc): mỗi việc một nét rời, xong việc nào sáng nét đó. Số lớn hơn hoặc phần trăm: thanh liền có khe mảnh ở 25, 50, 75%.
 function bar(done, total, attr = '') {
-  const seg = Number.isInteger(total) && total <= 12, n = seg ? total : 4, p = total > 0 ? Math.max(0, Math.min(1, done / total)) : 0;
-  return `<div class="bar ${n > 1 ? `marks ${seg ? 'seg' : ''}` : ''} ${p >= 1 ? 'full' : ''}" style="--n:${n}" ${attr}><b style="width:${+(p * 100).toFixed(2)}%"></b></div>`;
+  const seg = Number.isInteger(total) && total > 1 && total <= 12, p = total > 0 ? Math.max(0, Math.min(1, done / total)) : 0;
+  if (seg) return `<div class="bar seg" ${attr}>${Array.from({ length: total }, (_, i) => `<i${i < done ? ' class="on"' : ''}></i>`).join('')}</div>`;
+  return `<div class="bar ${total > 12 ? 'q' : ''}" ${attr}><b style="width:${+(p * 100).toFixed(2)}%"></b></div>`;
 }
 const barCount = (n, total) => bar(n, total, `role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${n}"`);
 // Một dòng gợi ý có nút bấm (bảng mẫu, mốc năm học mẫu...).

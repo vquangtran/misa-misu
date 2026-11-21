@@ -205,11 +205,14 @@ img.mini{width:1.35em;height:1.35em;border-radius:50%;object-fit:cover;vertical-
 .step[disabled]{opacity:.5}
 
 /* ----- thanh tiến độ ----- */
-.bar{height:8px;border-radius:99px;background:var(--fill);overflow:hidden}
+.bar{height:4px;border-radius:99px;background:var(--good-soft);overflow:hidden}
 .bar b{display:block;height:100%;background:var(--good-fill);border-radius:99px;transition:width .5s cubic-bezier(.3,1.4,.5,1)}
-/* vạch mốc: cắt thanh thành --n khúc bằng nhau, khe 2px trong suốt nên hợp mọi nền */
-.bar.marks{--cut:repeating-linear-gradient(90deg,#000 0 calc((100% + 2px)/var(--n) - 2px),transparent 0 calc((100% + 2px)/var(--n)));-webkit-mask:var(--cut);mask:var(--cut)}
-.bar.seg b{border-radius:0}
+/* đếm việc: mỗi việc một nét bo tròn, cách nhau 3px */
+.bar.seg{display:flex;gap:3px;background:none;overflow:visible}
+.bar.seg i{flex:1;min-width:0;border-radius:99px;background:var(--good-soft)}
+.bar.seg i.on{background:var(--good-fill)}
+/* phần trăm: khe trong suốt 1,5px ở 25, 50, 75% */
+.bar.q{--cut:linear-gradient(90deg,#000 calc(25% - .75px),transparent 0 calc(25% + .75px),#000 0 calc(50% - .75px),transparent 0 calc(50% + .75px),#000 0 calc(75% - .75px),transparent 0 calc(75% + .75px),#000 0);-webkit-mask:var(--cut);mask:var(--cut)}
 .prog{display:flex;align-items:center;gap:10px}
 .prog .bar{flex:1}
 .prog span{font-size:13px;color:var(--muted);white-space:nowrap}
@@ -379,8 +382,6 @@ details.adv>*+*{margin-top:14px}
 .kid-sum{display:flex;flex-direction:column;gap:8px}
 .kid-sum-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .kid-sum-t{font-family:var(--display);font-size:20px;font-weight:700;line-height:1.2;min-width:0;letter-spacing:-.01em}
-.kid-sum .bar{height:6px}
-.kid-sum .bar.full b{background-color:var(--good-fill)}
 .kid-sub{display:flex;flex-wrap:wrap;gap:0 10px}
 .streak{font-size:13px;font-weight:500;white-space:nowrap}
 .acct-link{display:inline-flex;align-items:center;gap:6px;flex:none;text-decoration:none;color:var(--ink);min-height:34px;padding:2px 9px 2px 13px;border-radius:999px;background:var(--surface);border:1px solid var(--line)}
@@ -633,7 +634,7 @@ a.item{color:var(--ink)}
 .km-sum .kid-sum-t{font-size:22px}
 .km-sum .lv{font-family:var(--display);font-weight:600;font-size:15px;color:var(--muted)}
 .km-sum .lv.full{color:var(--good)}
-.km-sum .bar{height:10px}
+.km-sum .bar{height:6px}
 .km-week{font-size:14px;font-weight:400;color:var(--muted)}
 .who-s{font-size:14px;font-weight:500;color:var(--muted)}
 .who-s.full{color:var(--good)}
@@ -907,7 +908,7 @@ span.slot-pill{cursor:default}
 .stat+.stat{border-left:1px solid var(--line)}
 .stat-n{font-family:var(--display);font-size:24px;font-weight:700;line-height:1.1;white-space:nowrap}
 .stat-n.neg{color:var(--bad)}
-.stat .bar{width:100%;max-width:150px;height:8px;margin-top:8px}
+.stat .bar{width:100%;max-width:150px;margin-top:8px}
 .stat-c{font-size:12px;line-height:1.35;color:var(--muted);margin-top:2px}
 .slot>.acct-form{gap:12px}
 .slot>.acct-form>p{padding:0 4px}
