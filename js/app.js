@@ -882,6 +882,12 @@ function secHead(ic, label, { cnt = '', key = '', closed = false, add = '', side
 const addBtn = (act, label, attr = '') => `<button class="mini-add" data-act="${act}" ${attr} aria-label="${label}">${PLUS}</button>`;
 // Chỗ chưa có gì: ô nét đứt, bấm để thêm ngay tại chỗ.
 const blankAdd = (text, act, attr = '') => `<button class="slot-blank" data-act="${act}" ${attr}><span>${text}</span>${PLUS}</button>`;
+// Thanh tiến độ có vạch mốc. Đếm việc (tới 12 việc): mỗi việc một khấc, xong việc nào đầy khấc đó. Số lớn hơn hoặc phần trăm: vạch ở 25, 50, 75%.
+function bar(done, total, attr = '') {
+  const seg = Number.isInteger(total) && total <= 12, n = seg ? total : 4, p = total > 0 ? Math.max(0, Math.min(1, done / total)) : 0;
+  return `<div class="bar ${n > 1 ? `marks ${seg ? 'seg' : ''}` : ''} ${p >= 1 ? 'full' : ''}" style="--n:${n}" ${attr}><b style="width:${+(p * 100).toFixed(2)}%"></b></div>`;
+}
+const barCount = (n, total) => bar(n, total, `role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${n}"`);
 // Một dòng gợi ý có nút bấm (bảng mẫu, mốc năm học mẫu...).
 const suggest = (title, text, btn, act) => `<section class="suggest"><div><b>${title}</b><span>${text}</span></div><button class="btn primary sm" data-act="${act}">${btn}</button></section>`;
 // Tên của một con làm tiêu đề nhỏ (khi xem cả nhà).
@@ -910,7 +916,7 @@ function viewToday() {
   const n = list.filter(c => isDone(d, k.id, c.id)).length, left = list.length - n;
   // Một dòng tóm tắt: còn mấy việc, chuỗi ngày, số dư (bấm sang Tài khoản).
   h += `<section class="kid-sum" style="--tint:${tintOf(k)}"><div class="kid-sum-row"><b class="kid-sum-t">${!list.length ? 'Không có việc phải làm' : left ? `Còn ${left} việc phải làm` : 'Xong hết việc phải làm 🎉'}</b><a href="#tai-khoan" class="acct-link" data-act="acct-go" data-kid="${k.id}" aria-label="Tài khoản của ${esc(k.name)}">${moneyChip(k)}${CHEV}</a></div>
-    ${list.length ? `<div class="bar ${left ? '' : 'full'}" role="progressbar" aria-valuemin="0" aria-valuemax="${list.length}" aria-valuenow="${n}"><b style="width:${Math.round(n / list.length * 100)}%"></b></div>` : ''}
+    ${list.length ? `${barCount(n, list.length)}` : ''}
     ${streakChip(k) || bdayChip(k, d) ? `<div class="kid-sub">${streakChip(k)}${bdayChip(k, d)}</div>` : ''}</section>`;
   // Các dòng nhắc gom vào một khối: con đang ở đâu, giờ ở trường, mốc sắp tới, phiếu nghỉ.
   const st = stayLine(d.getDay(), isT), sc = schoolNow(k, d, isT);
@@ -1085,7 +1091,7 @@ function tasksView(ks) {
     ['Tuần này', t => t.due && daysTo(t.due) > 1 && t.due <= key(addDays(weekStart(today()), 6)), 'tn4'], ['Sau đó', t => t.due && t.due > key(addDays(weekStart(today()), 6)), ''], ['Chưa có hạn', t => !t.due, '']];
   // Tiến độ tuần này: bài có hạn trong tuần, đã xong / tổng.
   const ws = key(weekStart(today())), we = key(addDays(weekStart(today()), 6)), wk = mine.filter(t => t.due && t.due >= ws && t.due <= we), wd = wk.filter(t => t.done).length;
-  if (wk.length) h += `<section class="kid-sum"><div class="kid-sum-row"><b class="kid-sum-t">Tuần này xong ${wd}/${wk.length} bài</b></div><div class="bar ${wd === wk.length ? 'full' : ''}"><b style="width:${Math.round(wd / wk.length * 100)}%"></b></div></section>`;
+  if (wk.length) h += `<section class="kid-sum"><div class="kid-sum-row"><b class="kid-sum-t">Tuần này xong ${wd}/${wk.length} bài</b></div>${barCount(wd, wk.length)}</section>`;
   h += `<div class="slots">`;
   for (const [label, f, tint] of groups) {
     const list = open.filter(f); if (!list.length) continue;
@@ -1271,9 +1277,9 @@ function viewAccount() {
   let h = `<div class="tbar">${kidTabs(kids, ak, 'acct-kid', x => `<i class="num ${balance(x.id) < 0 ? 'neg' : ''}">${kShort(balance(x.id))}</i>`)}${pillBar(moreBtn('acct-menu', 'Khớp số dư, bảng giá'), plusBtn('Thưởng thêm, chi tiêu, mục tiêu tiết kiệm'))}</div>
   <div class="day-head"><h1>Tài khoản</h1></div>
   <section class="stat2"><div class="stat"><b class="stat-n num ${bal < 0 ? 'neg' : ''}">${money(bal)}</b><span class="cap">Đang có</span>
-      ${g ? `<div class="bar ${g.need ? '' : 'full'}"><b style="width:${gp}%"></b></div><span class="stat-c">${esc(g.icon || '🎁')} ${esc(g.name)} · ${gp}%</span>` : `<span class="stat-c">${sn ? `🔥 ${sn} ngày liên tiếp` : 'Chưa có mục tiêu tiết kiệm'}</span>`}</div>
+      ${g ? `${bar(g.have, g.price)}<span class="stat-c">${esc(g.icon || '🎁')} ${esc(g.name)} · ${gp}%</span>` : `<span class="stat-c">${sn ? `🔥 ${sn} ngày liên tiếp` : 'Chưa có mục tiêu tiết kiệm'}</span>`}</div>
     <div class="stat"><b class="stat-n num ${wk ? 'plus' : ''}">+${money(wk)}</b><span class="cap">Tuần này</span>
-      ${st.possible ? `<div class="bar ${st.done >= st.possible ? 'full' : ''}"><b style="width:${Math.round(st.done / st.possible * 100)}%"></b></div><span class="stat-c"><span class="num">${st.done}/${st.possible}</span> việc phải làm${bonusNote}</span>` : '<span class="stat-c">Chưa có việc phải làm</span>'}</div></section>`;
+      ${st.possible ? `${barCount(st.done, st.possible)}<span class="stat-c"><span class="num">${st.done}/${st.possible}</span> việc phải làm${bonusNote}</span>` : '<span class="stat-c">Chưa có việc phải làm</span>'}</div></section>`;
 
   const kidName1 = esc(kidName(ak));
   h += `<div class="slots"><section class="slot">${secHead('✏️', `Ghi cho ${kidName1}`)}<div class="acct-form">
@@ -1379,7 +1385,7 @@ function goalsCard(kidId) {
     const pct = g.price ? Math.round(g.have / g.price * 100) : 0;
     h += `<div class="card goal"><div class="kid-head"><span class="goal-ico">${esc(g.icon || '🎁')}</span><div class="txt" style="flex:1"><div class="muted small">${i === 0 ? 'Mục tiêu số 1' : `Ưu tiên ${i + 1}`}</div><div class="t goal-t">${esc(g.name)}</div></div>
       <span class="amt num">${money(g.price)}</span></div>
-      <div class="prog"><div class="bar ${g.need ? '' : 'full'}"><b style="width:${pct}%"></b></div><span class="num">${money(g.have)} · ${pct}%</span></div>
+      <div class="prog">${bar(g.have, g.price)}<span class="num">${money(g.have)} · ${pct}%</span></div>
       ${coins(g)}
       <p class="small" style="margin:8px 0 0">${esc(earnPlan(kidId, g.need))}</p>
       <div class="row" style="margin-top:10px">${!g.need ? `<button class="btn primary sm" data-act="goal-buy" data-id="${g.id}">Mua ${esc(g.name)}</button>` : ''}${i > 0 ? `<button class="btn quiet sm" data-act="goal-up" data-id="${g.id}">↑ Ưu tiên hơn</button>` : ''}<button class="btn quiet sm" data-act="goal-form" data-id="${g.id}">Sửa</button></div></div>`;
@@ -1752,7 +1758,7 @@ function drawKidMode() {
   <div class="km-hero" style="--tint:${tintOf(k)}">${ava(k)}<div class="km-hi"><div class="km-date">${WD[t.getDay()]}, ${t.getDate()} tháng ${t.getMonth() + 1}</div><div class="km-bubble">${bubble}</div>
     <div class="km-chips"><span class="km-chip num ${balance(k.id) < 0 ? 'minus' : ''}">💰 ${money(balance(k.id))}</span>${stk ? `<span class="km-chip num">🔥 ${stk} ngày</span>` : ''}${kst ? `<span class="km-chip ${kst.next ? 'moved' : ''}">📍 ${esc(shortPlace(kst.here))}${kst.next ? ` · tối về ${esc(placeLow(kst.next))}` : ''}</span>` : ''}</div></div></div>
   ${list.length ? `<section class="kid-sum km-sum"><div class="kid-sum-row"><b class="kid-sum-t">${left ? `Hôm nay còn ${left} việc` : 'Xong hết việc hôm nay 🎉'}</b><span class="lv num ${left ? '' : 'full'}">${n}/${list.length}</span></div>
-    <div class="bar ${left ? '' : 'full'}" role="progressbar" aria-valuemin="0" aria-valuemax="${list.length}" aria-valuenow="${n}"><b style="width:${Math.round(n / list.length * 100)}%"></b></div>${weekLine}</section>` : ''}
+    ${barCount(n, list.length)}${weekLine}</section>` : ''}
   ${skipNote(k, t)}
   <div class="slots">${school}${list.length || plan.length ? timeline
     : `<div class="card empty"><div class="big">🎈</div><h2>${school ? 'Hôm nay con không có việc nhà nào.' : 'Hôm nay con được nghỉ!'}</h2></div>`}</div>

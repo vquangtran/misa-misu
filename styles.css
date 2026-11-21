@@ -207,6 +207,9 @@ img.mini{width:1.35em;height:1.35em;border-radius:50%;object-fit:cover;vertical-
 /* ----- thanh tiến độ ----- */
 .bar{height:8px;border-radius:99px;background:var(--fill);overflow:hidden}
 .bar b{display:block;height:100%;background:var(--good-fill);border-radius:99px;transition:width .5s cubic-bezier(.3,1.4,.5,1)}
+/* vạch mốc: cắt thanh thành --n khúc bằng nhau, khe 2px trong suốt nên hợp mọi nền */
+.bar.marks{--cut:repeating-linear-gradient(90deg,#000 0 calc((100% + 2px)/var(--n) - 2px),transparent 0 calc((100% + 2px)/var(--n)));-webkit-mask:var(--cut);mask:var(--cut)}
+.bar.seg b{border-radius:0}
 .prog{display:flex;align-items:center;gap:10px}
 .prog .bar{flex:1}
 .prog span{font-size:13px;color:var(--muted);white-space:nowrap}
