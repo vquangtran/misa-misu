@@ -727,6 +727,10 @@ function schoolNow(k, d, isToday) {
 // ---------- dòng thời gian trong ngày ----------
 const SLOTS = [['sang', 'Buổi sáng', '🌅'], ['chieu', 'Buổi chiều', '☀️'], ['toi', 'Buổi tối', '🌙'], ['', 'Lúc nào cũng được', '🕒']];
 const slotAt = m => m < 12 * 60 ? 'sang' : m < 18 * 60 ? 'chieu' : 'toi';
+// Buổi nào mở sẵn ở màn Hôm nay. Xem hôm nay (cur = buổi đang diễn ra): chỉ mở buổi đó, các buổi khác thu gọn còn nhãn và số việc;
+// "Lúc nào cũng được" mở khi còn việc chưa xong hoặc có việc thích làm; việc làm thêm mở khi đã có làm.
+// Xem ngày khác (cur = null) thì mở những buổi còn việc chưa xong. Bấm nhãn để mở, đóng; lựa chọn đó giữ tới khi sang buổi khác.
+const slotOpenDefault = (g, cur, full, nd, hasFun) => g.extra ? nd > 0 : cur && g.id ? g.id === cur : !full || hasFun;
 const choreSlot = c => toMin(c.time) !== null ? slotAt(toMin(c.time)) : (c.slot || '');
 // Ghép việc nhà, giờ ở trường và học thêm của một con trong ngày d, chia theo buổi.
 function dayPlan(kidId, d) {
@@ -955,12 +959,11 @@ function viewToday() {
   const groups = SLOTS.map(([id, label, icon]) => plan.find(g => !g.extra && g.id === id) || { id, label, icon, items: [], blank: true }).filter(g => !g.blank || canAdd);
   const extra = plan.find(g => g.extra); if (extra) groups.push(extra);
   for (const g of groups) {
-    // Mỗi buổi mở/đóng được. Mặc định: buổi đã xong hết thì thu gọn (trừ buổi đang diễn ra và buổi có việc thích làm vừa mở khoá),
-    // việc làm thêm thu gọn cho tới khi có làm. Bố mẹ bấm mở/đóng thì giữ nguyên lựa chọn đó.
-    const sk = `${key(d)}|${k.id}|${g.id}`, isNow = !g.extra && g.id && g.id === cur;
+    // Mỗi buổi mở/đóng được, mặc định theo slotOpenDefault: hôm nay chỉ mở buổi đang diễn ra.
+    const sk = `${key(d)}|${k.id}|${g.id}|${cur || ''}`, isNow = !g.extra && g.id && g.id === cur;
     const mine = g.items.filter(x => x.type === 'chore' && !isFun(x.c)), nd = mine.filter(x => isDone(d, k.id, x.c.id) || takenBy(x.c, k.id, d).length).length;
     const full = !g.extra && mine.length > 0 && nd === mine.length, hasFun = g.items.some(x => x.type === 'chore' && isFun(x.c));
-    const open = UI.slotOpen[sk] ?? (g.extra ? nd > 0 : !full || isNow || hasFun);
+    const open = UI.slotOpen[sk] ?? slotOpenDefault(g, cur, full, nd, hasFun);
     const cnt = g.extra ? `${nd ? `${nd}/` : ''}${g.items.length}` : mine.length ? `${full ? '✓ ' : ''}${nd}/${mine.length}` : g.blank ? '0' : '';
     const add = !canAdd ? '' : g.extra ? `<button class="mini-add" data-act="chore-form" data-kind="extra" aria-label="Thêm việc làm thêm">${PLUS}</button>`
       : `<button class="mini-add" data-act="quick-add" data-slot="${g.id}" aria-label="Thêm việc: ${g.label}">${PLUS}</button>`;
@@ -1848,12 +1851,12 @@ function drawKidMode() {
       <button class="stamp ${on ? 'on' : ''}" data-act="tick" data-kid="${k.id}" data-chore="${c.id}" data-km="1" aria-pressed="${on}" aria-label="${on ? 'Bỏ dấu' : 'Xong hết'}: ${esc(c.name)}">${STAR}</button></div>
       <div class="big-steps">${steps.map((st, i) => { const ok = on || (mask >> i) & 1; return `<button class="step ${ok ? 'on' : ''}" data-act="step" data-kid="${k.id}" data-chore="${c.id}" data-i="${i}" data-km="1" aria-pressed="${!!ok}">${esc(st)}</button>`; }).join('')}</div></div>`;
   };
-  // Mỗi buổi một nhãn màu như màn Hôm nay, chữ và nút to hơn. Buổi đã xong hết thì tự gập, việc làm thêm gập cho tới khi có làm; bấm nhãn để mở.
+  // Mỗi buổi một nhãn màu như màn Hôm nay, chữ và nút to hơn. Chỉ buổi đang diễn ra mở sẵn (xem slotOpenDefault); bấm nhãn để mở buổi khác.
   const timeline = plan.map(g => {
-    const sk = `km|${key(t)}|${k.id}|${g.id}`, isNow = !g.extra && g.id && g.id === cur;
+    const sk = `km|${key(t)}|${k.id}|${g.id}|${cur}`, isNow = !g.extra && g.id && g.id === cur;
     const mine = g.items.filter(x => x.type === 'chore' && !isFun(x.c)), nd = mine.filter(x => isDone(t, k.id, x.c.id) || takenBy(x.c, k.id, t).length).length;
     const full = !g.extra && mine.length > 0 && nd === mine.length, hasFun = g.items.some(x => x.type === 'chore' && isFun(x.c));
-    const open = UI.slotOpen[sk] ?? (g.extra ? nd > 0 : !full || isNow || hasFun);
+    const open = UI.slotOpen[sk] ?? slotOpenDefault(g, cur, full, nd, hasFun);
     const cnt = g.extra ? `${nd ? `${nd}/` : ''}${g.items.length}` : mine.length ? `${full ? '✓ ' : ''}${nd}/${mine.length}` : '';
     return `<section class="slot s-${g.extra ? 'them' : g.id || 'any'} ${full ? 'full' : ''}" data-slot="${sk}"><div class="slot-h"><button class="slot-pill" data-act="slot-toggle" data-slot="${sk}" aria-expanded="${!!open}">${g.icon}<span>${g.label}</span>${cnt ? `<i class="num">${cnt}</i>` : ''}${DOWN}</button>${isNow ? '<span class="nowpill">Bây giờ</span>' : ''}</div>
       ${open ? `<div class="big-list">${g.items.map(x => x.type === 'chore' ? bigChore(x, g) : markRow(x, true)).join('')}</div>` : ''}</section>`;
@@ -2908,9 +2911,13 @@ window.addEventListener('hashchange', route);
 window.addEventListener('online', render);
 window.addEventListener('offline', render);
 
-// Sang ngày mới khi app để mở qua đêm (ví dụ trên máy tính bảng)
-let lastDay = key(today());
-setInterval(() => { const k = key(today()); if (k !== lastDay) { if (key(UI.date) === lastDay) UI.date = today(); lastDay = k; render(); } }, 60000);
+// Sang ngày mới khi app để mở qua đêm (ví dụ trên máy tính bảng). Sang buổi khác (12:00, 18:00) thì vẽ lại để buổi mới mở ra, buổi cũ thu gọn.
+let lastDay = key(today()), lastSlot = slotAt(nowMin());
+setInterval(() => {
+  const k = key(today()), sl = slotAt(nowMin());
+  if (k !== lastDay) { if (key(UI.date) === lastDay) UI.date = today(); lastDay = k; lastSlot = sl; return render(); }
+  if (sl !== lastSlot) { lastSlot = sl; if ($('#modal').hidden) render(); }
+}, 60000);
 
 // ---------- family setup (Firebase) ----------
 function newFamilyCode() {
