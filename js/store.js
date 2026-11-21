@@ -22,7 +22,8 @@
 //   tasks    bài tập        { kid, title, kind: bt|on|da, subj, due, notes, steps: [{ t, done }], done, doneAt, by: mã của con nếu con tự thêm từ màn của con }
 //   goals    mục tiêu tiết kiệm { kid, name, icon, price (đồng), order, done, doneAt }
 //   events   mốc năm học    { name, icon, kind: exam|holiday|meeting|event, from, to, kids: [] = cả nhà }
-//   Sổ học của cô: danh sách lớp của nhà nằm trong nhóm `paid`, id "lop-<mã>": { lop: 1, kid, name (môn), teacher, code (mã lớp), at, fee, feeBy }.
+//   Sổ học của cô: danh sách lớp của nhà nằm trong nhóm `paid`, id "lop-<mã>": { lop: 1, kid, name (môn), teacher, code (mã lớp), at, fee, feeOn, feeBy }.
+//   Cài đặt `caidat` có thêm so: 1 = đã tạo sẵn sổ học cho các cô của nhà.
 //   Nội dung sổ (buổi học, bài cô giao, file đính kèm) nằm ở một nhánh riêng cho từng lớp, xem classStore ở cuối file.
 
 export const COLS = ['kids', 'chores', 'rewards', 'done', 'ledger', 'paid', 'timetables', 'lessons', 'stays', 'events', 'tasks', 'goals'];
@@ -134,7 +135,8 @@ export async function firebaseStore(config, family, onData, onStatus) {
 // dữ liệu khác của gia đình. Máy của nhà biết mã lớp nên đọc được sổ và đưa bài cô giao vào phần Bài tập của con.
 // Nhánh lớp dùng lại tên các nhóm đã có trong Rules, nên không phải dán lại Rules:
 //   info     (lưu ở nhóm kids)    id "lop": { name (môn), teacher, student (tên con), days: [{ day, s, e }] lịch học thêm của môn này,
-//                                 fee (đồng), feeBy: buoi|gio: học phí mỗi buổi hoặc mỗi giờ, để tính học phí theo số buổi đã dạy trong tháng }
+//                                 fee (đồng), feeBy: buoi|gio: học phí mỗi buổi hoặc mỗi giờ, để tính học phí theo số buổi đã dạy trong tháng;
+//                                 feeOn: mức riêng cho buổi Online (0 = như buổi thường) }
 //   sessions (lưu ở nhóm events)  buổi học { date, state: done|plan, mode: on|off, mins, topic, content, src, note (nhận xét), next (mục tiêu buổi sau),
 //                                 links: [url], files: [{ id, n, name, type, size }], at }
 //   tasks    (lưu ở nhóm tasks)   bài cô giao { title, notes, due, session (mã buổi), steps: [{ t, done }], links, files, at,
