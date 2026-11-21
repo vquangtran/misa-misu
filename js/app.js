@@ -1459,7 +1459,7 @@ function sessList(d) {
     .sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999') || String(a.at || '').localeCompare(String(b.at || ''))).map((s, i) => ({ ...s, no: i + 1 }));
 }
 const hwList = d => Object.entries(d.tasks || {}).filter(([id, t]) => okId(id) && t).map(([id, t]) => ({ id, ...t, title: String(t.title || ''), due: okDate(t.due), doneAt: okDate(t.doneAt), gotAt: okDate(t.gotAt),
-  session: okId(t.session) ? t.session : '', score: String(t.score || '').slice(0, 30), steps: cleanSteps(t.steps), files: cleanFiles(t.files) })).filter(t => t.title)
+  session: okId(t.session) ? t.session : '', chk: CHK[t.chk] ? t.chk : '', chkBy: okId(t.chkBy) ? t.chkBy : '', score: String(t.score || '').slice(0, 30), steps: cleanSteps(t.steps), files: cleanFiles(t.files) })).filter(t => t.title)
   .sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999') || String(a.at || '').localeCompare(String(b.at || '')));
 const SESS_MODES = [['', 'Chưa ghi'], ['off', 'Offline'], ['on', 'Online']];
 const dateTxt = dk => { const d = parse(dk); return `${WDN(d.getDay())} ${dm(d)}`; };
@@ -1470,7 +1470,7 @@ const sessName = s => s.topic || (s.date ? dateTxt(s.date) : 'Chưa có ngày');
 const sessMeta = s => [s.topic ? (s.date ? dateTxt(s.date) : 'chưa có ngày') : '', (SESS_MODES.find(x => x[0] === s.mode && x[0]) || [])[1], Number(s.mins) ? durTxt(Number(s.mins)) : ''].filter(Boolean).join(' · ');
 // Bài cô giao đang ở bước nào: cô đã nhận (kèm điểm), con báo đã làm xong, quá hạn, hay mới giao.
 function hwState(t) {
-  if (t.got) return { k: 'got', txt: `cô đã nhận${t.score ? ' · ' + t.score : ''}` };
+  if (t.got) return { k: 'got', txt: `${t.chk ? CHK[t.chk].toLowerCase() : 'cô đã nhận'}${t.score ? ' · ' + t.score : ''}` };
   if (t.done) return { k: 'done', txt: `con báo đã xong${t.doneAt ? ' ' + dm(parse(t.doneAt)) : ''}` };
   if (t.due && daysTo(t.due) < 0) return { k: 'late', txt: `quá hạn ${-daysTo(t.due)} ngày` };
   return { k: 'open', txt: t.due ? `hạn ${dueLabel(t.due)}` : 'chưa có hạn' };
@@ -1606,7 +1606,7 @@ function hwRow(code, t, d, mode) {
   const act = mode === 'edit' ? `data-act="hw-form" data-id="${t.id}"` : `data-act="hw-view" data-id="L~${code}~${t.id}"`;
   return `<div class="item sess"><span class="ico">📝</span><div class="txt"><div class="t">${esc(t.title)}</div><div class="s">${meta}</div>${t.notes ? `<div class="s snip">${esc(String(t.notes).slice(0, 160))}</div>` : ''}
     ${t.review ? `<div class="s cmt"><b>Nhận xét bài làm:</b> ${esc(t.review)}</div>` : ''}${attView(code, t.files, t.links)}</div>
-    <div class="acts"><span class="badge ${HW_BADGE[st.k]}">${esc(st.k === 'got' ? 'Cô đã nhận' + (t.score ? ' · ' + t.score : '') : st.k === 'done' ? 'Chờ cô nhận' : st.k === 'late' ? st.txt : 'Đang làm')}</span><button class="edit" ${act} aria-label="${mode === 'edit' ? 'Sửa' : 'Xem'}: ${esc(t.title)}">${CHEV}</button></div></div>`;
+    <div class="acts"><span class="badge ${st.k === 'got' && t.chk ? chkKind(t.chk) : HW_BADGE[st.k]}">${esc(st.k === 'got' ? (t.chk ? CHK[t.chk] : 'Cô đã nhận') + (t.score ? ' · ' + t.score : '') : st.k === 'done' ? 'Chờ cô nhận' : st.k === 'late' ? st.txt : 'Đang làm')}</span><button class="edit" ${act} aria-label="${mode === 'edit' ? 'Sửa' : 'Xem'}: ${esc(t.title)}">${CHEV}</button></div></div>`;
 }
 const sessMonths = ss => [...new Set(ss.map(s => (s.date || '').slice(0, 7)))].sort().reverse();
 function soStats(d) {
@@ -1723,6 +1723,17 @@ function drawTeacher() {
   }
   shell(nav, h);
 }
+// Ô ghi từng nhiệm vụ của bài tập về nhà: mỗi ô một bài, nút Thêm nhiệm vụ thêm ô mới.
+const hwRowInput = n => `<textarea class="input hw-in grow" rows="1" maxlength="300" placeholder="Nhiệm vụ ${n}" aria-label="Nhiệm vụ ${n}"></textarea>`;
+// Kiểm tra bài tập buổi trước: Hoàn thành, Thiếu (kèm mức thiếu) hoặc Không làm.
+const CHK = { du: 'Hoàn thành', 'thieu-it': 'Thiếu ít', 'thieu-nua': 'Thiếu một nửa', 'thieu-nhieu': 'Thiếu nhiều', khong: 'Không làm' };
+const chkKind = c => c === 'du' ? 'ok' : c === 'khong' ? 'owe' : c ? 'wait' : '';
+function hwCheckRow(t) {
+  const c = t.chk || '', main = c.startsWith('thieu') ? 'thieu' : c, lv = main === 'thieu' ? c : 'thieu-it';
+  return `<div class="fr col hw-chk"><div class="fl"><span class="lbl">${esc(t.title)}</span><span class="fs">${esc([t.due ? `hạn ${dm(parse(t.due))}` : '', t.done ? 'con báo đã xong' : ''].filter(Boolean).join(' · '))}</span></div>
+    ${segPick('chk-' + t.id, [['du', 'Hoàn thành'], ['thieu', 'Thiếu'], ['khong', 'Không làm']], main)}
+    <div class="hw-lv" ${main === 'thieu' ? '' : 'hidden'}><span class="muted small">Mức thiếu</span>${segPick('lv-' + t.id, [['thieu-it', 'Ít'], ['thieu-nua', 'Một nửa'], ['thieu-nhieu', 'Nhiều']], lv)}</div></div>`;
+}
 // Hai, ba lựa chọn thì hiện hết ra, bấm vào để chọn (thay cho ô chọn thả xuống).
 const segPick = (name, opts, val) => `<div class="seg">${opts.map(([v, l]) => `<label><input type="radio" name="${name}" value="${esc(v)}" ${String(v) === String(val) ? 'checked' : ''}><span>${esc(l)}</span></label>`).join('')}</div>`;
 // Thời lượng và hình thức mặc định của buổi học ngày dk: thời lượng theo thứ nhà đã ghi (dur), không có thì theo lịch học thêm của thứ đó,
@@ -1737,7 +1748,10 @@ function sessForm(id) {
   if (id && !okId(id)) return;
   const d = soOf(TEACH), s = id ? d.sessions[id] : null, ss = sessList(d), last = ss.filter(x => x.state !== 'plan').pop(), info = d.info.lop || {};
   const hws = id ? hwList(d).filter(t => t.session === id) : [], def = sessDefaults(d, key(today()));
-  const mins = s ? Number(s.mins) || 0 : def.mins;
+  const mins = s ? Number(s.mins) || 0 : def.mins, sdk = s ? okDate(s.date) : key(today()), due0 = hwDueAfter(d, sdk), dueDef = due0 ? key(due0) : '';
+  // Bài tập buổi trước để cô tick: bài chưa kiểm tra của buổi liền trước, hoặc đã tới hạn; bài cô đã tick ở buổi này thì hiện lại để sửa.
+  const prev = ss.filter(x => x.id !== id && x.state !== 'plan' && x.date && (!sdk || x.date < sdk)).pop();
+  const prevHw = hwList(d).filter(t => t.session !== (id || '~') && (t.chkBy ? t.chkBy === id : !t.got && ((prev && t.session === prev.id) || (t.due && sdk && t.due <= sdk))));
   attStart(TEACH, s?.files);
   openModal(`<h2>${s ? `Buổi ${ss.find(x => x.id === id)?.no || ''}` : 'Ghi buổi học'}</h2>
   <div class="fg f-title"><div class="ft"><div class="hw-title" id="stitle">${esc(s?.topic || sessDayTitle(s ? okDate(s.date) : key(today())))}</div></div></div>
@@ -1748,12 +1762,16 @@ function sessForm(id) {
     ${frow('Thời lượng', pillNum('smins', mins, { step: 15, unit: 'phút' }), { id: 'smins' })}
   </div>
   <p class="fg-cap">Cô cần ghi</p>
-  <div class="fg">${frow('Nội dung', `<textarea id="scontent" class="input" rows="3" maxlength="2000" placeholder="Hôm nay học gì: lý thuyết, thực hành trên lớp…">${esc(s?.content || '')}</textarea>`, { id: 'scontent', cls: 'col' })}
-    ${frow('Nhận xét học sinh', `<textarea id="snote" class="input" rows="3" maxlength="2000" placeholder="Con học thế nào, cần chú ý gì…">${esc(s?.note || '')}</textarea>`, { id: 'snote', cls: 'col', sub: 'Phụ huynh đọc được. Trên máy của con không hiện phần này.' })}
-    <div class="fr col"><div class="fl"><label for="shw">Bài tập về nhà</label><span class="fs">Mỗi dòng một bài, hiện ngay trên máy của con, hạn nộp là buổi học tới. Cần đính kèm file hay hướng dẫn thì bấm Giao bài chi tiết.</span></div>
+  <div class="fg">${frow('Nội dung học', `<textarea id="scontent" class="input" rows="3" maxlength="2000" placeholder="Hôm nay học gì?">${esc(s?.content || '')}</textarea>`, { id: 'scontent', cls: 'col' })}
+    ${frow('Nhận xét học sinh', `<textarea id="snote" class="input" rows="3" maxlength="2000" placeholder="Con học thế nào, cần chú ý gì…">${esc(s?.note || '')}</textarea>`, { id: 'snote', cls: 'col', sub: 'Chỉ phụ huynh xem được.' })}
+    <div class="fr col"><div class="fl"><span class="lbl">Bài tập về nhà</span></div>
       ${hws.length ? `<div class="list menu">${hws.map(t => `<button class="item nav" data-act="sess-save" data-id="${id}" data-hw="${t.id}"><span class="ico">📝</span><span class="txt"><span class="t">${esc(t.title)}</span><span class="s">${esc(hwState(t).txt)}</span></span>${CHEV}</button>`).join('')}</div>` : ''}
-      <textarea id="shw" class="input" rows="2" maxlength="1000" placeholder="${hws.length ? 'Giao thêm bài (không bắt buộc)' : 'Ví dụ: Luyện viết trang 12'}"></textarea>
-      <button class="btn quiet sm" data-act="sess-save" data-id="${id || ''}" data-hw="new">📎 Giao bài chi tiết (file, hướng dẫn)</button></div></div>
+      <div class="hw-rows" id="shw-list" data-base="${hws.length}">${hws.length ? '' : hwRowInput(1)}</div>
+      <button class="linkbtn hw-add" data-act="hw-row-add">${PLUS}Thêm nhiệm vụ</button></div>
+    ${frow('Hạn nộp', `<input id="shdue" class="pillin num" type="date" value="${esc(dueDef)}">`, { id: 'shdue', sub: 'Mặc định là buổi học tới' })}
+    <div class="fr"><button class="btn quiet sm" data-act="sess-save" data-id="${id || ''}" data-hw="new">📎 Đính kèm file (nếu có)</button></div></div>
+  ${prevHw.length ? `<p class="fg-cap">Bài tập buổi trước</p>
+  <div class="fg">${prevHw.map(t => hwCheckRow(t)).join('')}</div>` : ''}
   <p class="fg-cap">Thêm nếu cần (không bắt buộc)</p>
   <div class="fg">${frow('Sách, nguồn tham khảo', `<input id="ssrc" class="input" maxlength="200" value="${esc(s?.src || '')}" placeholder="Ví dụ: SGK tập 1, bài 1–4">`, { id: 'ssrc', cls: 'col' })}
     ${frow('Mục tiêu buổi sau', `<input id="snext" class="input" maxlength="300" value="${esc(s?.next || '')}" placeholder="Ví dụ: chữa bài tập, sang chuyên đề mới">`, { id: 'snext', cls: 'col' })}
@@ -1858,7 +1876,7 @@ function hwView(tid) {
   <div class="fg f-title"><div class="ft"><div class="hw-title">${esc(w.title)}</div></div></div>
   <div class="fg">${frow('Môn', `<span class="fv-val">${subjDot(t.subj)}${esc(c.name)}${c.teacher ? ' · ' + esc(c.teacher) : ''}</span>`)}
     ${frow('Hạn nộp', `<span class="fv-val ${st.k === 'late' ? 'late' : ''}">${w.due ? esc(`${dateTxt(w.due)}${w.got || w.done ? '' : ' · ' + (daysTo(w.due) < 0 ? st.txt : daysTo(w.due) < 2 ? dueLabel(w.due) : `còn ${daysTo(w.due)} ngày`)}`) : 'Chưa có hạn'}</span>`)}
-    ${frow('Tình trạng', `<span class="fv-val hw-st ${st.k}">${esc(w.got ? 'Cô đã nhận bài' : w.done ? 'Đã báo làm xong, chờ cô nhận' : 'Đang làm')}</span>`)}
+    ${frow('Tình trạng', `<span class="fv-val hw-st ${st.k}">${esc(w.got ? (w.chk ? 'Cô đã kiểm tra: ' + CHK[w.chk] : 'Cô đã nhận bài') : w.done ? 'Đã báo làm xong, chờ cô nhận' : 'Đang làm')}</span>`)}
     ${w.score ? frow('Điểm', `<span class="fv-val"><b class="num">${esc(w.score)}</b></span>`) : ''}</div>
   ${w.review ? `<div class="fg">${frow('Cô nhận xét', `<div class="so-p">${esc(w.review)}</div>`, { cls: 'col' })}</div>` : ''}
   ${w.notes ? `<div class="fg">${frow('Cô dặn', `<div class="so-p">${esc(w.notes)}</div>`, { cls: 'col' })}</div>` : ''}
@@ -2423,7 +2441,7 @@ const kidLink = id => inviteLink() + '&con=' + encodeURIComponent(id);
 const KID_ACTS = new Set(['close', 'tick', 'step', 'slot-toggle', 'task-done', 'task-step', 'role-kid', 'role-kid-ok', 'role-parent', 'pin-ok',
   'tkb-go', 'learn-tab', 'tkb-day', 'ag-day', 'ag-week', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel', 'fun-form', 'fun-ask', 'fun-cancel', 'num-step', 'km-acct', 'task-form', 'task-save', 'task-del', 'task-subj', 'task-due', 'hw-view', 'file-open']);
 // Việc màn của cô được làm: chỉ những gì thuộc sổ học.
-const TEACH_ACTS = new Set(['close', 't-tab', 'sess-form', 'sess-save', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'att-del', 'so-print', 'sec-toggle', 'num-step', 'bank-form', 'bank-save']);
+const TEACH_ACTS = new Set(['close', 't-tab', 'sess-form', 'sess-save', 'hw-row-add', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'att-del', 'so-print', 'sec-toggle', 'num-step', 'bank-form', 'bank-save']);
 function kidMay(a, b) {
   const r = deviceRole(); if (r === 'parent') return true;
   if (!KID_ACTS.has(a)) return false;
@@ -3208,11 +3226,11 @@ document.addEventListener('click', e => {
     if (!date && !$('#scontent').value.trim()) return toast('Chọn ngày học nhé.');
     if (state === 'done' && !date) return toast('Chọn ngày học nhé. Buổi chưa có ngày thì để Chưa học (kế hoạch).');
     // Buổi đã học: Nội dung, Nhận xét học sinh và Bài tập về nhà là phần bắt buộc. Buổi chưa học (kế hoạch) thì không bắt buộc.
-    const hwLines = $('#shw').value.split('\n').map(x => x.replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 10);
+    const hwLines = [...document.querySelectorAll('#shw-list .hw-in')].map(x => x.value.replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 10);
     if (state === 'done') {
       if (!$('#scontent').value.trim()) { $('#scontent').focus(); return toast('Ghi nội dung buổi học nhé.'); }
       if (!$('#snote').value.trim()) { $('#snote').focus(); return toast('Ghi nhận xét học sinh nhé.'); }
-      if (!b.dataset.hw && !hwLines.length && !(id && hwList(soOf(TEACH)).some(t => t.session === id))) { $('#shw').focus(); return toast('Ghi bài tập về nhà nhé.'); }
+      if (!b.dataset.hw && !hwLines.length && !(id && hwList(soOf(TEACH)).some(t => t.session === id))) { $('#shw-list .hw-in')?.focus(); return toast('Ghi bài tập về nhà nhé.'); }
     }
     if (ATT?.busy) return toast('Đợi file tải lên xong đã.');
     const old = id ? soOf(TEACH).sessions[id] : null, sid = id || uid(), topic = String(old?.topic || '');
@@ -3220,11 +3238,23 @@ document.addEventListener('click', e => {
       note: $('#snote').value.trim(), next: $('#snext').value.trim(), links: linkList($('#slinks').value), files: attTake(old?.files), at: old?.at || new Date().toISOString() };
     if (!clsPut(TEACH, 'sessions', sid, data)) return;
     // Mỗi dòng ở ô Bài tập về nhà thành một bài, gắn với buổi này, hạn nộp là buổi học tới sau ngày học.
-    const due = hwDueAfter(soOf(TEACH), date), t0 = Date.now();
-    hwLines.forEach((title, i) => clsPut(TEACH, 'tasks', uid(), { title, notes: '', due: due ? key(due) : '', session: sid, steps: [], links: [], files: [], at: new Date(t0 + i).toISOString() }));
+    const due = okDate($('#shdue').value), t0 = Date.now(), newIds = hwLines.map(() => uid());
+    hwLines.forEach((title, i) => clsPut(TEACH, 'tasks', newIds[i], { title, notes: '', due, session: sid, steps: [], links: [], files: [], at: new Date(t0 + i).toISOString() }));
+    // Bài tập buổi trước cô đã tick: coi như cô đã nhận bài, ghi kèm mức hoàn thành. Bỏ tick (bài cô tick ở buổi này) thì trả lại như chưa nhận.
+    for (const r of document.querySelectorAll('#modal .hw-chk')) {
+      const tid = r.querySelector('input[name^="chk-"]')?.name.slice(4); if (!okId(tid)) continue;
+      const m = radioVal('chk-' + tid), c = m === 'thieu' ? radioVal('lv-' + tid) || 'thieu-it' : m, cur = soOf(TEACH).tasks[tid]; if (!cur || !CHK[c] || cur.chk === c) continue;
+      clsPatch(TEACH, 'tasks', tid, { chk: c, chkBy: sid, got: true, gotAt: cur.gotAt || date || key(today()) });
+    }
     closeModal();
-    if (b.dataset.hw) return hwForm(b.dataset.hw === 'new' ? null : b.dataset.hw, sid);
-    return toast(hwLines.length ? `Đã lưu buổi học và giao ${hwLines.length} bài${due ? `, hạn nộp ${dueLabel(key(due))}` : ''}.` : 'Đã lưu buổi học.');
+    // Đính kèm file: mở bài vừa ghi (nhiệm vụ đầu tiên) để đính kèm; chưa ghi nhiệm vụ nào thì mở form giao bài mới.
+    if (b.dataset.hw) return hwForm(b.dataset.hw === 'new' ? newIds[0] || null : b.dataset.hw, sid);
+    return toast(hwLines.length ? `Đã lưu buổi học và giao ${hwLines.length} bài${due ? `, hạn nộp ${dueLabel(due)}` : ''}.` : 'Đã lưu buổi học.');
+  }
+  if (a === 'hw-row-add') {
+    const box = $('#shw-list'); if (!box) return;
+    const n = Number(box.dataset.base || 0) + box.querySelectorAll('.hw-in').length + 1; if (n > 10) return toast('Mỗi buổi giao tối đa 10 nhiệm vụ.');
+    box.insertAdjacentHTML('beforeend', hwRowInput(n)); box.lastElementChild.focus(); return;
   }
   if (a === 'sess-del') {
     if (!armed(b, 'Bấm lần nữa để xoá')) return;
@@ -3697,6 +3727,8 @@ document.addEventListener('click', e => {
   if (a === 'ledger-undo') { if (!armed(b, 'Chắc chưa?')) return; del('ledger', id); return toast('Đã huỷ mục này.'); }
 });
 document.addEventListener('change', e => {
+  // Bài tập buổi trước: chọn Thiếu thì hiện mức thiếu.
+  if (e.target.name?.startsWith('chk-')) { const lv = e.target.closest('.hw-chk')?.querySelector('.hw-lv'); if (lv) lv.hidden = e.target.value !== 'thieu'; }
   if (e.target.name === 'akind') { UI.acctKind = e.target.value; render(); }
   if (e.target.name === 'planw') { UI.planNext = e.target.value === '1'; drawSheet(); }
   if (e.target.id === 'day-pick' && e.target.value) { UI.date = parse(e.target.value); render(); }
@@ -3730,12 +3762,15 @@ document.addEventListener('change', e => {
   if (e.target.name === 'kava' && !photoEdit.img && !(photoEdit.out ?? photoOf(S.kids[$('#modal [data-act=kid-save]')?.dataset.id]))) { const pv = $('#modal .photo-prev'); if (pv) pv.innerHTML = avInner(e.target.value); }
 });
 document.addEventListener('input', e => {
-  if (e.target.classList?.contains('ft-long')) growTitle(e.target);
+  if (e.target.classList?.contains('ft-long') || e.target.classList?.contains('grow')) growTitle(e.target);
+  if (e.target.id === 'shdue') e.target.dataset.touched = '1';
   if (['pzoom', 'px', 'py'].includes(e.target.id)) photoRender();
   // Form buổi học: tên buổi đổi theo ngày học đang chọn.
   if (e.target.id === 'sdate' && $('#stitle')) {
     const sid = $('#modal [data-act="sess-save"]')?.dataset.id || '', old = soOf(TEACH).sessions[sid];
     if (!old?.topic) $('#stitle').textContent = sessDayTitle(e.target.value);
+    // Hạn nộp mặc định đi theo ngày học (buổi học tới sau ngày đó), trừ khi cô đã tự chọn hạn khác.
+    const hd = $('#shdue'); if (hd && !hd.dataset.touched) { const x = hwDueAfter(soOf(TEACH), e.target.value); hd.value = x ? key(x) : ''; }
     // Buổi mới: đổi ngày thì thời lượng và hình thức đổi theo thứ của ngày đó (cô Thảo: thứ 3 60 phút, chủ nhật 120 phút).
     if (!old && e.target.value) { const def = sessDefaults(soOf(TEACH), e.target.value), m = $('#smins'), r = document.querySelector(`#modal input[name="smode"][value="${def.mode}"]`); if (m) m.value = def.mins; if (r && def.sure) r.checked = true; }
   }

@@ -319,6 +319,12 @@ details.subj-more>*+*{margin-top:8px}
 .dialog .foot{display:flex;flex-direction:column;gap:8px}
 .dialog .foot .btn{width:100%}
 .lead{margin:-4px 0 0}
+.hw-rows{display:flex;flex-direction:column;gap:8px}
+.hw-rows:empty{display:none}
+textarea.hw-in{resize:none;overflow:hidden;min-height:44px}
+.linkbtn.hw-add{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;padding:4px 0}
+.linkbtn.hw-add .gl{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.6;stroke-linecap:round}
+.hw-chk .seg,.hw-lv{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .fg-cap{margin:4px 6px -6px;font-size:13px;font-weight:600;color:var(--muted)}
 @media (min-width:600px){.overlay{align-items:center;padding:24px}.dialog{border-radius:26px;box-shadow:var(--shadow-float)}.sheet-bar::before{display:none}.sheet-bar{padding-top:6px}}
 
