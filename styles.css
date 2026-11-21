@@ -420,6 +420,14 @@ details.subj-more>*+*{margin-top:8px}
 .mini-add .gl,.slot-blank .gl{width:16px;height:16px;stroke-width:2.4}
 .mini-add:active{opacity:.55}
 .slot-list{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-sm);padding:0 14px}
+/* tiêu đề nhỏ của từng nhóm việc trong một buổi: quan trọng (đỏ), phải làm, có tiền, thích làm */
+.sub-h{display:flex;align-items:baseline;gap:6px;padding:0 4px;font-size:13px;font-weight:600;line-height:1.4;color:var(--muted)}
+.sub-h i{font-style:normal;font-weight:400}
+.sub-h i.full{color:var(--good);font-weight:600}
+.sub-h.imp{color:var(--bad)}
+.sub-h.imp i:not(.full){color:var(--muted)}
+.slot-list+.sub-h,.big-list+.sub-h{margin-top:8px}
+.km:not(.plain) .sub-h{font-size:15px;padding:0 6px}
 .slot-blank{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:58px;padding:8px 10px 8px 16px;border:1.5px dashed var(--ring);border-radius:var(--r);background:none;color:var(--muted);font-size:15px;font-weight:400;text-align:left}
 .slot-blank .gl{box-sizing:content-box;padding:9px;border-radius:50%;background:var(--fill)}
 .slot-blank:active{background:var(--fill)}
@@ -601,9 +609,6 @@ a.item{color:var(--ink)}
 .preset .muted{font-size:12px;line-height:1.3}
 .delta{font-family:var(--display);font-size:15px;font-weight:600;white-space:nowrap}
 /* thành tích chờ duyệt: số tiền còn mờ vì chưa được cộng */
-/* nhãn việc quan trọng */
-.imp{display:inline-block;padding:0 8px;border-radius:99px;background:var(--bad-soft);color:var(--bad);font-size:12px;font-weight:600;line-height:1.6;vertical-align:1px}
-.big-item .imp{font-size:13px}
 .delta.wait{color:var(--muted);font-weight:500}
 .item .acts.col{flex-direction:column;align-items:flex-end;gap:0}
 .hist .acts{flex-direction:column;align-items:flex-end;gap:0}

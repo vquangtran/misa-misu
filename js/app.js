@@ -215,7 +215,7 @@ const pricesList = kind => Object.entries(S.rewards).map(([id, r]) => ({ id, ...
 //   perWeek: số lần mỗi tuần (ngày nào trong `days` cũng được), steps: [danh sách con],
 //   variants: [nội dung xen kẽ], shared: true = việc chung, một con đánh dấu là tính cho cả nhà,
 //   prep: true = chỉ hiện vào hôm trước ngày con có buổi học thêm (chuẩn bị sách vở, nộp bài tập), prep: 'school' = chỉ hiện vào hôm trước ngày con đi học,
-//   imp: true = việc quan trọng, có nhãn Quan trọng ở màn Hôm nay và màn của con,
+//   imp: true = việc quan trọng, xếp vào nhóm Việc quan trọng ở đầu mỗi buổi (màn Hôm nay và màn của con),
 //   claim: true = ai làm trước thì tính: một con làm thì con kia không phải làm nữa, cùng làm thì tính cả hai và chia đều tiền }
 const isFun = c => c.kind === 'fun';
 const isExtra = c => c.kind === 'extra';
@@ -748,18 +748,40 @@ const slotOpenDefault = (g, cur, full, nd, hasFun) => g.extra ? nd > 0 : cur && 
 // Buổi đã qua trong hôm nay mà còn việc phải làm chưa xong: vẫn thu gọn, nhưng số việc trên nhãn tô đỏ để nhắc.
 const slotMissed = (g, cur, full, n) => !!cur && !g.extra && !!g.id && n > 0 && !full && SLOTS.findIndex(x => x[0] === g.id) < SLOTS.findIndex(x => x[0] === cur);
 const choreSlot = c => toMin(c.time) !== null ? slotAt(toMin(c.time)) : (c.slot || '');
+// Trong mỗi buổi, việc chia thành từng nhóm riêng, theo thứ tự: mốc giờ (vào học, tan học, học thêm), việc quan trọng,
+// việc phải làm (bắt buộc, tính vào tiến độ ngày và thưởng làm đủ việc), việc có tiền (không bắt buộc, làm lần nào cộng tiền lần đó), việc thích làm.
+const SECS = ['mark', 'imp', 'must', 'paid', 'fun'];
+const SEC_LABEL = { imp: 'Việc quan trọng', must: 'Việc phải làm', paid: 'Việc có tiền', fun: 'Việc thích làm' };
+// Việc đã xong với con này: con đã làm, hoặc việc "ai làm trước thì tính" đã có con khác làm.
+const choreOk = (c, kidId, d) => isDone(d, kidId, c.id) || takenBy(c, kidId, d).length > 0;
+// Tiêu đề nhỏ của một nhóm trong buổi, kèm số việc đã xong.
+function subHead(sec, items, kidId, d) {
+  const n = items.filter(x => choreOk(x.c, kidId, d)).length, full = n === items.length;
+  return `<div class="sub-h ${sec}">${SEC_LABEL[sec]}${sec === 'fun' ? '' : `<i class="num ${full ? 'full' : ''}">${full ? '✓ ' : ''}${n}/${items.length}</i>`}</div>`;
+}
+// Các nhóm của một buổi: [{ sec, items }], bỏ nhóm trống. Việc làm thêm không chia nhóm.
+const slotSecs = g => g.extra ? [{ sec: 'extra', items: g.items }] : SECS.map(sec => ({ sec, items: g.items.filter(x => x.sec === sec) })).filter(x => x.items.length);
+// Con số trên nhãn của một buổi: chỉ đếm việc phải làm, việc có tiền không bắt buộc nên không tính vào.
+// Buổi chỉ có việc có tiền (và nhóm Việc làm thêm) thì ghi số việc, đã làm mấy việc thì ghi thêm ở trước.
+function slotCount(g, kidId, d) {
+  const ch = g.items.filter(x => x.type === 'chore' && !isFun(x.c)), ok = x => choreOk(x.c, kidId, d);
+  const mine = ch.filter(x => x.req), nd = mine.filter(ok).length, full = mine.length > 0 && nd === mine.length;
+  const opt = ch.filter(x => !x.req), no = opt.filter(ok).length;
+  return { n: mine.length, full, nd: g.extra ? no : nd, cnt: mine.length ? `${full ? '✓ ' : ''}${nd}/${mine.length}` : opt.length ? `${no ? `${no}/` : ''}${opt.length}` : '' };
+}
 // Ghép việc nhà, giờ ở trường và học thêm của một con trong ngày d, chia theo buổi.
 function dayPlan(kidId, d) {
   const all = choresFor(kidId, d), extras = all.filter(isExtra);
-  const items = all.filter(c => !isExtra(c)).map(c => ({ type: 'chore', c, t: toMin(c.time), slot: choreSlot(c) }));
+  const wk = key(weekStart(d));
+  const items = all.filter(c => !isExtra(c)).map(c => { const req = reqIn(c, kidId, wk); return { type: 'chore', c, t: toMin(c.time), slot: choreSlot(c), req, sec: isFun(c) ? 'fun' : c.imp ? 'imp' : req ? 'must' : 'paid' }; });
   const t = tkbOf(kidId), info = t && schoolOn(kidId, d);
   if (info) {
     items.push({ type: 'mark', t: toMin(info.start), icon: '🏫', text: `Vào học (${info.list.length} tiết)` });
     items.push({ type: 'mark', t: toMin(info.end), icon: '🏫', text: 'Tan học' });
   }
   for (const l of lessonsOn(kidId, d.getDay())) items.push({ type: 'lesson', l, t: toMin(l.s) });
-  for (const x of items) if (x.slot === undefined) x.slot = slotAt(x.t);
-  const rank = x => x.t ?? 24 * 60 + (x.type === 'chore' && isFun(x.c) ? 1 : 0);
+  for (const x of items) if (x.slot === undefined) { x.slot = slotAt(x.t); x.sec = 'mark'; }
+  const rank = x => SECS.indexOf(x.sec) * 10000 + (x.t ?? 24 * 60);
   const groups = SLOTS.map(([id, label, icon]) => ({ id, label, icon, items: items.filter(x => x.slot === id)
     .sort((a, b) => rank(a) - rank(b) || (a.c?.order ?? 0) - (b.c?.order ?? 0)) })).filter(g => g.items.length);
   // Việc thích làm mở khoá khi xong hết việc phải làm của buổi đó ("Lúc nào cũng được": của cả ngày).
@@ -785,7 +807,7 @@ function busyAt(kidId, d, m) {
 }
 function choreMeta(c, kidId, d, isToday) {
   const got = c.claim && isDone(d, kidId, c.id) ? doneVnd(S.done[key(d)]?.[kidId]?.[c.id]) : choreVnd(c);
-  const p = [c.imp ? '<b class="imp">Quan trọng</b>' : '', isFun(c) ? 'Việc thích làm' : isWeekly(c) ? '' : `<b class="earn">+${money(got)}</b>`].filter(Boolean);
+  const p = [isFun(c) || isWeekly(c) ? '' : `<b class="earn">+${money(got)}</b>`].filter(Boolean);
   if (toMin(c.time) !== null) p.push(`${c.by ? 'trước ' : ''}${esc(c.time)}`);
   if (Number(c.minutes)) p.push(`${Number(c.minutes)} phút`);
   const n = perWeekOf(c); if (n) p.push(`${weekCount(kidId, c, d)}/${n} lần tuần này`);
@@ -982,17 +1004,18 @@ function viewToday() {
   for (const g of groups) {
     // Mỗi buổi mở/đóng được, mặc định theo slotOpenDefault: hôm nay chỉ mở buổi đang diễn ra.
     const sk = `${key(d)}|${k.id}|${g.id}|${cur || ''}`, isNow = !g.extra && g.id && g.id === cur;
-    const mine = g.items.filter(x => x.type === 'chore' && !isFun(x.c)), nd = mine.filter(x => isDone(d, k.id, x.c.id) || takenBy(x.c, k.id, d).length).length;
-    const full = !g.extra && mine.length > 0 && nd === mine.length, hasFun = g.items.some(x => x.type === 'chore' && isFun(x.c));
-    const open = UI.slotOpen[sk] ?? slotOpenDefault(g, cur, full, nd, hasFun);
-    const cnt = g.extra ? `${nd ? `${nd}/` : ''}${g.items.length}` : mine.length ? `${full ? '✓ ' : ''}${nd}/${mine.length}` : g.blank ? '0' : '';
+    const sc = slotCount(g, k.id, d), full = sc.full, hasFun = g.items.some(x => x.type === 'chore' && isFun(x.c));
+    const open = UI.slotOpen[sk] ?? slotOpenDefault(g, cur, full, sc.nd, hasFun);
+    const cnt = sc.cnt || (g.blank ? '0' : '');
     const add = !canAdd ? '' : g.extra ? `<button class="mini-add" data-act="chore-form" data-kind="extra" aria-label="Thêm việc làm thêm">${PLUS}</button>`
       : `<button class="mini-add" data-act="quick-add" data-slot="${g.id}" aria-label="Thêm việc: ${g.label}">${PLUS}</button>`;
-    h += `<section class="slot s-${g.extra ? 'them' : g.id || 'any'} ${isNow ? 'now' : ''} ${full ? 'full' : ''}" data-slot="${sk}"><div class="slot-h"><button class="slot-pill" data-act="slot-toggle" data-slot="${sk}" aria-expanded="${!!open}">${g.icon}<span>${g.label}</span>${cnt ? `<i class="num ${slotMissed(g, cur, full, mine.length) ? 'late' : ''}">${cnt}</i>` : ''}${DOWN}</button>${isNow ? '<span class="nowpill">Bây giờ</span>' : ''}${g.blank && open ? '' : add}</div>`;
+    h += `<section class="slot s-${g.extra ? 'them' : g.id || 'any'} ${isNow ? 'now' : ''} ${full ? 'full' : ''}" data-slot="${sk}"><div class="slot-h"><button class="slot-pill" data-act="slot-toggle" data-slot="${sk}" aria-expanded="${!!open}">${g.icon}<span>${g.label}</span>${cnt ? `<i class="num ${slotMissed(g, cur, full, sc.n) ? 'late' : ''}">${cnt}</i>` : ''}${DOWN}</button>${isNow ? '<span class="nowpill">Bây giờ</span>' : ''}${g.blank && open ? '' : add}</div>`;
     if (open && g.blank) h += `<button class="slot-blank" data-act="quick-add" data-slot="${g.id}"><span>${SLOT_ASK[g.id]}</span>${PLUS}</button>`;
-    else if (open) {
+    else if (open) for (const part of slotSecs(g)) {
+      // Mỗi nhóm một thẻ riêng, có tiêu đề nhỏ ở trên (mốc giờ và việc làm thêm không cần tiêu đề).
+      if (SEC_LABEL[part.sec]) h += subHead(part.sec, part.items, k.id, d);
       h += `<div class="slot-list list">`;
-      for (const x of g.items) {
+      for (const x of part.items) {
         if (x.type !== 'chore') { h += markRow(x); continue; }
         const c = x.c, on = isDone(d, k.id, c.id), steps = stepsOf(c, k.id, d), mask = stepMask(d, k.id, c.id);
         const right = isFun(c) ? `<span class="fun-badge ${x.locked ? '' : 'open'}">${x.locked ? '🔒 Chưa mở' : 'Được làm'}</span>`
@@ -2434,12 +2457,10 @@ function drawKidMode() {
   // Mỗi buổi một nhãn màu như màn Hôm nay, chữ và nút to hơn. Chỉ buổi đang diễn ra mở sẵn (xem slotOpenDefault); bấm nhãn để mở buổi khác.
   const timeline = plan.map(g => {
     const sk = `km|${key(t)}|${k.id}|${g.id}|${cur}`, isNow = !g.extra && g.id && g.id === cur;
-    const mine = g.items.filter(x => x.type === 'chore' && !isFun(x.c)), nd = mine.filter(x => isDone(t, k.id, x.c.id) || takenBy(x.c, k.id, t).length).length;
-    const full = !g.extra && mine.length > 0 && nd === mine.length, hasFun = g.items.some(x => x.type === 'chore' && isFun(x.c));
-    const open = UI.slotOpen[sk] ?? slotOpenDefault(g, cur, full, nd, hasFun);
-    const cnt = g.extra ? `${nd ? `${nd}/` : ''}${g.items.length}` : mine.length ? `${full ? '✓ ' : ''}${nd}/${mine.length}` : '';
-    return `<section class="slot s-${g.extra ? 'them' : g.id || 'any'} ${full ? 'full' : ''}" data-slot="${sk}"><div class="slot-h"><button class="slot-pill" data-act="slot-toggle" data-slot="${sk}" aria-expanded="${!!open}">${g.icon}<span>${g.label}</span>${cnt ? `<i class="num ${slotMissed(g, cur, full, mine.length) ? 'late' : ''}">${cnt}</i>` : ''}${DOWN}</button>${isNow ? '<span class="nowpill">Bây giờ</span>' : ''}</div>
-      ${open ? `<div class="big-list">${g.items.map(x => x.type === 'chore' ? bigChore(x, g) : markRow(x, true)).join('')}</div>` : ''}</section>`;
+    const sc = slotCount(g, k.id, t), full = sc.full, cnt = sc.cnt, hasFun = g.items.some(x => x.type === 'chore' && isFun(x.c));
+    const open = UI.slotOpen[sk] ?? slotOpenDefault(g, cur, full, sc.nd, hasFun);
+    return `<section class="slot s-${g.extra ? 'them' : g.id || 'any'} ${full ? 'full' : ''}" data-slot="${sk}"><div class="slot-h"><button class="slot-pill" data-act="slot-toggle" data-slot="${sk}" aria-expanded="${!!open}">${g.icon}<span>${g.label}</span>${cnt ? `<i class="num ${slotMissed(g, cur, full, sc.n) ? 'late' : ''}">${cnt}</i>` : ''}${DOWN}</button>${isNow ? '<span class="nowpill">Bây giờ</span>' : ''}</div>
+      ${open ? slotSecs(g).map(part => `${SEC_LABEL[part.sec] ? subHead(part.sec, part.items, k.id, t) : ''}<div class="big-list">${part.items.map(x => x.type === 'chore' ? bigChore(x, g) : markRow(x, true)).join('')}</div>`).join('') : ''}</section>`;
   }).join('');
   const stk = streakOf(k.id), left = list.length - n;
   const wst = weekStats(k, weekStart(t)), wb = weekBonusOf(k);
@@ -2635,7 +2656,7 @@ function choreForm(id, kindPre, pre) {
     <div class="fr">${toggle('cby', 'Phải xong trước giờ này <span class="fs">Ví dụ: tắm trước 19:00, quá giờ thì app báo</span>', c?.by)}</div>
     ${frow('Làm trong bao lâu', `<div class="pillnum"><input id="cmin" class="num" type="number" min="0" max="600" step="5" inputmode="numeric" value="${Number(c?.minutes) || ''}" placeholder="0"><span>phút</span></div>`, { id: 'cmin' })}
     ${frow('Số lần mỗi tuần', pillSel('cpw', [0, 1, 2, 3, 4, 5, 6].map(n => [n, n ? `${n} lần mỗi tuần` : 'Mọi ngày đã chọn']), pw), { id: 'cpw', sub: 'Ví dụ: chạy bộ 3 buổi, ngày nào cũng được' })}
-    <div class="fr">${toggle('cimp', 'Việc quan trọng <span class="fs">Gắn nhãn Quan trọng ở màn Hôm nay và màn của con</span>', c?.imp)}</div>
+    <div class="fr">${toggle('cimp', 'Việc quan trọng <span class="fs">Xếp vào nhóm Việc quan trọng, nằm đầu mỗi buổi ở màn Hôm nay và màn của con</span>', c?.imp)}</div>
     <div class="fr">${toggle('cprep', 'Chỉ khi hôm sau có học thêm <span class="fs">Chỉ hiện vào hôm trước ngày con có buổi học thêm: chuẩn bị sách vở, nộp bài tập</span>', c?.prep && c.prep !== 'school')}</div>
     <div class="fr">${toggle('cprepsch', 'Chỉ khi hôm sau đi học <span class="fs">Chỉ hiện vào hôm trước ngày con đi học, theo thời khoá biểu và ngày nghỉ</span>', c?.prep === 'school')}</div>
     <div class="fr">${toggle('cclaim', 'Ai làm trước thì tính <span class="fs">Một con làm thì con kia không phải làm nữa. Cùng làm thì tính cả hai, chia đều tiền</span>', c?.claim)}</div>
