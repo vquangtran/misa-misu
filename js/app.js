@@ -1618,24 +1618,25 @@ const delFiles = (code, files) => { for (const f of cleanFiles(files)) Promise.r
 // mode 'edit': màn của cô, bấm vào dòng để sửa. mode 'view': bố mẹ xem, bài tập bấm để mở chi tiết.
 function hwLine(code, t, mode) {
   const st = hwState(t);
-  return `<div class="hw-line"><span class="hw-t">📝 ${esc(t.title)}</span> <span class="hw-st ${st.k}">${esc(st.txt)}</span>${t.review ? `<div class="hw-rv">${esc(t.review)}</div>` : ''}</div>`;
+  return `<div class="hw-line"><span class="hw-t">📝 ${esc(t.title)}</span> <span class="hw-st ${t.got && t.chk ? { ok: 'got', wait: 'done', owe: 'late' }[chkKind(t.chk)] : st.k}">${esc(st.txt)}</span>${t.review ? `<div class="hw-rv">${esc(t.review)}</div>` : ''}</div>`;
 }
 function sessRow(code, s, hws, mode) {
   const edit = mode === 'edit';
   const body = [s.content ? `<div class="s so-p">${esc(s.content)}</div>` : '', s.src ? `<div class="s"><b>Sách, nguồn:</b> ${esc(s.src)}</div>` : '',
     s.note ? `<div class="s so-p cmt"><b>Nhận xét:</b> ${esc(s.note)}</div>` : '', s.next ? `<div class="s"><b>Buổi sau:</b> ${esc(s.next)}</div>` : ''].join('');
-  return `<div class="item sess ${s.state === 'plan' ? 'plan' : ''}"><span class="ico">${s.state === 'plan' ? '🗓️' : '📖'}</span><div class="txt"><div class="t">Buổi ${s.no} · ${esc(sessName(s))}</div><div class="s">${esc(sessMeta(s))}</div>
+  return `<div class="item sess ${s.state === 'plan' ? 'plan' : ''} ${edit ? 'tap' : ''}" ${edit ? `data-act="sess-view" data-id="${s.id}" role="button" tabindex="0"` : ''}><span class="ico">${s.state === 'plan' ? '🗓️' : '📖'}</span><div class="txt"><div class="t">Buổi ${s.no} · ${esc(sessName(s))}</div><div class="s">${esc(sessMeta(s))}</div>
     ${body}${hws.map(t => hwLine(code, t, mode)).join('')}${attView(code, s.files, s.links)}</div>
-    ${edit || s.state === 'plan' ? `<div class="acts">${s.state === 'plan' ? '<span class="badge wait">Chưa học</span>' : ''}${edit ? `<button class="edit" data-act="sess-form" data-id="${s.id}" aria-label="Sửa buổi ${s.no}">${CHEV}</button>` : ''}</div>` : ''}</div>`;
+    ${edit || s.state === 'plan' ? `<div class="acts">${s.state === 'plan' ? '<span class="badge wait">Chưa học</span>' : ''}${edit ? `<span class="edit" aria-hidden="true">${CHEV}</span>` : ''}</div>` : ''}</div>`;
 }
 const HW_BADGE = { got: 'ok', done: 'wait', late: 'owe', open: '' };
+const hwBadgeHtml = t => { const st = hwState(t); return `<span class="badge ${st.k === 'got' && t.chk ? chkKind(t.chk) : HW_BADGE[st.k]}">${esc(st.k === 'got' ? (t.chk ? CHK[t.chk] : 'Cô đã nhận') + (t.score ? ' · ' + t.score : '') : st.k === 'done' ? 'Chờ cô nhận' : st.k === 'late' ? st.txt : 'Đang làm')}</span>`; };
 function hwRow(code, t, d, mode) {
   const st = hwState(t), s = t.session ? sessList(d).find(x => x.id === t.session) : null, nd = t.steps.filter(x => x.done).length;
   const meta = [t.due ? `hạn ${dm(parse(t.due))}` : 'chưa có hạn', s ? `buổi ${s.no}` : '', t.steps.length ? `${nd}/${t.steps.length} bước` : ''].filter(Boolean).join(' · ');
   const act = mode === 'edit' ? `data-act="hw-form" data-id="${t.id}"` : `data-act="hw-view" data-id="L~${code}~${t.id}"`;
   return `<div class="item sess"><span class="ico">📝</span><div class="txt"><div class="t">${esc(t.title)}</div><div class="s">${meta}</div>${t.notes ? `<div class="s snip">${esc(String(t.notes).slice(0, 160))}</div>` : ''}
     ${t.review ? `<div class="s cmt"><b>Nhận xét bài làm:</b> ${esc(t.review)}</div>` : ''}${attView(code, t.files, t.links)}</div>
-    <div class="acts"><span class="badge ${st.k === 'got' && t.chk ? chkKind(t.chk) : HW_BADGE[st.k]}">${esc(st.k === 'got' ? (t.chk ? CHK[t.chk] : 'Cô đã nhận') + (t.score ? ' · ' + t.score : '') : st.k === 'done' ? 'Chờ cô nhận' : st.k === 'late' ? st.txt : 'Đang làm')}</span><button class="edit" ${act} aria-label="${mode === 'edit' ? 'Sửa' : 'Xem'}: ${esc(t.title)}">${CHEV}</button></div></div>`;
+    <div class="acts">${hwBadgeHtml(t)}<button class="edit" ${act} aria-label="${mode === 'edit' ? 'Sửa' : 'Xem'}: ${esc(t.title)}">${CHEV}</button></div></div>`;
 }
 const sessMonths = ss => [...new Set(ss.map(s => (s.date || '').slice(0, 7)))].sort().reverse();
 function soStats(d) {
@@ -1691,10 +1692,32 @@ const soTiles = (st, f, d) => { const cur = soFees(d, f).find(r => r.mk === key(
     <div class="stat"><b class="stat-n num ${st.hw.length && st.got === st.hw.length ? 'plus' : ''}">${st.got}/${st.hw.length}</b><span class="cap">Bài tập cô đã nhận</span>
       ${st.hw.length ? `${barCount(st.got, st.hw.length)}<span class="stat-c">${[st.wait ? `${st.wait} bài chờ cô nhận` : '', st.open ? `${st.open} bài đang làm` : ''].filter(Boolean).join(' · ') || 'Đã nhận hết'}</span>` : '<span class="stat-c">Chưa giao bài tập</span>'}</div></section>`; };
 // Các buổi theo tháng, tháng mới nhất ở trên, mỗi tháng đếm số buổi đã học (để tính học phí).
+// Màn của cô (edit): buổi ghi trước (Chưa học) gom vào mục Sắp tới; các tháng đã qua gập lại, chỉ mở sẵn tháng mới nhất. Bấm vào buổi để xem chi tiết.
 function soMonths(code, d, mode) {
-  const ss = sessList(d).filter(s => mode === 'edit' || s.state !== 'plan'), hws = hwList(d);
-  return sessMonths(ss).map(mk => { const l = ss.filter(s => (s.date || '').slice(0, 7) === mk).reverse(), n = l.filter(s => s.state !== 'plan').length;
-    return `<section class="slot">${secHead('', monthTxt(mk), { cnt: mk ? `${n} buổi` : l.length })}<div class="slot-list list">${l.map(s => sessRow(code, s, hws.filter(t => t.session === s.id), mode)).join('')}</div></section>`; }).join('');
+  const all = sessList(d), hws = hwList(d), edit = mode === 'edit', ss = all.filter(s => s.state !== 'plan'), plan = edit ? all.filter(s => s.state === 'plan') : [];
+  const row = s => sessRow(code, s, hws.filter(t => t.session === s.id), mode), months = sessMonths(ss);
+  return (plan.length ? `<section class="slot tn0">${secHead('🗓️', 'Sắp tới', { cnt: plan.length })}<div class="slot-list list">${plan.map(row).join('')}</div></section>` : '')
+    + months.map((mk, i) => { const l = ss.filter(s => (s.date || '').slice(0, 7) === mk).reverse(), key = edit ? 'so-m-' + (mk || 'none') : '';
+      return `<section class="slot">${secHead('', monthTxt(mk), { cnt: `${l.length} buổi`, key, closed: i > 0 })}${secIsOpen(key, i > 0) ? `<div class="slot-list list">${l.map(row).join('')}</div>` : ''}</section>`; }).join('');
+}
+// Chi tiết một buổi (màn của cô, chỉ xem): mọi thứ cô đã ghi, bài giao trong buổi và kết quả bài tập buổi trước cô đã tick. Có nút Sửa.
+function sessView(id) {
+  const d = soOf(TEACH), s = sessList(d).find(x => x.id === id); if (!s) return;
+  const hws = hwList(d), mine = hws.filter(t => t.session === id), chk = hws.filter(t => t.chkBy === id);
+  const para = (label, v) => v ? `<div class="fg">${frow(label, `<div class="so-p">${esc(v)}</div>`, { cls: 'col' })}</div>` : '';
+  const hwItem = t => `<div class="item"><span class="ico">📝</span><div class="txt"><div class="t">${esc(t.title)}</div><div class="s">${esc([t.due ? `hạn ${dm(parse(t.due))}` : '', t.steps.length ? `${t.steps.filter(x => x.done).length}/${t.steps.length} bước` : ''].filter(Boolean).join(' · '))}</div>${t.review ? `<div class="s cmt"><b>Nhận xét bài làm:</b> ${esc(t.review)}</div>` : ''}${attView(TEACH, t.files, t.links)}</div><div class="acts">${hwBadgeHtml(t)}</div></div>`;
+  openModal(`<h2>Buổi ${s.no}</h2>
+  <div class="fg f-title"><div class="ft"><div class="hw-title">${esc(s.topic || sessDayTitle(s.date))}</div></div></div>
+  <div class="fg">${frow('Ngày học', `<span class="fv-val">${esc(s.date ? dateTxt(s.date) : 'Chưa có ngày')}</span>`)}
+    ${frow('Trạng thái', `<span class="fv-val">${s.state === 'plan' ? '<span class="badge wait">Chưa học</span>' : 'Đã học'}</span>`)}
+    ${s.mode ? frow('Hình thức', `<span class="fv-val">${esc((SESS_MODES.find(x => x[0] === s.mode) || [])[1] || '')}</span>`) : ''}
+    ${Number(s.mins) ? frow('Thời lượng', `<span class="fv-val">${esc(durTxt(Number(s.mins)))}</span>`) : ''}</div>
+  ${para('Nội dung học', s.content)}${para('Nhận xét học sinh', s.note)}
+  ${mine.length ? `<p class="fg-cap">Bài tập về nhà</p><div class="slot-list list">${mine.map(hwItem).join('')}</div>` : ''}
+  ${chk.length ? `<p class="fg-cap">Bài tập buổi trước</p><div class="slot-list list">${chk.map(hwItem).join('')}</div>` : ''}
+  ${para('Sách, nguồn tham khảo', s.src)}${para('Mục tiêu buổi sau', s.next)}
+  ${attView(TEACH, s.files, s.links) ? `<div class="fg">${frow('Slide, tài liệu', attView(TEACH, s.files, s.links), { cls: 'col', sub: 'Bấm để mở' })}</div>` : ''}
+  <div class="foot"><button class="btn quiet" data-act="close">Đóng</button><button class="btn primary" data-act="sess-form" data-id="${s.id}">Sửa</button></div>`);
 }
 function printSo(code, title, student, teacher, f) {
   const d = soOf(code), fees = soFees(d, f).reverse(), paid = paidOf(d), ss = sessList(d).filter(s => s.state !== 'plan' && s.date), hws = hwList(d), free = hws.filter(t => !ss.some(s => s.id === t.session));
@@ -2471,7 +2494,7 @@ const kidLink = id => inviteLink() + '&con=' + encodeURIComponent(id);
 const KID_ACTS = new Set(['close', 'tick', 'step', 'slot-toggle', 'task-done', 'task-step', 'role-kid', 'role-kid-ok', 'role-parent', 'pin-ok',
   'tkb-go', 'learn-tab', 'tkb-day', 'ag-day', 'ag-week', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel', 'fun-form', 'fun-ask', 'fun-cancel', 'num-step', 'km-acct', 'task-form', 'task-save', 'task-del', 'task-subj', 'task-due', 'hw-view', 'file-open']);
 // Việc màn của cô được làm: chỉ những gì thuộc sổ học.
-const TEACH_ACTS = new Set(['close', 't-tab', 'sess-form', 'sess-save', 'hw-row-add', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'att-del', 'so-print', 'sec-toggle', 'num-step', 'bank-form', 'bank-save']);
+const TEACH_ACTS = new Set(['close', 't-tab', 'sess-form', 'sess-view', 'sess-save', 'hw-row-add', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'att-del', 'so-print', 'sec-toggle', 'num-step', 'bank-form', 'bank-save']);
 function kidMay(a, b) {
   const r = deviceRole(); if (r === 'parent') return true;
   if (!KID_ACTS.has(a)) return false;
@@ -3283,6 +3306,7 @@ document.addEventListener('click', e => {
     if (b.dataset.hw) return hwForm(b.dataset.hw === 'new' ? newIds[0] || hwList(soOf(TEACH)).find(t => t.session === sid)?.id : b.dataset.hw, sid);
     return toast(hwLines.length ? `Đã lưu buổi học và giao ${hwLines.length} bài${due ? `, hạn nộp ${dueLabel(due)}` : ''}.` : 'Đã lưu buổi học.');
   }
+  if (a === 'sess-view') return sessView(id);
   if (a === 'hw-row-add') {
     const box = $('#shw-list'); if (!box) return;
     const n = Number(box.dataset.base || 0) + box.querySelectorAll('.hw-in').length + 1; if (n > 10) return toast('Mỗi buổi giao tối đa 10 nhiệm vụ.');
