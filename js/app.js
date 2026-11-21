@@ -755,7 +755,7 @@ function choreMeta(c, kidId, d, isToday) {
   if (c.prep) { const ls = lessonsOn(kidId, addDays(d, 1).getDay()).map(l => esc(l.name)).filter(Boolean); if (ls.length) p.push(`${isToday ? 'mai' : 'hôm sau'} học ${ls.join(', ')}`); }
   if (c.claim && (c.kids || []).length > 1) {
     const mine = isDone(d, kidId, c.id), others = claimers(c, d).filter(x => x !== kidId).map(kidName).map(esc).join(', ');
-    p.push(others ? (mine ? `🙌 làm cùng ${others}${choreVnd(c) ? ', chia đều tiền' : ''}` : `🙋 ${others} đã làm${choreVnd(c) ? ' · làm cùng thì chia đều tiền' : ''}`) : mine ? '' : '🙋 ai làm trước thì tính');
+    p.push(others ? (mine ? `🙌 làm cùng ${others}${choreVnd(c) ? ', chia đều tiền' : ''}` : `🙋 ${others} đã làm${choreVnd(c) ? ' · làm cùng thì chia đều tiền' : ''}`) : mine ? '' : 'ai làm trước thì tính');
   }
   const v = variantOf(c, kidId, d); if (v) p.push(`hôm nay: <b>${esc(v)}</b>`);
   if (isToday && c.by && !isDone(d, kidId, c.id) && toMin(c.time) !== null && nowMin() > toMin(c.time)) p.push('<span class="late">⏰ quá giờ</span>');
@@ -2824,7 +2824,7 @@ function keepFamilyInUrl() {
   if (!ios || !link) return;
   const base = location.origin + location.pathname.replace(/[^/]*$/, '');
   const m = { name: 'Misa Misu', short_name: 'Misa Misu', lang: 'vi', start_url: url, scope: base, display: 'standalone',
-    background_color: '#FFF6E6', theme_color: '#FFF6E6',
+    background_color: '#F5F4F0', theme_color: '#F5F4F0',
     icons: [{ src: base + 'icons/icon-192.png', sizes: '192x192', type: 'image/png' }, { src: base + 'icons/icon-512.png', sizes: '512x512', type: 'image/png' }] };
   link.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(m));
 }
