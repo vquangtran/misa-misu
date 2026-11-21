@@ -11,6 +11,7 @@ Lịch học, việc nhà và tiền tiêu vặt cho các con, bằng tiếng Vi
 - **Mốc năm học:** khai giảng, các đợt kiểm tra, nghỉ Tết, họp phụ huynh, bế giảng; một ngày hoặc nhiều ngày, của một con hay cả nhà. Có sẵn khung thời gian năm học 2026 – 2027 (khối 4, Hà Nội). Màn Hôm nay nhắc trước (kiểm tra trước 14 ngày, các mốc khác 7 ngày); những ngày nghỉ học thì app không báo giờ ở trường mà nhắc soạn cặp cho ngày đi học lại.
 - **Các con ở đâu:** mỗi thứ trong tuần, ban ngày và buổi tối các con ở nhà nào (nhà bố, 6th Element, nhà ông bà...). Màn Hôm nay báo các con đang ở đâu ("📍 Đang ở 6th Element · tối nay về nhà ông bà"); dữ liệu cũ ghi "Nhà mẹ" được hiện là 6th Element và cho con thấy trong chế độ cho bé.
 - **Học thêm:** các buổi học thêm, gia sư, thể thao của từng con theo ngày trong tuần, ghi học ở đâu, học ngay tại nhà con đang ở hay phải đưa đón, ai đưa đi và ai đón về (Bố, Mẹ, Grab, tự đi...). Mục **Cả nhà** xếp lịch đưa đón theo từng ngày, đếm số chuyến mỗi tuần của từng người, và cảnh báo khi một buổi chưa có người đưa/đón hoặc một người có hai chuyến cách nhau dưới 20 phút.
+- **Sổ học của cô:** mỗi cô dạy thêm có một sổ riêng cho một con, một môn, thay cho file Excel theo dõi tiến độ. Bố mẹ vào *Học tập → Học thêm → Sổ học của cô*, bấm + (hoặc bấm nút gợi ý theo buổi học thêm đã ghi), gõ môn và tên cô rồi Lưu; app tạo một *link riêng cho cô*, gửi qua Zalo. Cô mở link là vào thẳng màn của cô, không cần đăng ký hay mật khẩu, gồm ba tab. *Buổi học*: ghi từng buổi (học gì, ngày, Offline hay Online, thời lượng, nội dung, sách tham khảo, nhận xét học sinh, mục tiêu buổi sau, slide và tài liệu), xếp theo tháng, mỗi tháng đếm số buổi; buổi chưa dạy ghi trước được ở trạng thái *Chưa học (kế hoạch)*. *Bài tập*: giao bài kèm hạn nộp (mặc định là buổi học tới theo lịch học thêm của môn đó), hướng dẫn, các bước, *file đính kèm* (phiếu bài tập, ảnh chụp đề; mỗi file tối đa 8 MB, ảnh tự thu nhỏ) và link Canva, Google Drive; sau đó cô đánh dấu *Đã nhận bài*, cho điểm và ghi nhận xét bài làm. *Báo cáo*: số buổi đã học, số buổi trong tháng, bài tập đã nhận, toàn bộ nội dung theo tháng, in ra được thành bảng. Bài cô giao *tự hiện ở phần của con*: tab Bài tập (ghi rõ cô nào giao, kèm số file), mục Bài cần nộp ở màn Hôm nay, và thẻ *Cô mới giao bài* trên máy của con trong hai ngày đầu. Con bấm vào bài để xem cô dặn gì, mở file, rồi tick xong; cô thấy ngay *con báo đã xong*. Cô nhận bài và cho điểm thì bài chuyển sang Đã xong kèm điểm và nhận xét. Bố mẹ bấm vào sổ để xem báo cáo của cô, lấy lại link, in, sửa hoặc xoá sổ; hôm cô ghi nhận xét thì màn Hôm nay có một dòng báo. Nhận xét học sinh của từng buổi chỉ bố mẹ đọc được, máy của con không hiện; điểm và nhận xét bài làm thì con cũng thấy. Bài cô giao chỉ cô sửa, xoá được.
 - **Cả tuần:** ở màn Hôm nay bấm ⋯ rồi chọn *Xem cả tuần* để xem bảng lưới: mỗi việc một dòng, mỗi ngày một cột, bấm ô để đánh dấu. Có dòng ⭐ ngày đủ việc, đếm số lần từng việc và còn bao nhiêu việc nữa là đủ thưởng tuần. Nút *In kế hoạch tuần* nằm ở đây, trong menu ⋯ và ở mục Gia đình. Menu ⋯ cũng là chỗ mở *Chế độ cho bé*.
 - **Kế hoạch tuần (in):** mỗi con một trang A4 mang tên con: việc theo buổi sáng, chiều, tối; lưới ô đánh dấu từng ngày; lịch tuần (kiểm tra, giờ ở trường, học thêm, bài phải nộp); việc làm thêm có tiền; mục tiêu tiết kiệm với các đồng xu để tô; chỗ ghi chú. In được tuần này hoặc tuần sau.
 - **Dải tuần và chuỗi ngày:** đầu màn Hôm nay có dải 7 ngày của con đang xem (✓ làm đủ, ✕ còn thiếu, vòng tiến độ cho hôm nay), bấm để xem ngày đó. Sang tuần khác: vuốt ngang trên điện thoại, bấm mũi tên trên máy tính, hoặc bấm vào ngày tháng ở góc phải để chọn ngày bất kỳ. Mỗi con có chuỗi 🔥 số ngày liên tiếp làm đủ việc phải làm (ngày dùng phiếu nghỉ hoặc không có việc thì không làm đứt chuỗi).
@@ -42,10 +43,10 @@ App là web tĩnh, không cần bước build: HTML, CSS và JavaScript thuần.
 | --- | --- |
 | `index.html` | Khung trang |
 | `styles.css` | Giao diện: cách dùng theo thói quen iOS, diện mạo nền trung tính với thẻ trắng phẳng. Màu nằm trong `:root` (nâu vàng `--accent` là màu nhấn duy nhất, xanh lá = đã xong, đỏ = bị trừ, vàng `--star` = ngôi sao), có chế độ tối |
-| `js/app.js` | Toàn bộ màn hình và thao tác |
+| `js/app.js` | Toàn bộ màn hình và thao tác, kể cả màn của cô (mở bằng `?lop=<mã lớp>`) |
 | `js/avatars.js` | Hình đại diện vẽ bằng SVG: bộ gà, bộ ngựa |
 | `js/icons.js` | Bộ biểu tượng 3D vẽ bằng SVG (khoảng 120 hình) và phần tự thay emoji bằng hình vẽ. Thêm hình mới: vẽ trong `I`, khai emoji tương ứng trong `MAP` |
-| `js/store.js` | Lưu dữ liệu: trên máy (localStorage) hoặc Firebase |
+| `js/store.js` | Lưu dữ liệu: trên máy (localStorage) hoặc Firebase; nhánh riêng cho sổ học của từng cô và file đính kèm |
 | `js/config.js` | Cấu hình Firebase |
 | `firestore.rules` | Quy tắc bảo vệ dữ liệu trên Firestore |
 | `data/gia-dinh.enc.json` | Lịch gia đình lưu sẵn, đã mã hoá |
@@ -86,6 +87,10 @@ Khi `js/config.js` để `null`, dữ liệu chỉ lưu trên trình duyệt c�
 ### Về bảo mật
 
 Mỗi gia đình có một mã ngẫu nhiên 23 ký tự, nằm trong link mời. Ai có link thì xem và sửa được bảng của nhà mình, nên chỉ gửi link cho người trong nhà. Tên, ngày sinh và dữ liệu của các con nằm trên Firestore, không nằm trong mã nguồn.
+
+Sổ học của cô nằm ở một nhánh riêng trên Firestore (`families/lop-<mã lớp>/...`), mỗi sổ một mã ngẫu nhiên 23 ký tự khác với mã gia đình. Link của cô chỉ chứa mã lớp, nên máy của cô chỉ đọc và ghi được sổ của lớp đó: không thấy việc nhà, tiền, lịch hay sổ của cô khác. Máy của nhà giữ mã các lớp (trong nhóm `paid`) nên đọc được sổ. Link của cô là chìa khoá của sổ: ai có link đều ghi được vào sổ, nên chỉ gửi cho đúng cô. Muốn thu lại quyền thì xoá sổ (nội dung sổ và file bị xoá theo) rồi tạo sổ mới. Nhánh lớp dùng lại tên các nhóm đã có trong `firestore.rules`, nên thêm phần này không phải dán lại Rules.
+
+File cô đính kèm lưu ngay trong Firestore (cắt thành khúc 900 KB, chỉ tải khi mở), không cần bật Firebase Storage. Gói miễn phí của Firestore có 1 GB lưu trữ; file lớn hoặc video thì nên dán link Google Drive. Khi xem, chỉ ảnh và PDF được mở ngay trong trình duyệt, loại file khác chỉ cho tải về.
 
 ## Từ sao sang tiền
 

@@ -3,6 +3,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Mỗi gia đình là một nhánh families/<mã gia đình>/...
     // Ai có mã gia đình (23 ký tự ngẫu nhiên) thì đọc/ghi được nhánh đó.
+    // Sổ học của cô dạy thêm cũng là một nhánh kiểu này: families/lop-<mã lớp>/..., dùng các nhóm kids, events, tasks, paid.
+    // Cô chỉ có mã lớp nên chỉ đọc/ghi được sổ của lớp đó, không vào được nhánh của gia đình.
     match /families/{family}/{col}/{id} {
       allow read, write: if request.auth != null
         && family.size() >= 20

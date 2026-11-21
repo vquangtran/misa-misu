@@ -22,6 +22,8 @@
 //   tasks    bài tập        { kid, title, kind: bt|on|da, subj, due, notes, steps: [{ t, done }], done, doneAt, by: mã của con nếu con tự thêm từ màn của con }
 //   goals    mục tiêu tiết kiệm { kid, name, icon, price (đồng), order, done, doneAt }
 //   events   mốc năm học    { name, icon, kind: exam|holiday|meeting|event, from, to, kids: [] = cả nhà }
+//   Sổ học của cô: danh sách lớp của nhà nằm trong nhóm `paid`, id "lop-<mã>": { lop: 1, kid, name (môn), teacher, code (mã lớp), at }.
+//   Nội dung sổ (buổi học, bài cô giao, file đính kèm) nằm ở một nhánh riêng cho từng lớp, xem classStore ở cuối file.
 
 export const COLS = ['kids', 'chores', 'rewards', 'done', 'ledger', 'paid', 'timetables', 'lessons', 'stays', 'events', 'tasks', 'goals'];
 const FIREBASE_VERSION = '10.12.2';
@@ -55,23 +57,33 @@ export function localStore(onData) {
   };
 }
 
-export async function firebaseStore(config, family, onData, onStatus) {
-  const [{ initializeApp }, auth, fs] = await Promise.all([
-    import(FB + 'firebase-app.js'),
-    import(FB + 'firebase-auth.js'),
-    import(FB + 'firebase-firestore.js'),
-  ]);
-  const app = initializeApp(config);
-  await auth.signInAnonymously(auth.getAuth(app));
+// Firebase chỉ mở một lần, dùng chung cho nhánh của gia đình và các nhánh sổ học của cô.
+let fbReady = null;
+function fb(config) {
+  fbReady = fbReady || (async () => {
+    const [{ initializeApp }, auth, fs] = await Promise.all([
+      import(FB + 'firebase-app.js'),
+      import(FB + 'firebase-auth.js'),
+      import(FB + 'firebase-firestore.js'),
+    ]);
+    const app = initializeApp(config);
+    await auth.signInAnonymously(auth.getAuth(app));
+    let db;
+    try {
+      db = fs.initializeFirestore(app, {
+        localCache: fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }),
+      });
+    } catch (e) {
+      db = fs.getFirestore(app);
+    }
+    return { fs, db };
+  })();
+  fbReady.catch(() => { fbReady = null; });
+  return fbReady;
+}
 
-  let db;
-  try {
-    db = fs.initializeFirestore(app, {
-      localCache: fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }),
-    });
-  } catch (e) {
-    db = fs.getFirestore(app);
-  }
+export async function firebaseStore(config, family, onData, onStatus) {
+  const { fs, db } = await fb(config);
 
   const base = ['families', family];
   const S = empty();
@@ -113,5 +125,108 @@ export async function firebaseStore(config, family, onData, onStatus) {
         await b.commit();
       }
     },
+  };
+}
+
+// ---------- sổ học của cô ----------
+// Mỗi lớp (một cô, một con, một môn) là một nhánh riêng families/lop-<mã lớp>/..., tách khỏi nhánh của gia đình.
+// Cô chỉ có mã lớp (trong link riêng của cô) nên chỉ đọc/ghi được sổ của lớp đó: không thấy việc nhà, tiền hay
+// dữ liệu khác của gia đình. Máy của nhà biết mã lớp nên đọc được sổ và đưa bài cô giao vào phần Bài tập của con.
+// Nhánh lớp dùng lại tên các nhóm đã có trong Rules, nên không phải dán lại Rules:
+//   info     (lưu ở nhóm kids)    id "lop": { name (môn), teacher, student (tên con), days: [{ day, s, e }] lịch học thêm của môn này }
+//   sessions (lưu ở nhóm events)  buổi học { date, state: done|plan, mode: on|off, mins, topic, content, src, note (nhận xét), next (mục tiêu buổi sau),
+//                                 links: [url], files: [{ id, n, name, type, size }], at }
+//   tasks    (lưu ở nhóm tasks)   bài cô giao { title, notes, due, session (mã buổi), steps: [{ t, done }], links, files, at,
+//                                 done, doneAt: con báo đã làm xong; got, gotAt: cô đã nhận bài; score, review: điểm và nhận xét bài làm }
+//   file đính kèm (nhóm paid)     cắt thành khúc, id "<mã file>_<i>": { d: Bytes }. Không nghe thay đổi, chỉ tải khi mở file.
+export const CLASS_COLS = { info: 'kids', sessions: 'events', tasks: 'tasks' };
+const FILE_COL = 'paid';
+// Một tài liệu Firestore tối đa 1 MiB: mỗi khúc 900 KB.
+const CHUNK = 900 * 1024;
+const emptyClass = () => Object.fromEntries(Object.keys(CLASS_COLS).map(c => [c, {}]));
+const timeout = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(Object.assign(new Error('timeout'), { code: 'timeout' })), ms))]);
+
+export async function firebaseClass(config, code, onData, onStatus) {
+  const { fs, db } = await fb(config);
+  const base = ['families', code], names = Object.keys(CLASS_COLS);
+  const D = emptyClass(), got = new Set(), cached = new Set(), subs = [];
+  const ref = (col, id) => fs.doc(db, ...base, CLASS_COLS[col], id);
+  const part = (id, i) => fs.doc(db, ...base, FILE_COL, id + '_' + i);
+  const range = n => Array.from({ length: Math.max(1, Number(n) || 1) }, (_, i) => i);
+  return {
+    kind: 'firebase',
+    start() {
+      for (const col of names) {
+        subs.push(fs.onSnapshot(
+          fs.collection(db, ...base, CLASS_COLS[col]),
+          { includeMetadataChanges: true },
+          snap => {
+            D[col] = Object.fromEntries(snap.docs.map(d => [d.id, d.data()]));
+            got.add(col);
+            snap.metadata.fromCache ? cached.add(col) : cached.delete(col);
+            if (got.size === names.length) onData(D, { fromCache: cached.size > 0 });
+          },
+          err => {
+            got.add(col);
+            if (got.size === names.length) onData(D, { fromCache: true });
+            onStatus && onStatus(err);
+          },
+        ));
+      }
+    },
+    stop() { subs.splice(0).forEach(off => off()); },
+    put: (col, id, data) => fs.setDoc(ref(col, id), data),
+    // Chỉ ghi các trường được đưa vào, giữ nguyên phần còn lại: cô chấm bài và con tick xong không ghi đè lên nhau.
+    patch: (col, id, data) => fs.setDoc(ref(col, id), data, { merge: true }),
+    del: (col, id) => fs.deleteDoc(ref(col, id)),
+    // Tải file lên từng khúc, trả về số khúc. Phải có mạng: mỗi khúc chờ máy chủ nhận xong.
+    async putFile(id, u8, onProgress) {
+      const n = Math.max(1, Math.ceil(u8.length / CHUNK));
+      for (let i = 0; i < n; i++) {
+        await timeout(fs.setDoc(part(id, i), { d: fs.Bytes.fromUint8Array(u8.subarray(i * CHUNK, (i + 1) * CHUNK)) }), 60000);
+        onProgress && onProgress((i + 1) / n);
+      }
+      return n;
+    },
+    async getFile(id, n) {
+      const docs = await timeout(Promise.all(range(n).map(i => fs.getDoc(part(id, i)))), 60000);
+      if (docs.some(d => !d.exists())) throw Object.assign(new Error('missing'), { code: 'not-found' });
+      return docs.map(d => d.data().d.toUint8Array());
+    },
+    delFile: (id, n) => Promise.all(range(n).map(i => fs.deleteDoc(part(id, i)))),
+  };
+}
+
+// Sổ học lưu trên trình duyệt (khi app không bật Firebase): cô và nhà phải dùng chung một trình duyệt, chủ yếu để dùng thử.
+// Tab khác của cùng trình duyệt ghi gì thì tab này nhận được qua sự kiện storage.
+export function localClass(code, onData) {
+  const KEY = 'misa-misu-so:' + code, fkey = id => 'misa-misu-tep:' + code + ':' + id;
+  let D = emptyClass();
+  const load = () => {
+    D = emptyClass();
+    try { const j = JSON.parse(localStorage.getItem(KEY) || 'null'); if (j) for (const c of Object.keys(D)) D[c] = j[c] || {}; } catch (e) { /* bỏ qua dữ liệu hỏng */ }
+  };
+  const changed = () => { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) {} onData(D, { fromCache: false }); };
+  const onStorage = e => { if (e.key === KEY) { load(); onData(D, { fromCache: false }); } };
+  return {
+    kind: 'local',
+    start() { load(); window.addEventListener('storage', onStorage); onData(D, { fromCache: false }); },
+    stop() { window.removeEventListener('storage', onStorage); },
+    async put(col, id, data) { load(); D[col][id] = data; changed(); },
+    async patch(col, id, data) { load(); D[col][id] = { ...(D[col][id] || {}), ...data }; changed(); },
+    async del(col, id) { load(); delete D[col][id]; changed(); },
+    async putFile(id, u8, onProgress) {
+      let s = '';
+      for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+      try { localStorage.setItem(fkey(id), btoa(s)); } catch (e) { throw Object.assign(new Error('quota'), { code: 'resource-exhausted' }); }
+      onProgress && onProgress(1);
+      return 1;
+    },
+    async getFile(id) {
+      const b = localStorage.getItem(fkey(id));
+      if (b == null) throw Object.assign(new Error('missing'), { code: 'not-found' });
+      return [Uint8Array.from(atob(b), ch => ch.charCodeAt(0))];
+    },
+    async delFile(id) { localStorage.removeItem(fkey(id)); },
   };
 }
