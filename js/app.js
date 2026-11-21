@@ -1639,13 +1639,17 @@ function hwLine(code, t, mode) {
   const st = hwState(t);
   return `<div class="hw-line"><span class="hw-t">📝 ${esc(t.title)}</span> <span class="hw-st ${t.got && t.chk ? { ok: 'got', wait: 'done', owe: 'late' }[chkKind(t.chk)] : st.k}">${esc(st.txt)}</span>${t.review ? `<div class="hw-rv">${esc(t.review)}</div>` : ''}</div>`;
 }
+// Một buổi trong danh sách: gọn một dòng (tên buổi, ngày, hình thức, thời lượng, tóm tắt), bấm vào thì xổ ra chi tiết ngay tại chỗ
+// (nội dung, nhận xét, sách, mục tiêu buổi sau, bài tập, tài liệu); màn của cô có thêm nút Sửa. Máy nhớ buổi nào đang mở (UI.secOpen).
 function sessRow(code, s, hws, mode) {
-  const edit = mode === 'edit';
+  const edit = mode === 'edit', k = `ss-${code}-${s.id}`, open = !!UI.secOpen[k], att = attView(code, s.files, s.links);
   const body = [s.content ? `<div class="s so-p">${esc(s.content)}</div>` : '', s.src ? `<div class="s"><b>Sách, nguồn:</b> ${esc(s.src)}</div>` : '',
     s.note ? `<div class="s so-p cmt"><b>Nhận xét:</b> ${esc(s.note)}</div>` : '', s.next ? `<div class="s"><b>Buổi sau:</b> ${esc(s.next)}</div>` : ''].join('');
-  return `<div class="item sess ${s.state === 'plan' ? 'plan' : ''} ${edit ? 'tap' : ''}" ${edit ? `data-act="sess-view" data-id="${s.id}" role="button" tabindex="0"` : ''}><span class="ico">${s.state === 'plan' ? '🗓️' : '📖'}</span><div class="txt"><div class="t">Buổi ${s.no} · ${esc(sessName(s))}</div><div class="s">${esc(sessMeta(s))}</div>
-    ${body}${hws.map(t => hwLine(code, t, mode)).join('')}${attView(code, s.files, s.links)}</div>
-    ${edit || s.state === 'plan' ? `<div class="acts">${s.state === 'plan' ? (s.date && s.date < key(today()) ? '<span class="badge owe">Cần điền</span>' : '<span class="badge wait">Chưa học</span>') : ''}${edit ? `<span class="edit" aria-hidden="true">${CHEV}</span>` : ''}</div>` : ''}</div>`;
+  const sum = [hws.length ? `${hws.length} bài tập` : '', s.note ? 'có nhận xét' : '', att ? 'có tài liệu' : ''].filter(Boolean).join(' · ');
+  const badge = s.state === 'plan' ? (s.date && s.date < key(today()) ? '<span class="badge owe">Cần điền</span>' : '<span class="badge wait">Chưa học</span>') : '';
+  return `<div class="item sess tap ${s.state === 'plan' ? 'plan' : ''} ${open ? 'open' : ''}" data-act="sess-toggle" data-key="${k}" role="button" tabindex="0" aria-expanded="${open}"><span class="ico">${s.state === 'plan' ? '🗓️' : '📖'}</span><div class="txt"><div class="t">Buổi ${s.no} · ${esc(sessName(s))}</div><div class="s">${esc([sessMeta(s), sum].filter(Boolean).join(' · '))}</div>
+    <div class="sess-body" data-act="none" ${open ? '' : 'hidden'}>${body}${hws.map(t => hwLine(code, t, mode)).join('')}${att}${edit ? `<div class="row"><button class="btn quiet sm" data-act="sess-form" data-id="${s.id}">Sửa buổi này</button></div>` : ''}</div></div>
+    <div class="acts">${badge}<span class="sess-chev">${DOWN}</span></div></div>`;
 }
 const HW_BADGE = { got: 'ok', done: 'wait', late: 'owe', open: '' };
 const hwBadgeHtml = t => { const st = hwState(t); return `<span class="badge ${st.k === 'got' && t.chk ? chkKind(t.chk) : HW_BADGE[st.k]}">${esc(st.k === 'got' ? (t.chk ? CHK[t.chk] : 'Cô đã nhận') + (t.score ? ' · ' + t.score : '') : st.k === 'done' ? 'Chờ cô nhận' : st.k === 'late' ? st.txt : 'Đang làm')}</span>`; };
@@ -1678,9 +1682,9 @@ function feeSection(d, f, cls) {
   const rows = soFees(d, f), has = f.fee || f.on, unk = f.on ? rows.reduce((a, r) => a + r.unk, 0) : 0, paid = paidOf(d); if (!rows.length || f.off) return '';
   const pay = r => { const p = paid[r.mk];
     if (p) return `<span class="fee-ok">✓ ${cls ? 'Đã đóng' : 'Phụ huynh đã chuyển'} ${dm(parse(p.at))}</span>${cls ? `<button class="linkbtn undo" data-act="fee-unpaid" data-id="${cls.id}" data-mk="${r.mk}">Huỷ</button>` : ''}`;
-    return cls ? `<button class="btn primary sm" data-act="fee-paid" data-id="${cls.id}" data-mk="${r.mk}" data-amount="${r.amount}">Đã chuyển khoản</button>` : '<span class="muted small">Chưa đóng</span>'; };
+    return cls ? `<span class="muted small">Chưa đóng</span><button class="btn quiet sm" data-act="fee-paid" data-id="${cls.id}" data-mk="${r.mk}" data-amount="${r.amount}">Xác nhận đã chuyển</button>` : '<span class="muted small">Chưa đóng</span>'; };
   return `<section class="slot tn3">${secHead('💰', 'Số buổi và học phí theo tháng')}<div class="slot-list list">${rows.map(r => `<div class="item fee-row"><span class="ico">🗓️</span><div class="txt"><div class="t">${monthTxt(r.mk)}</div><div class="s"><b class="num">${r.n} buổi</b>${f.on ? ` · ${r.n - r.on} Offline, ${r.on} Online` : ''}${r.mins ? ` · ${durTxt(r.mins)}` : ''}</div></div><div class="acts col">${has ? `<span class="delta num">${money(r.amount)}</span>` : ''}${pay(r)}</div></div>`).join('')}</div>
-    <p class="foot-note">${has ? `Học phí ${feeTxt(f)}, tính theo các buổi cô ghi là Đã học.${unk ? ` Có ${unk} buổi chưa ghi Offline hay Online, đang tính theo mức Offline.` : ''}` : cls ? 'Muốn app tính luôn học phí thì bấm Sửa ở trên rồi ghi học phí mỗi buổi hoặc mỗi giờ.' : 'Số buổi tính theo các buổi cô ghi là Đã học. Phụ huynh ghi mức học phí thì app tính luôn số tiền mỗi tháng.'}${cls ? ' Chuyển khoản xong thì bấm Đã chuyển khoản, cô sẽ thấy ngay.' : ' Phụ huynh chuyển khoản xong sẽ bấm xác nhận ở đây.'}</p></section>`;
+    <p class="foot-note">${has ? `Học phí ${feeTxt(f)}, tính theo các buổi cô ghi là Đã học.${unk ? ` Có ${unk} buổi chưa ghi Offline hay Online, đang tính theo mức Offline.` : ''}` : cls ? 'Muốn app tính luôn học phí thì bấm Sửa ở trên rồi ghi học phí mỗi buổi hoặc mỗi giờ.' : 'Số buổi tính theo các buổi cô ghi là Đã học. Phụ huynh ghi mức học phí thì app tính luôn số tiền mỗi tháng.'}${cls ? ' Chuyển khoản xong thì bấm Xác nhận đã chuyển, cô sẽ thấy ngay.' : ' Phụ huynh chuyển khoản xong sẽ bấm xác nhận ở đây.'}</p></section>`;
 }
 // Tài khoản nhận học phí. Màn của cô (edit): bấm để ghi, sửa. Phần bố mẹ xem (clsId): nút sao chép số tài khoản,
 // bố mẹ cũng ghi, sửa được (ví dụ chép từ mã QR cô gửi qua Zalo).
@@ -1709,7 +1713,7 @@ function bankForm(clsId) {
 // Thẻ tóm tắt đầu sổ, cùng kiểu thẻ ở màn Tài khoản: bên trái số buổi tháng này (kèm học phí), bên phải bài tập cô đã nhận (kèm thanh tiến độ).
 const soTiles = (st, f, d) => { const cur = soFees(d, f).find(r => r.mk === key(today()).slice(0, 7)), fee = cur && (f.fee || f.on) && !f.off;
   return `<section class="stat2"><div class="stat"><b class="stat-n num">${st.month} buổi</b><span class="cap">Tháng ${today().getMonth() + 1}</span>
-      <span class="stat-c">${fee ? `học phí <b class="num">${money(cur.amount)}</b>` : cur && cur.mins ? durTxt(cur.mins) : ''}${st.done.length ? `${fee || cur?.mins ? ' · ' : ''}tất cả ${st.done.length} buổi` : 'Chưa có buổi đã học'}</span></div>
+      <span class="stat-c">${fee ? `học phí <b class="num">${money(cur.amount)}</b> · ${paidOf(d)[key(today()).slice(0, 7)] ? 'đã đóng' : 'chưa đóng'}` : cur && cur.mins ? durTxt(cur.mins) : st.month ? '' : 'Chưa có buổi đã học trong tháng'}</span></div>
     <div class="stat"><b class="stat-n num ${st.hw.length && st.got === st.hw.length ? 'plus' : ''}">${st.got}/${st.hw.length}</b><span class="cap">Bài tập cô đã nhận</span>
       ${st.hw.length ? `${barCount(st.got, st.hw.length)}<span class="stat-c">${[st.wait ? `${st.wait} bài chờ cô nhận` : '', st.open ? `${st.open} bài đang làm` : ''].filter(Boolean).join(' · ') || 'Đã nhận hết'}</span>` : '<span class="stat-c">Chưa giao bài tập</span>'}</div></section>`; };
 // Buổi cần điền: ngày có lịch học (theo lịch học thêm của nhà) đã qua mà cô chưa ghi buổi nào, và buổi ghi trước (Chưa học) mà ngày đã qua.
@@ -1833,6 +1837,8 @@ function soImportGo() {
   if (x.clsId) classSheet(x.clsId);
   toast(`Đã nhập ${x.sessions.length} buổi và ${x.tasks.length} bài tập vào sổ.${paid ? ` Đã đánh dấu đóng học phí ${x.months.map(m => 'tháng ' + Number(m.slice(5))).join(', ')}.` : ''}`);
 }
+// Học phí đóng vào cuối tháng hoặc đầu tháng sau: tháng nhập từ file coi như đóng ngày 1 của tháng sau (tháng 10 → 1/11).
+const monthAfter = mk => { const [y, m] = mk.split('-').map(Number); return m === 12 ? `${y + 1}-01-01` : `${y}-${pad2(m + 1)}-01`; };
 function soImportApply(x, paid) {
   for (const s of x.sessions) if (!clsPut(x.code, 'sessions', s.id, s.data)) return false;
   for (const t of x.tasks) clsPut(x.code, 'tasks', t.id, t.data);
@@ -1841,7 +1847,7 @@ function soImportApply(x, paid) {
   if (cx && !cx.hwFrom && x.tasks.length) { const { id, ...o } = cx; put('paid', id, { ...o, hwFrom: key(today()) }); }
   if (paid) {
     const c = classesList().find(y => y.id === x.clsId), fees = soFees(soOf(x.code), feeOf(c)), next = { ...paidOf(soOf(x.code)) };
-    for (const mk of x.months) if (!next[mk]) next[mk] = { at: key(today()), amount: fees.find(r => r.mk === mk)?.amount || 0 };
+    for (const mk of x.months) if (!next[mk]) next[mk] = { at: monthAfter(mk), amount: fees.find(r => r.mk === mk)?.amount || 0 };
     clsPut(x.code, 'info', 'paid', next);
   }
   return true;
@@ -1852,7 +1858,15 @@ let suAutoBusy = false;
 async function suAutoImport(code) {
   if (suAutoBusy || TEACH || !loaded || stale || deviceRole() !== 'parent') return;
   const c = classesList().find(x => x.code === code), k = CLS[code];
-  if (!c || c.xlAuto || !isSuTV(kidName(c.kid), c.name) || !k || !k.loaded || k.stale || k.err || !k.st) return;
+  if (!c || (c.xlAuto && c.paidFix) || !isSuTV(kidName(c.kid), c.name) || !k || !k.loaded || k.stale || k.err || !k.st) return;
+  // Sửa một lần cho sổ đã nhập trước: tháng 10 đóng ngày 1/11 (không phải ngày nhập), tháng 11 chưa đóng (hết tháng mới đóng).
+  if (c.xlAuto) {
+    const p0 = paidOf(k.data), next = { ...p0 };
+    if (next['2026-10']) next['2026-10'] = { ...next['2026-10'], at: '2026-11-01' };
+    delete next['2026-11'];
+    if (JSON.stringify(next) !== JSON.stringify(p0)) clsPut(code, 'info', 'paid', next);
+    const { id, ...o } = c; put('paid', id, { ...o, paidFix: 1 }); return;
+  }
   suAutoBusy = true;
   try {
     const r = await fetch('data/so-tieng-viet-su.json', { cache: 'no-cache' }); if (!r.ok) return;
@@ -1861,7 +1875,7 @@ async function suAutoImport(code) {
     const plan = soImportPlan(code, cur.id, parsed);
     plan.months = plan.months.filter(m => m < '2026-11');
     if (!soImportApply(plan, plan.months.length > 0)) return;
-    const { id, ...o } = classesList().find(x => x.code === code) || cur; put('paid', id, { ...o, xlAuto: 1 });
+    const { id, ...o } = classesList().find(x => x.code === code) || cur; put('paid', id, { ...o, xlAuto: 1, paidFix: 1 });
     if (plan.sessions.length) toast(`Đã nhập sổ ${classTitle(cur)}: ${plan.sessions.length} buổi, ${plan.tasks.length} bài tập${plan.months.length ? `, học phí ${plan.months.map(m => 'tháng ' + Number(m.slice(5))).join(', ')} đã đóng` : ''}.`);
   } catch (e) { console.error(e); } finally { suAutoBusy = false; }
 }
@@ -2668,7 +2682,7 @@ const kidLink = id => inviteLink() + '&con=' + encodeURIComponent(id);
 const KID_ACTS = new Set(['close', 'tick', 'step', 'slot-toggle', 'task-done', 'task-step', 'role-kid', 'role-kid-ok', 'role-parent', 'pin-ok',
   'tkb-go', 'learn-tab', 'tkb-day', 'ag-day', 'ag-week', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel', 'fun-form', 'fun-ask', 'fun-cancel', 'num-step', 'km-acct', 'task-form', 'task-save', 'task-del', 'task-subj', 'task-due', 'hw-view', 'file-open']);
 // Việc màn của cô được làm: chỉ những gì thuộc sổ học.
-const TEACH_ACTS = new Set(['close', 't-tab', 'sess-form', 'sess-view', 'so-off', 'sess-save', 'hw-row-add', 'so-import', 'so-import-go', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'att-del', 'so-print', 'sec-toggle', 'num-step', 'bank-form', 'bank-save']);
+const TEACH_ACTS = new Set(['close', 't-tab', 'sess-form', 'sess-view', 'sess-toggle', 'none', 'so-off', 'sess-save', 'hw-row-add', 'so-import', 'so-import-go', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'att-del', 'so-print', 'sec-toggle', 'num-step', 'bank-form', 'bank-save']);
 function kidMay(a, b) {
   const r = deviceRole(); if (r === 'parent') return true;
   if (!KID_ACTS.has(a)) return false;
@@ -3486,6 +3500,12 @@ document.addEventListener('click', e => {
     return toast(hwLines.length ? `Đã lưu buổi học và giao ${hwLines.length} bài${due ? `, hạn nộp ${dueLabel(due)}` : ''}.` : 'Đã lưu buổi học.');
   }
   if (a === 'sess-view') return sessView(id);
+  if (a === 'none') return;
+  if (a === 'sess-toggle') {
+    const on = !UI.secOpen[b.dataset.key]; UI.secOpen[b.dataset.key] = on;
+    b.classList.toggle('open', on); b.setAttribute('aria-expanded', on); const body = b.querySelector('.sess-body'); if (body) body.hidden = !on;
+    return;
+  }
   if (a === 'so-import') return soImportPick(TEACH ? null : id);
   if (a === 'so-import-go') return soImportGo();
   if (a === 'hw-row-add') {
@@ -3552,7 +3572,7 @@ document.addEventListener('click', e => {
     const kid = radioVal('clkid') || document.querySelector('#modal input[name=clkid]')?.value; if (!S.kids[kid]) return;
     const old = id ? S.paid[id] : null, cid = id || 'lop-' + uid();
     const book = $('#clbook').value.trim();
-    const data = { lop: 1, kid, name, ...(book ? { book } : {}), ...(old?.dur ? { dur: old.dur } : {}), ...(old?.hwPen ? { hwPen: old.hwPen } : {}), ...(old?.hwFrom ? { hwFrom: old.hwFrom } : {}), ...(old?.xlAuto ? { xlAuto: old.xlAuto } : {}), teacher: $('#clteacher').value.trim(), code: old?.code || newFamilyCode(), at: old?.at || new Date().toISOString(),
+    const data = { lop: 1, kid, name, ...(book ? { book } : {}), ...(old?.dur ? { dur: old.dur } : {}), ...(old?.hwPen ? { hwPen: old.hwPen } : {}), ...(old?.hwFrom ? { hwFrom: old.hwFrom } : {}), ...(old?.xlAuto ? { xlAuto: old.xlAuto } : {}), ...(old?.paidFix ? { paidFix: old.paidFix } : {}), teacher: $('#clteacher').value.trim(), code: old?.code || newFamilyCode(), at: old?.at || new Date().toISOString(),
       fee: Math.max(0, Math.round(Number($('#clfee').value) || 0)), feeOn: Math.max(0, Math.round(Number($('#clfeeon').value) || 0)), feeBy: $('#clfeeby').value === 'gio' ? 'gio' : 'buoi', feeOff: !$('#clfeeshow').checked };
     closeModal(); put('paid', cid, data);
     if (old) return toast('Đã lưu sổ học.');
