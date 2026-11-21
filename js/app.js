@@ -168,6 +168,11 @@ let store = null, loaded = false, stale = false, family = null;
 const FAMILY_KEY = 'be-cham-ngoan-family';
 const getFamily = () => { try { return localStorage.getItem(FAMILY_KEY); } catch (e) { return null; } };
 const setFamily = v => { try { v ? localStorage.setItem(FAMILY_KEY, v) : localStorage.removeItem(FAMILY_KEY); } catch (e) {} };
+// Máy này của ai, nhớ theo từng gia đình: 'parent' (bố mẹ) hoặc mã của một con. Chỉ có tác dụng khi nhà đã đặt mã PIN bố mẹ.
+const ROLE_KEY = 'be-cham-ngoan-role';
+const roleMap = () => { try { return JSON.parse(localStorage.getItem(ROLE_KEY) || '{}') || {}; } catch (e) { return {}; } };
+const getRole = () => roleMap()[family || 'local'] || null;
+const setRole = v => { try { const m = roleMap(); if (v) m[family || 'local'] = v; else delete m[family || 'local']; localStorage.setItem(ROLE_KEY, JSON.stringify(m)); } catch (e) {} };
 
 function writeErr(e) {
   const c = e && e.code;
@@ -768,8 +773,9 @@ function draw() {
   const navHtml = cls => NAV.map(n => `<a href="#${n.id}" class="${cls} ${UI.view === n.id ? 'on' : ''}" ${UI.view === n.id ? 'aria-current="page"' : ''}>${iconSvg(n.ic)}<span>${n.label}</span></a>`).join('');
   $('#rail').innerHTML = brand() + navHtml('');
   $('#tabs').innerHTML = navHtml('tab');
-  const body = !loaded ? loading() : ({ 'hom-nay': viewToday, 'lich-hoc': viewSchedule, 'tai-khoan': viewAccount, 'bang-gia': viewPrices, 'gia-dinh': viewFamily }[UI.view] || viewToday)();
-  $('#app').innerHTML = topbar() + body;
+  const body = !loaded ? loading() : deviceRole() !== 'parent' ? '' : ({ 'hom-nay': viewToday, 'lich-hoc': viewSchedule, 'tai-khoan': viewAccount, 'bang-gia': viewPrices, 'gia-dinh': viewFamily }[UI.view] || viewToday)();
+  // Máy của con (hoặc máy chưa chọn là của ai): không vẽ phần của bố mẹ bên dưới.
+  $('#app').innerHTML = deviceRole() === 'parent' ? topbar() + body : '';
   drawKidMode();
   if (UI.sheet) drawSheet();
   const tb = $('#app .tabbar .on'); if (tb) tb.parentElement.scrollLeft = Math.max(0, tb.offsetLeft - 60);
@@ -1602,11 +1608,12 @@ function viewFamily() {
   if (chores.length) h += `<p class="foot-note">Phạt, phí sử dụng và quà nằm ở <a href="#bang-gia">Bảng giá</a>.</p>`;
   if (kids.length) h += `<div class="slot-list list"><button class="item nav" data-act="sheet-open"><span class="ico">🖨️</span><span class="txt"><span class="t">In kế hoạch tuần</span><span class="s">Mỗi con một trang A4</span></span>${CHEV}</button></div>`;
 
+  h += roleSection();
   h += `<section class="slot">${secHead('🔐', 'Chia sẻ và sao lưu')}<div class="card stack">`;
   if (store?.kind === 'firebase') {
     h += `<div class="field"><label for="invite">Link mời người nhà</label>
       <div class="copyrow"><input id="invite" class="input" readonly value="${esc(inviteLink())}"><button class="btn primary sm" data-act="copy-invite">Sao chép</button></div>
-      <span class="muted small">Gửi link này cho bố/mẹ hoặc mở trên máy tính bảng của con. Ai có link đều xem và sửa được bảng của nhà mình, nên chỉ gửi cho người trong nhà.</span></div>`;
+      <span class="muted small">${pinHash() ? 'Link cho bố, mẹ: máy mới mở link sẽ được hỏi là máy của ai, chọn bố mẹ thì nhập mã PIN. Máy của con thì dùng link riêng ở mục Máy của con.' : 'Gửi link này cho bố/mẹ hoặc mở trên máy tính bảng của con. Ai có link đều xem và sửa được bảng của nhà mình, nên chỉ gửi cho người trong nhà. Muốn máy của con chỉ thấy phần của con thì đặt mã PIN ở mục Máy của con.'}</span></div>`;
   } else {
     h += `<div class="note">Dữ liệu đang lưu trên trình duyệt của máy này. Muốn đồng bộ giữa điện thoại của bố, mẹ và máy của con, hãy bật Firebase theo hướng dẫn trong README của repo.</div>`;
   }
@@ -1618,14 +1625,87 @@ function viewFamily() {
   return h;
 }
 
+// ---------- máy của ai: bố mẹ hay con ----------
+// Nhà đặt mã PIN bố mẹ thì mỗi máy phải chọn một lần: máy của bố mẹ (nhập PIN, thấy và sửa mọi thứ) hay máy của một con
+// (chỉ thấy phần của con đó, kiểu Chế độ cho bé, không thêm, sửa, xoá được gì). Mã PIN lưu dạng băm trong nhóm `paid`
+// (nhóm cũ không còn dùng, đã có sẵn trong Rules nên không phải dán lại Rules).
+// Đây là khoá ở giao diện: ai có mã gia đình vẫn đọc được dữ liệu trên Firestore, nên không thay cho việc giữ kín link mời.
+const SETTINGS_ID = 'caidat';
+const pinHash = () => S.paid?.[SETTINGS_ID]?.pin || null;
+async function hashPin(pin) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('misa-misu:' + pin));
+  return [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+// 'parent': toàn quyền. Mã của một con: máy của con đó. 'ask': nhà có PIN mà máy này chưa chọn. 'wait': máy của con, đang chờ dữ liệu.
+function deviceRole() {
+  const r = getRole(), kid = r && r !== 'parent';
+  if (!loaded) return kid ? 'wait' : 'parent';
+  if (!pinHash()) return kid && stale ? 'wait' : 'parent';
+  if (r === 'parent') return 'parent';
+  return kid && S.kids[r] ? r : 'ask';
+}
+const kidLink = id => inviteLink() + '&con=' + encodeURIComponent(id);
+// Việc máy của con được làm: đánh dấu việc, bài tập của chính mình, gập mở các buổi, và xin vào phần bố mẹ.
+const KID_ACTS = new Set(['close', 'tick', 'step', 'slot-toggle', 'task-done', 'task-step', 'role-kid', 'role-kid-ok', 'role-parent', 'pin-ok']);
+function kidMay(a, b) {
+  const r = deviceRole(); if (r === 'parent') return true;
+  if (!KID_ACTS.has(a)) return false;
+  if (a === 'tick' || a === 'step') return b.dataset.kid === r;
+  if (a === 'task-done' || a === 'task-step') return S.tasks[b.dataset.id]?.kid === r;
+  if (a === 'role-kid' || a === 'role-kid-ok') return r === 'ask';
+  return true;
+}
+// mode 'unlock': nhập PIN để máy này thành máy của bố mẹ. mode 'set': đặt hoặc đổi PIN (chỉ máy của bố mẹ).
+function pinForm(mode) {
+  const set = mode === 'set';
+  openModal(`<h2>${set ? (pinHash() ? 'Đổi mã PIN' : 'Đặt mã PIN bố mẹ') : 'Bố mẹ'}</h2>
+  <p class="muted small lead">${set ? 'Từ 4 đến 8 chữ số. Có mã PIN rồi thì máy nào cũng phải chọn một lần: máy của bố mẹ (nhập mã này) hay máy của một con. Đừng cho các con biết mã.' : 'Nhập mã PIN của bố mẹ để máy này thấy và sửa được mọi thứ.'}</p>
+  <div class="fg">${frow('Mã PIN', `<input id="pin" class="pillin txt num" type="${set ? 'text' : 'password'}" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="••••">`, { id: 'pin' })}</div>
+  <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="pin-ok" data-mode="${set ? 'set' : 'unlock'}">${set ? 'Lưu' : 'Mở'}</button></div>`);
+}
+function roleKidForm(id, fromParent) {
+  const k = S.kids[id]; if (!k) return;
+  openModal(`<h2>Máy của ${esc(k.name)}</h2>
+  <p class="muted small lead">${fromParent ? `Máy này sẽ chỉ còn thấy phần của ${esc(k.name)}: việc hôm nay, bài cần nộp, tiền đang có. Không thêm, sửa, xoá được gì.` : `Con là ${esc(k.name)} phải không? Máy này sẽ chỉ hiện phần của con.`} Muốn đổi lại phải có mã PIN của bố mẹ.</p>
+  <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="role-kid-ok" data-kid="${id}">Đúng rồi</button></div>`);
+}
+// Mục "Máy của con" trong trang Gia đình.
+function roleSection() {
+  const kids = kidsList(); if (!kids.length) return '';
+  let h = `<section class="slot">${secHead('🔒', 'Máy của con')}<div class="card stack">`;
+  if (!pinHash()) {
+    h += `<div class="note">Hiện giờ ai mở app cũng thấy và sửa được như bố mẹ. Đặt mã PIN bố mẹ để máy của con chỉ thấy phần của con.</div>
+      <div class="list">${menuRow('data-act="pin-set"', '🔑', 'Đặt mã PIN bố mẹ', 'Sau đó mỗi máy chọn một lần: bố mẹ hay con nào')}</div>`;
+  } else {
+    h += `<div class="note">Máy này là máy của bố mẹ. Máy khác mở app sẽ được hỏi là máy của ai; chọn bố mẹ thì phải nhập mã PIN.</div><div class="list">`;
+    for (const k of kids) {
+      if (store?.kind === 'firebase') h += menuRow(`data-act="copy-kid-link" data-kid="${k.id}"`, '🔗', `Sao chép link cho máy của ${esc(k.name)}`, `Mở link này trên máy của ${esc(k.name)} là vào thẳng phần của con`);
+      h += menuRow(`data-act="role-kid" data-kid="${k.id}"`, '📱', `Dùng máy này cho ${esc(k.name)}`, 'Khoá máy đang cầm vào phần của con');
+    }
+    h += `${menuRow('data-act="pin-set"', '🔑', 'Đổi mã PIN')}<button class="item nav" data-act="pin-clear"><span class="ico">🔓</span><span class="txt"><span class="t">Bỏ mã PIN</span><span class="s">Mọi máy lại thấy và sửa được như bố mẹ</span></span>${CHEV}</button></div>`;
+  }
+  return h + `</div></section>`;
+}
+
 // ---------- kid mode ----------
 function drawKidMode() {
-  const el = $('#km');
-  el.hidden = !UI.km.on;
-  if (!UI.km.on) { el.innerHTML = ''; return; }
+  const el = $('#km'), role = deviceRole(), lock = role !== 'parent';
+  document.body.classList.toggle('locked', lock);
+  el.hidden = !lock && !UI.km.on;
+  if (el.hidden) { el.innerHTML = ''; return; }
   const kids = kidsList(), t = today();
-  const hold = `<button class="hold" data-hold="1"><span>Giữ để thoát</span></button>`;
-  const k = UI.km.kid && S.kids[UI.km.kid] ? kids.find(x => x.id === UI.km.kid) : null;
+  if (role === 'wait') { el.innerHTML = `<div class="wrap">${loading()}</div>`; return; }
+  if (role === 'ask') {
+    // Nhà có mã PIN mà máy này chưa chọn: hỏi một lần. Không hiện tiền hay việc của ai, để con không xem được phần của nhau.
+    el.innerHTML = `<div class="wrap"><div class="km-top"><span></span></div><div class="day-head"><h1>Máy này của ai?</h1></div>
+    <div class="who-grid">${kids.map(x => `<button class="who-btn" data-act="role-kid" data-kid="${x.id}">${ava(x)}<b>${esc(x.name)}</b></button>`).join('')}</div>
+    <button class="btn ghost role-parent" data-act="role-parent">🔒 Bố mẹ</button>
+    <p class="foot-note center">Chỉ chọn một lần. Máy của con chỉ hiện phần của con; muốn đổi phải có mã PIN của bố mẹ.</p></div>`;
+    return;
+  }
+  const hold = lock ? `<button class="hold" data-act="role-parent"><span>🔒 Bố mẹ</span></button>` : `<button class="hold" data-hold="1"><span>Giữ để thoát</span></button>`;
+  const kmKid = lock ? role : UI.km.kid;
+  const k = kmKid && S.kids[kmKid] ? kids.find(x => x.id === kmKid) : null;
   if (!k) {
     // Chọn bạn nào: mỗi con một thẻ to, kèm hôm nay còn mấy việc và số dư.
     const who = x => { const l = mustFor(x.id, t), n = l.filter(c => isDone(t, x.id, c.id)).length; return `<button class="who-btn" data-act="km-kid" data-kid="${x.id}">${ava(x)}<b>${esc(x.name)}</b><span class="who-s ${l.length && n === l.length ? 'full' : ''}">${!l.length ? 'Hôm nay được nghỉ' : n === l.length ? '✓ Xong hết rồi' : `Còn ${l.length - n} việc`}</span>${moneyChip(x)}</button>`; };
@@ -1668,7 +1748,7 @@ function drawKidMode() {
     : wb && wst.possible ? `<div class="km-week">${wst.done >= wst.possible ? `🏆 Đủ việc cả tuần rồi! Con được thưởng ${money(wb)}` : `Tuần này <span class="num">${wst.done}/${wst.possible}</span> việc · làm đủ cả tuần được thưởng ${money(wb)}`}</div>` : '';
   const bubble = isBirthday(k, t) ? `Chúc mừng sinh nhật ${esc(k.name)}! 🎂` : !list.length ? `Chào ${esc(k.name)}! Hôm nay thảnh thơi nhé!` : left ? `Chào ${esc(k.name)}! Cùng làm việc nào!` : `${esc(k.name)} giỏi quá! 🎉`;
   // Đầu màn gọn trong một thẻ: hình của con, lời chào, rồi tiền đang có, chuỗi ngày và con đang ở đâu.
-  el.innerHTML = `<div class="wrap"><div class="km-top">${kids.length > 1 ? `<button class="linkbtn back" data-act="km-kid" data-kid="">${PREV}Đổi bạn</button>` : '<span></span>'}${hold}</div>
+  el.innerHTML = `<div class="wrap"><div class="km-top">${kids.length > 1 && !lock ? `<button class="linkbtn back" data-act="km-kid" data-kid="">${PREV}Đổi bạn</button>` : '<span></span>'}${hold}</div>
   <div class="km-hero" style="--tint:${tintOf(k)}">${ava(k)}<div class="km-hi"><div class="km-date">${WD[t.getDay()]}, ${t.getDate()} tháng ${t.getMonth() + 1}</div><div class="km-bubble">${bubble}</div>
     <div class="km-chips"><span class="km-chip num ${balance(k.id) < 0 ? 'minus' : ''}">💰 ${money(balance(k.id))}</span>${stk ? `<span class="km-chip num">🔥 ${stk} ngày</span>` : ''}${kst ? `<span class="km-chip ${kst.next ? 'moved' : ''}">📍 ${esc(shortPlace(kst.here))}${kst.next ? ` · tối về ${esc(placeLow(kst.next))}` : ''}</span>` : ''}</div></div></div>
   ${list.length ? `<section class="kid-sum km-sum"><div class="kid-sum-row"><b class="kid-sum-t">${left ? `Hôm nay còn ${left} việc` : 'Xong hết việc hôm nay 🎉'}</b><span class="lv num ${left ? '' : 'full'}">${n}/${list.length}</span></div>
@@ -1993,7 +2073,7 @@ function matchKidsByName(data) {
   for (const t of Object.values(data.tasks || {})) if (t) t.kid = m(t.kid);
   for (const g of Object.values(data.goals || {})) if (g) g.kid = m(g.kid);
   for (const ev of Object.values(data.events || {})) if (ev && Array.isArray(ev.kids)) ev.kids = ev.kids.map(m);
-  if (data.paid) data.paid = Object.fromEntries(Object.entries(data.paid).map(([id, p]) => { const [kid, w] = id.split('_'); return [m(kid) + '_' + w, { ...p, kid: m(p.kid) }]; }));
+  if (data.paid) data.paid = Object.fromEntries(Object.entries(data.paid).filter(([id]) => id !== SETTINGS_ID).map(([id, p]) => { const [kid, w] = id.split('_'); return [m(kid) + '_' + w, { ...p, kid: m(p.kid) }]; }));
   if (data.timetables) data.timetables = Object.fromEntries(Object.entries(data.timetables).map(([id, t]) => [m(id), t]));
   return [...new Set(Object.values(map))].map(kidName);
 }
@@ -2165,7 +2245,35 @@ function armed(btn, label) {
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
   const a = b.dataset.act, id = b.dataset.id;
+  if (!kidMay(a, b)) return;
   if (a === 'close') return closeModal();
+  if (a === 'role-parent') return pinForm('unlock');
+  if (a === 'pin-set') return pinForm('set');
+  if (a === 'role-kid') return roleKidForm(b.dataset.kid, deviceRole() === 'parent');
+  if (a === 'role-kid-ok') { if (!S.kids[b.dataset.kid]) return; setRole(b.dataset.kid); UI.km = { on: false, kid: null }; closeModal(); keepFamilyInUrl(); window.scrollTo(0, 0); return render(); }
+  if (a === 'pin-ok') {
+    const pin = ($('#pin')?.value || '').trim(), set = b.dataset.mode === 'set';
+    if (!/^\d{4,8}$/.test(pin)) return toast('Mã PIN gồm 4 đến 8 chữ số.');
+    if (set && deviceRole() !== 'parent') return;
+    hashPin(pin).then(h => {
+      if (set) { put('paid', SETTINGS_ID, { ...(S.paid[SETTINGS_ID] || {}), pin: h }); setRole('parent'); closeModal(); render(); return toast('Đã đặt mã PIN. Máy này là máy của bố mẹ.'); }
+      if (h !== pinHash()) { const i = $('#pin'); if (i) { i.value = ''; i.focus(); } return toast('Mã PIN chưa đúng.'); }
+      setRole('parent'); closeModal(); keepFamilyInUrl(); render(); toast('Máy này là máy của bố mẹ.');
+    }).catch(() => toast('Máy này không kiểm tra được mã PIN.'));
+    return;
+  }
+  if (a === 'pin-clear') {
+    if (!armed(b, 'Bấm lần nữa để bỏ mã PIN')) return;
+    const { pin, ...rest } = S.paid[SETTINGS_ID] || {};
+    Object.keys(rest).length ? put('paid', SETTINGS_ID, rest) : del('paid', SETTINGS_ID);
+    return toast('Đã bỏ mã PIN. Mọi máy lại thấy như bố mẹ.');
+  }
+  if (a === 'copy-kid-link') {
+    const k = S.kids[b.dataset.kid], link = kidLink(b.dataset.kid); if (!k) return;
+    const fallback = () => openModal(`<h2>Link cho máy của ${esc(k.name)}</h2><div class="fg"><input class="input" readonly value="${esc(link)}" onfocus="this.select()"></div><div class="foot"><button class="btn primary" data-act="close">Xong</button></div>`);
+    if (navigator.clipboard) navigator.clipboard.writeText(link).then(() => toast(`Đã sao chép link cho máy của ${k.name}.`), fallback); else fallback();
+    return;
+  }
   if (a === 'day-set') { UI.date = parse(b.dataset.d); return render(); }
   if (a === 'day') { const n = Number(b.dataset.n); UI.date = n === 0 ? today() : addDays(UI.date, n); return render(); }
   if (a === 'tick') {
@@ -2640,12 +2748,13 @@ if (window.visualViewport) {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && !$('#modal').hidden) dismissModal();
   if (e.key === 'Enter' && e.target.id === 'seedpass') $('#modal [data-act="seed-load"]')?.click();
+  if (e.key === 'Enter' && e.target.id === 'pin') $('#modal [data-act="pin-ok"]')?.click();
 });
 
 // Giữ nút để thoát chế độ cho bé
 let holdT = 0;
 document.addEventListener('pointerdown', e => {
-  const h = e.target.closest('[data-hold]'); if (!h) return;
+  const h = e.target.closest('[data-hold]'); if (!h || deviceRole() !== 'parent') return;
   h.classList.add('holding');
   holdT = setTimeout(() => { UI.km = { on: false, kid: null }; render(); }, 1200);
 });
@@ -2707,8 +2816,9 @@ document.addEventListener('click', async e => {
 // "Thêm vào MH chính" lưu luôn mã và app mở thẳng vào gia đình.
 function keepFamilyInUrl() {
   if (!family) return;
-  const url = location.origin + location.pathname + '?gd=' + encodeURIComponent(family);
-  if (new URLSearchParams(location.search).get('gd') !== family) history.replaceState(null, '', url + location.hash);
+  // Máy của con: giữ luôn mã của con trên địa chỉ, để app thêm vào màn hình chính (bộ nhớ riêng) vẫn vào đúng phần của con.
+  const r = getRole(), url = location.origin + location.pathname + '?gd=' + encodeURIComponent(family) + (r && r !== 'parent' ? '&con=' + encodeURIComponent(r) : '');
+  if (location.origin + location.pathname + location.search !== url) history.replaceState(null, '', url + location.hash);
   const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const link = document.querySelector('link[rel="manifest"]');
   if (!ios || !link) return;
@@ -2750,6 +2860,9 @@ if (firebaseConfig) {
   const q = new URLSearchParams(location.search).get('gd');
   if (q && cleanCode(q).length >= 20) setFamily(cleanCode(q));
   family = getFamily();
+  // Link riêng của một con (?gd=...&con=...): máy chưa chọn là của ai thì thành máy của con đó. Máy đã chọn rồi thì giữ nguyên.
+  const con = new URLSearchParams(location.search).get('con');
+  if (family && con && /^[\w-]{1,40}$/.test(con) && !getRole()) setRole(con);
   if (family) startFirebase(); else showSetup();
 } else {
   store = localStore((data) => { S = data; loaded = true; render(); autoFill(); });

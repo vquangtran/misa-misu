@@ -913,3 +913,8 @@ span.slot-pill{cursor:default}
 .stat-c{font-size:12px;line-height:1.35;color:var(--muted);margin-top:2px}
 .slot>.acct-form{gap:12px}
 .slot>.acct-form>p{padding:0 4px}
+
+/* Máy của con, hoặc máy chưa chọn là của ai: giấu hẳn phần của bố mẹ, chỉ còn màn của con */
+body.locked .shell,body.locked>.tabs{display:none}
+.role-parent{align-self:center;margin-top:8px}
+.foot-note.center{text-align:center;margin:0 6px}

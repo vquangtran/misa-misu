@@ -11,6 +11,7 @@
 //   done     việc đã xong   id = "YYYY-MM-DD", { [kidId]: { [choreId]: số tiền nhận được (0 = chưa) } }
 //   ledger   sổ tài khoản   { kid, amount (đồng), kind: bonus|penalty|fee|spend|reward, note, icon, at, skip: ngày được miễn việc, wipe: thứ Hai của tuần bị phạt mất tiền thưởng }
 //   paid     (cũ, không dùng nữa) tiền tiêu vặt đã trả theo tuần
+//            Riêng id "caidat" là cài đặt của gia đình: { pin: mã PIN bố mẹ đã băm }. Có PIN thì mỗi máy phải chọn là máy của bố mẹ hay của một con.
 //   Dữ liệu cũ tính bằng sao (chores.stars, rewards.cost, ledger.delta, done < 100) được quy đổi 1 sao = 5.000đ.
 //   timetables thời khoá biểu  id = kidId, { cls, year, days: [1..6], lunch, rows: [{ s, e, d: { [thứ]: môn } }] }
 //   lessons  học thêm       { kid, day: 0..6, s: "HH:MM", e: "HH:MM", name, at, home, go, back }
