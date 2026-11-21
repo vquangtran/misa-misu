@@ -125,8 +125,9 @@ const SUBJECTS = ['Toán', 'Tiếng Việt', 'Ngữ văn', 'Tiếng Anh', 'Khoa 
   'Tin học', 'Công nghệ', 'Giáo dục thể chất', 'Bơi', 'Hoạt động trải nghiệm', 'Sinh hoạt dưới cờ', 'Sinh hoạt lớp', 'Tự học'];
 // Thời khoá biểu mẫu: 7 tiết, nghỉ trưa sau tiết 4, Thứ Hai đến Thứ Sáu.
 const SAMPLE_PERIODS = [['08:00', '08:35'], ['08:45', '09:20'], ['09:40', '10:15'], ['10:25', '11:00'], ['14:10', '14:45'], ['14:55', '15:30'], ['15:40', '16:15']];
-// Thời khoá biểu có sẵn của lớp 4A, năm học 2026 – 2027. Mỗi dòng là một tiết, các cột từ Thứ Hai đến Thứ Sáu.
-const SAMPLE_TKB = { cls: 'Lớp 4A', year: '2026 – 2027', days: [1, 2, 3, 4, 5], lunch: 4, subj: [
+// Thời khoá biểu có sẵn của Su: lớp 4A, năm học 2026 – 2027. Mỗi dòng là một tiết, các cột từ Thứ Hai đến Thứ Sáu.
+// Chỉ gợi ý cho con có tên trong `kids`.
+const SAMPLE_TKB = { kids: ['su', 'misu'], cls: 'Lớp 4A', year: '2026 – 2027', days: [1, 2, 3, 4, 5], lunch: 4, subj: [
   ['SHĐT', 'Khoa học', 'Âm nhạc', 'HSTN', 'Khoa học'],
   ['Toán', 'Tiếng Anh', 'Tiếng Anh', 'Tiếng Anh', 'Tiếng Anh'],
   ['Bơi', 'LS-ĐL', 'Toán', 'Tiếng Việt', 'LS-ĐL'],
@@ -335,6 +336,7 @@ const sampleTkb = () => ({ cls: SAMPLE_TKB.cls, year: SAMPLE_TKB.year, days: [..
 // Giờ và môn của từng tiết, để biết bản đang nhập đã giống thời khoá biểu có sẵn chưa.
 const tkbSig = t => JSON.stringify((t.rows || []).map(r => [r.s, r.e, ...tkbDays(t).map(d => String((r.d || {})[d] || '').trim())]));
 const SAMPLE_TKB_LABEL = `${SAMPLE_TKB.cls} · ${SAMPLE_TKB.year}`;
+const tkbOffer = k => !!k && SAMPLE_TKB.kids.includes(String(k.name || '').trim().toLowerCase());
 // Các tiết có môn trong một thứ, kèm giờ vào và giờ tan.
 function schoolDay(t, wd) {
   if (!t || !tkbDays(t).includes(wd)) return null;
@@ -841,7 +843,7 @@ function pageAdd() {
     if (tab === 'bai-tap') return taskForm(null, kid);
     if (tab === 'moc') return eventForm(null, kid);
     if (tab === 'hoc-them') return lessonForm(null, kid);
-    if (tab === 'tkb') { const ks = kid ? [S.kids[kid] && { id: kid, ...S.kids[kid] }] : kids; return ks.length === 1 ? tkbForm(ks[0].id) : menuSheet('Thời khoá biểu của ai?', ks.map(k => menuRow(`data-act="tkb-form" data-kid="${k.id}"`, '🏫', esc(k.name), tkbOf(k.id) ? 'Sửa thời khoá biểu' : 'Chưa có, tạo mới'))); }
+    if (tab === 'tkb') { const ks = kid ? [S.kids[kid] && { id: kid, ...S.kids[kid] }] : kids; const pre = k => !tkbOf(k.id) && tkbOffer(k); return ks.length === 1 ? tkbForm(ks[0].id, pre(ks[0]) ? sampleTkb() : undefined) : menuSheet('Thời khoá biểu của ai?', ks.map(k => menuRow(`data-act="tkb-form" ${pre(k) ? 'data-sample="1"' : ''} data-kid="${k.id}"`, '🏫', esc(k.name), tkbOf(k.id) ? 'Sửa thời khoá biểu' : pre(k) ? `Có sẵn ${esc(SAMPLE_TKB_LABEL)}` : 'Chưa có, tạo mới'))); }
     return menuSheet('Thêm vào Học tập', [menuRow(`data-act="task-form" data-kid="${kid}"`, '📝', 'Bài tập', 'Bài cô giao, hạn nộp, các bước'),
       menuRow(`data-act="lesson-form" data-kid="${kid}"`, '📚', 'Buổi học thêm', 'Học gì, ngày nào, ai đưa đón'), menuRow(`data-act="event-form" data-kid="${kid}"`, '📌', 'Mốc năm học', 'Kiểm tra, nghỉ học, họp phụ huynh')]);
   }
@@ -1030,11 +1032,11 @@ function kidSchedule(k, part) {
   let h = '';
   if (part === 'lessons') return `<div class="slots">${kidsList().length === 1 ? staysCard(wd) : ''}${kidLessons(k)}</div>`;
   if (!t && lessonsOf(k.id).length) {
-    h += `<section class="card"><div class="kid-head"><span class="ico" style="font-size:28px">🏫</span><div class="txt" style="flex:1"><b>Lịch ở trường</b><div class="muted small">Chưa có thời khoá biểu ở trường của ${esc(k.name)}.</div></div><button class="btn quiet sm" data-act="tkb-form" data-kid="${k.id}">Tạo</button></div></section>`;
+    h += `<section class="card"><div class="kid-head"><span class="ico" style="font-size:28px">🏫</span><div class="txt" style="flex:1"><b>Lịch ở trường</b><div class="muted small">${tkbOffer(k) ? `Có sẵn thời khoá biểu ${esc(SAMPLE_TKB_LABEL)} của ${esc(k.name)}, bấm Dùng rồi Lưu.` : `Chưa có thời khoá biểu ở trường của ${esc(k.name)}.`}</div></div><button class="btn ${tkbOffer(k) ? 'primary' : 'quiet'} sm" data-act="tkb-form" ${tkbOffer(k) ? 'data-sample="1"' : ''} data-kid="${k.id}">${tkbOffer(k) ? 'Dùng' : 'Tạo'}</button></div></section>`;
   } else if (!t) {
     h += `<section class="card empty" style="padding:20px 18px"><div class="big">🏫</div><h2>Chưa có thời khoá biểu ở trường của ${esc(k.name)}</h2>
     <p class="muted">Nhập các tiết học một lần. App sẽ cho biết hôm nay con học những môn gì, và tối nay cần soạn cặp cho môn nào.</p>
-    <div class="row" style="justify-content:center;margin-top:10px"><button class="btn primary" data-act="tkb-form" data-sample="1" data-kid="${k.id}">Dùng ${esc(SAMPLE_TKB_LABEL)}</button><button class="btn quiet" data-act="tkb-form" data-kid="${k.id}">Tự nhập</button></div></section>`;
+    <div class="row" style="justify-content:center;margin-top:10px">${tkbOffer(k) ? `<button class="btn primary" data-act="tkb-form" data-sample="1" data-kid="${k.id}">Dùng ${esc(SAMPLE_TKB_LABEL)}</button><button class="btn quiet" data-act="tkb-form" data-kid="${k.id}">Tự nhập</button>` : `<button class="btn primary" data-act="tkb-form" data-kid="${k.id}">Tạo thời khoá biểu</button>`}</div></section>`;
   } else {
     const info = schoolOn(k.id, td), hol = holidayOn(k.id, td);
     let line;
@@ -1643,7 +1645,7 @@ function tkbForm(kidId, draft) {
   const used = Object.values(S.timetables || {}).flatMap(t => (t.rows || []).flatMap(r => Object.values(r.d || {})));
   const subjects = [...new Set([...SUBJECTS, ...used.map(s => String(s).trim()).filter(Boolean)])];
   const filled = d => draft.rows.filter(r => String((r.d || {})[d] || '').trim()).length;
-  const offer = tkbSig(draft) !== tkbSig(sampleTkb());
+  const offer = tkbOffer(k) && tkbSig(draft) !== tkbSig(sampleTkb());
   openModal(`<h2>Thời khoá biểu của ${esc(k.name)}</h2>
   <div class="fg">
     ${frow('Lớp', `<input id="tcls" class="pillin txt" maxlength="20" value="${esc(draft.cls || '')}" placeholder="Lớp 4A">`, { id: 'tcls' })}
