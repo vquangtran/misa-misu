@@ -113,7 +113,8 @@ const SAMPLE_PRICES = [
   { name: 'Đánh nhau', also: ['Réo “mẹ” trong lúc làm việc'], icon: '🥊', kind: 'penalty', price: 0, week: true },
   { name: 'Nói dối, không trung thực', also: ['Nói dối'], icon: '🙅', kind: 'penalty', price: 0, week: true, ver: 2 },
   { name: 'Điện thoại', icon: '📱', kind: 'fee', price: 25000 },
-  { name: 'Tivi', icon: '📺', kind: 'fee', price: 25000 },
+  { name: 'Xem TV', also: ['Tivi'], icon: '📺', kind: 'fee', price: 25000 },
+  { name: 'Chơi game', icon: '🎮', kind: 'fee', price: 25000 },
   // Phiếu thưởng: con dùng tiền trong tài khoản để đổi (giá 0 là miễn phí). skip: miễn việc phải làm của một ngày.
   { name: 'Mời bạn đến chơi', icon: '👫', kind: 'gift', price: 0, note: 'Mời một bạn đến nhà chơi' },
   { name: 'Chọn món ăn sáng', icon: '🥞', kind: 'gift', price: 5000, note: 'Con chọn món ăn sáng mình thích nhất' },
@@ -2273,20 +2274,24 @@ function viewAccount() {
   const custom = (label, btn, ph) => `<div class="row2"><div class="field"><label for="aamt">${label}</label><input id="aamt" class="input num" type="number" min="0" step="1000" inputmode="numeric" placeholder="Ví dụ: 10000"></div>
     <div class="field"><label for="anote">Lý do</label><input id="anote" class="input" maxlength="80" placeholder="${ph}"></div></div>
     <div class="row"><button class="btn ${kind === 'bonus' ? 'primary' : 'danger'}" data-act="acct-custom">${btn}</button></div>`;
+  // Ô số giờ cho phí sử dụng (xem TV, chơi game, điện thoại): dùng ở cả mục Phí và mục Chi tiêu.
+  const hoursField = `<div class="field"><label for="ahours">Đã dùng bao lâu (giờ)</label><div class="stepper"><button class="iconbtn" data-act="num-step" data-t="ahours" data-n="-0.5" data-min="0.5" aria-label="Bớt nửa giờ">−</button><input id="ahours" class="input num" type="number" min="0.5" step="0.5" value="1" inputmode="decimal"><button class="iconbtn" data-act="num-step" data-t="ahours" data-n="0.5" data-min="0.5" aria-label="Thêm nửa giờ">+</button></div>
+      <span class="muted small">Nửa giờ là 0,5. Tiền trừ = giá mỗi giờ × số giờ.</span></div>`;
   if (kind === 'penalty') {
     const ps = pricesList('penalty');
     h += ps.length ? `<p class="muted small" style="margin:0">Bấm vào lỗi để trừ tiền của ${kidName1}. Bấm nhầm thì bấm Hoàn tác ngay sau đó, hoặc Huỷ trong lịch sử.</p>${presets(ps)}` : `<p class="muted small" style="margin:0">Chưa có mục phạt nào. Thêm ở trang <a href="#bang-gia">Bảng giá</a>.</p>`;
     h += `<details class="adv"><summary>Phạt số tiền khác</summary>${custom('Số tiền trừ (đồng)', 'Trừ tiền', 'Ví dụ: Làm vỡ cốc')}</details>`;
   } else if (kind === 'fee') {
     const ps = pricesList('fee');
-    h += `<div class="field"><label for="ahours">Đã dùng bao lâu (giờ)</label><div class="stepper"><button class="iconbtn" data-act="num-step" data-t="ahours" data-n="-0.5" data-min="0.5" aria-label="Bớt nửa giờ">−</button><input id="ahours" class="input num" type="number" min="0.5" step="0.5" value="1" inputmode="decimal"><button class="iconbtn" data-act="num-step" data-t="ahours" data-n="0.5" data-min="0.5" aria-label="Thêm nửa giờ">+</button></div>
-      <span class="muted small">Nửa giờ là 0,5. Tiền trừ = giá mỗi giờ × số giờ.</span></div>`;
+    h += hoursField;
     h += ps.length ? presets(ps) : `<p class="muted small" style="margin:0">Chưa có mục phí sử dụng nào. Thêm ở trang <a href="#bang-gia">Bảng giá</a>.</p>`;
   } else if (kind === 'bonus') {
     h += `<p class="muted small" style="margin:0">Tiền việc nhà và tiền thưởng làm đủ việc được cộng tự động. Ở đây ghi các khoản thưởng thêm khác.</p>${pricesList('merit').length ? presets(pricesList('merit')) : ''}${custom('Số tiền thưởng (đồng)', 'Thưởng tiền', 'Ví dụ: Được điểm 10, giúp bà nấu cơm')}`;
   } else {
-    const gs = pricesList('gift');
-    h += `<p class="muted small" style="margin:0">Con tiêu tiền trong tài khoản: đổi phiếu thưởng, mua quà hoặc rút tiền mặt.</p>`;
+    const gs = pricesList('gift'), fs = pricesList('fee');
+    h += `<p class="muted small" style="margin:0">Con tiêu tiền trong tài khoản: xem TV, chơi game, đổi phiếu thưởng, mua quà hoặc rút tiền mặt.</p>`;
+    // Xem TV, chơi game, điện thoại: tính theo giờ, giá mỗi giờ ở trang Bảng giá (mục Phí sử dụng).
+    if (fs.length) h += `<div class="sub-h">Xem TV, chơi game (tính theo giờ)</div>${hoursField}${presets(fs)}<div class="sub-h">Phiếu thưởng, mua quà</div>`;
     if (gs.length) h += presets(gs);
     h += custom('Số tiền chi (đồng)', 'Ghi chi tiêu', 'Ví dụ: Rút tiền mặt, mua truyện');
   }
@@ -2573,6 +2578,14 @@ function autoAdds() {
   if (!set.read) {
     for (const c of choresList()) if (!isFun(c) && ['đọc sách 30 phút', 'đọc sách'].includes(norm(c.name)) && !c.unlock) edit(c.id, { unlock: true });
     flags.read = 1;
+  }
+  // Chi tiêu có Xem TV và Chơi game (tính theo giờ, một lần): đổi tên mục "Tivi" thành "Xem TV", thêm "Chơi game" nếu chưa có.
+  if (!set.screen) {
+    const fees = pricesList('fee'), tv = fees.find(r => norm(r.name) === 'tivi');
+    if (tv && !fees.some(r => norm(r.name) === 'xem tv')) { const { id, ...o } = tv; put('rewards', id, { ...o, name: 'Xem TV', icon: o.icon || '📺' }); }
+    else if (!tv && !fees.some(r => norm(r.name) === 'xem tv')) put('rewards', 'gia-xem-tv', { name: 'Xem TV', icon: '📺', kind: 'fee', price: 25000 });
+    if (!fees.some(r => ['chơi game', 'game'].includes(norm(r.name)))) put('rewards', 'gia-choi-game', { name: 'Chơi game', icon: '🎮', kind: 'fee', price: 25000 });
+    flags.screen = 1;
   }
   // Hút bụi chỉ có ở 6th Element (một lần; sau đó bố mẹ sửa ở form việc).
   if (!set.vac) {
