@@ -1365,13 +1365,19 @@ const soOf = code => CLS[code]?.data || emptySo();
 // Cô Ngân: buổi Offline 140.000đ, buổi Online một tiếng 65.000đ. Cô Hải chưa có học phí nên tạm ẩn phần học phí (feeOff), bật lại ở Sửa sổ.
 // Tên sổ (book): để trống thì sổ gọi là "Sổ học <môn>". Sổ Tiếng Việt của Su gọi là Nhật ký học Tiếng Việt.
 const SU_TV_BOOK = 'Nhật ký học Tiếng Việt';
+// Thời lượng mỗi buổi theo thứ (dur: 7 số, CN = 0 … T7 = 6; 0 = theo lịch học thêm). Cô Thảo: thứ 3 học 60 phút, chủ nhật 120 phút.
+const SU_TV_DUR = [120, 0, 60, 0, 0, 0, 0];
+const isSuTV = (kidNm, subj) => ['su', 'misu'].includes(norm(kidNm)) && norm(subj) === 'tiếng việt';
+// Màn của cô đọc thông tin lớp (có student): sổ Tiếng Việt của Su chưa được máy bố mẹ ghi dur thì vẫn dùng thời lượng của cô Thảo.
+const durOf = x => Array.isArray(x?.dur) ? [0, 1, 2, 3, 4, 5, 6].map(i => Math.max(0, Math.round(Number(x.dur[i]) || 0)))
+  : x?.student && isSuTV(x.student, x.name) ? SU_TV_DUR.slice() : [0, 0, 0, 0, 0, 0, 0];
 const SAMPLE_CLASSES = [
-  { kids: ['su', 'misu'], name: 'Tiếng Việt', book: SU_TV_BOOK, teacher: 'Cô Thảo', fee: 200000 }, { kids: ['su', 'misu'], name: 'Toán', teacher: 'Cô Trang', fee: 220000 },
+  { kids: ['su', 'misu'], name: 'Tiếng Việt', book: SU_TV_BOOK, dur: SU_TV_DUR, teacher: 'Cô Thảo', fee: 200000 }, { kids: ['su', 'misu'], name: 'Toán', teacher: 'Cô Trang', fee: 220000 },
   { kids: ['sa', 'misa'], name: 'Tiếng Việt', teacher: 'Cô Ngân', fee: 140000, feeOn: 65000 }, { kids: ['sa', 'misa'], name: 'Toán', teacher: 'Cô Hải', feeOff: true },
 ];
 // Những sổ mẫu nhà chưa có (so theo con và môn). id cố định theo con và thứ tự mẫu: hai máy cùng tạo thì vẫn chỉ ra một sổ.
 const classSamples = () => kidsList().flatMap(k => SAMPLE_CLASSES.map((sp, i) => ({ sp, i })).filter(({ sp }) => sp.kids.includes(norm(k.name)) && !classesOf(k.id).some(c => norm(c.name) === norm(sp.name)))
-  .map(({ sp, i }) => ({ id: `lop-${k.id}-${i}`, kid: k.id, name: sp.name, ...(sp.book ? { book: sp.book } : {}), teacher: sp.teacher, fee: sp.fee || 0, feeOn: sp.feeOn || 0, feeBy: 'buoi', feeOff: !!sp.feeOff })));
+  .map(({ sp, i }) => ({ id: `lop-${k.id}-${i}`, kid: k.id, name: sp.name, ...(sp.book ? { book: sp.book } : {}), ...(sp.dur ? { dur: sp.dur.slice() } : {}), teacher: sp.teacher, fee: sp.fee || 0, feeOn: sp.feeOn || 0, feeBy: 'buoi', feeOff: !!sp.feeOff })));
 // Danh sách sổ học của nhà, lưu trong nhóm `paid` với id "lop-…" (nhóm này đã có trong Rules).
 const classesList = () => Object.entries(S.paid || {}).filter(([id, c]) => id.startsWith('lop-') && c && c.code && S.kids[c.kid]).map(([id, c]) => ({ id, ...c }))
   .sort((a, b) => (S.kids[a.kid].order ?? 0) - (S.kids[b.kid].order ?? 0) || String(a.at || '').localeCompare(String(b.at || '')) || String(a.name).localeCompare(String(b.name), 'vi'));
@@ -1393,7 +1399,7 @@ const feeOf = x => ({ fee: Math.max(0, Math.round(Number(x?.fee) || 0)), on: Mat
 // Học phí của một buổi: buổi cô ghi là Online thì tính mức Online (nếu có), còn lại tính mức thường.
 const sessFee = (f, s) => { const rate = s.mode === 'on' && f.on ? f.on : f.fee; return f.by === 'gio' ? rate * (Number(s.mins) || 0) / 60 : rate; };
 const feeTxt = f => { const u = f.by === 'gio' ? 'giờ' : 'buổi'; return !f.off && (f.fee || f.on) ? (f.on ? `${money(f.fee)} mỗi ${u} Offline, ${money(f.on)} mỗi ${u} Online` : `${money(f.fee)} mỗi ${u}`) : ''; };
-const classInfo = c => ({ name: c.name, book: String(c.book || '').trim(), teacher: c.teacher || '', student: kidName(c.kid), fee: feeOf(c).fee, feeOn: feeOf(c).on, feeBy: feeOf(c).by, feeOff: feeOf(c).off, days: classLessons(c).map(l => ({ day: Number(l.day) || 0, s: l.s || '', e: l.e || '' })).sort((a, b) => a.day - b.day || String(a.s).localeCompare(String(b.s))) });
+const classInfo = c => ({ name: c.name, book: String(c.book || '').trim(), teacher: c.teacher || '', student: kidName(c.kid), fee: feeOf(c).fee, feeOn: feeOf(c).on, feeBy: feeOf(c).by, feeOff: feeOf(c).off, days: classLessons(c).map(l => ({ day: Number(l.day) || 0, s: l.s || '', e: l.e || '' })).sort((a, b) => a.day - b.day || String(a.s).localeCompare(String(b.s))), dur: durOf(c) });
 
 function openClass(code) {
   if (CLS[code]) return CLS[code];
@@ -1423,7 +1429,7 @@ function classHeal(code) {
   // Firestore trả các trường của một mục theo thứ tự bảng chữ cái, khác thứ tự lúc ghi, nên từng buổi trong days phải dựng lại đúng thứ tự mới so được.
   // So lệch thứ tự thì lần nào cũng thấy "khác", ghi lại, nhận về, lại ghi: vòng lặp làm app vẽ lại liên tục, không bấm được gì và đốt hết hạn mức ghi.
   const days = (Array.isArray(have?.days) ? have.days : []).map(d => ({ day: Number(d?.day) || 0, s: d?.s || '', e: d?.e || '' }));
-  if (have && ws === JSON.stringify({ name: have.name, book: String(have.book || '').trim(), teacher: have.teacher || '', student: have.student, fee: feeOf(have).fee, feeOn: feeOf(have).on, feeBy: feeOf(have).by, feeOff: feeOf(have).off, days })) return;
+  if (have && ws === JSON.stringify({ name: have.name, book: String(have.book || '').trim(), teacher: have.teacher || '', student: have.student, fee: feeOf(have).fee, feeOn: feeOf(have).on, feeBy: feeOf(have).by, feeOff: feeOf(have).off, days, dur: durOf({ dur: have.dur }) })) return;
   // Chốt chặn: cùng một nội dung chỉ ghi một lần. Ghi rồi mà dữ liệu nhận về vẫn khác thì không ghi nữa, để không bao giờ lặp.
   if (HEALED[code] === ws) return;
   HEALED[code] = ws; clsPut(code, 'info', 'lop', want);
@@ -1711,22 +1717,28 @@ function drawTeacher() {
   }
   shell(nav, h);
 }
+// Hai, ba lựa chọn thì hiện hết ra, bấm vào để chọn (thay cho ô chọn thả xuống).
+const segPick = (name, opts, val) => `<div class="seg">${opts.map(([v, l]) => `<label><input type="radio" name="${name}" value="${esc(v)}" ${String(v) === String(val) ? 'checked' : ''}><span>${esc(l)}</span></label>`).join('')}</div>`;
+// Thời lượng và hình thức mặc định của buổi học ngày dk: thời lượng theo thứ nhà đã ghi (dur), không có thì theo lịch học thêm của thứ đó,
+// rồi như buổi gần nhất cùng thứ, rồi như buổi trước. Hình thức như buổi gần nhất cùng thứ (lớp có buổi Online, Offline cố định theo thứ), rồi như buổi trước.
+function sessDefaults(d, dk) {
+  const info = d.info.lop || {}, wd = parse(dk || key(today())).getDay(), ss = sessList(d).filter(x => x.state !== 'plan' && x.date), last = ss[ss.length - 1];
+  const same = ss.filter(x => parse(x.date).getDay() === wd), slot = (info.days || []).find(x => Number(x.day) === wd);
+  const slotMin = slot && slot.s && slot.e ? Math.max(0, toMin(slot.e) - toMin(slot.s)) : 0;
+  return { mins: durOf(info)[wd] || slotMin || Number(same[same.length - 1]?.mins) || Number(last?.mins) || 90, mode: (same.filter(x => x.mode).pop() || last)?.mode || 'off', sure: same.some(x => x.mode) };
+}
 function sessForm(id) {
   if (id && !okId(id)) return;
   const d = soOf(TEACH), s = id ? d.sessions[id] : null, ss = sessList(d), last = ss.filter(x => x.state !== 'plan').pop(), info = d.info.lop || {};
-  // Thời lượng mặc định: theo lịch học thêm của thứ đang ghi, không có thì lấy như buổi trước.
-  const slot = (info.days || []).find(x => Number(x.day) === today().getDay()) || (info.days || [])[0];
-  const mins = s ? Number(s.mins) || 0 : slot ? Math.max(0, toMin(slot.e) - toMin(slot.s)) : Number(last?.mins) || 90;
-  const hws = id ? hwList(d).filter(t => t.session === id) : [];
-  // Hình thức mặc định: như buổi gần nhất cùng thứ trong tuần (lớp có buổi Online và buổi Offline cố định theo thứ), không có thì như buổi trước.
-  const sameDay = ss.filter(x => x.state !== 'plan' && x.date && x.mode && parse(x.date).getDay() === today().getDay()).pop();
+  const hws = id ? hwList(d).filter(t => t.session === id) : [], def = sessDefaults(d, key(today()));
+  const mins = s ? Number(s.mins) || 0 : def.mins;
   attStart(TEACH, s?.files);
   openModal(`<h2>${s ? `Buổi ${ss.find(x => x.id === id)?.no || ''}` : 'Ghi buổi học'}</h2>
   <div class="fg f-title"><div class="ft"><div class="hw-title" id="stitle">${esc(s?.topic || sessDayTitle(s ? okDate(s.date) : key(today())))}</div></div></div>
   <div class="fg">
     ${frow('Ngày học', `<input id="sdate" class="pillin num" type="date" value="${esc(s ? okDate(s.date) : key(today()))}">`, { id: 'sdate' })}
-    ${frow('Trạng thái', pillSel('sstate', [['done', 'Đã học'], ['plan', 'Chưa học (kế hoạch)']], s?.state || 'done'), { id: 'sstate' })}
-    ${frow('Hình thức', pillSel('smode', SESS_MODES, s ? s.mode || '' : (sameDay || last)?.mode || ''), { id: 'smode', sub: feeOf(info).on ? 'Học phí buổi Online và Offline khác nhau, cô chọn đúng hình thức nhé' : '' })}
+    ${frow('Trạng thái', segPick('sstate', [['done', 'Đã học'], ['plan', 'Chưa học']], s?.state || 'done'))}
+    ${frow('Hình thức', segPick('smode', SESS_MODES.filter(x => x[0]), s ? s.mode || '' : def.mode), { sub: feeOf(info).on ? 'Học phí buổi Online và Offline khác nhau, cô chọn đúng hình thức nhé' : '' })}
     ${frow('Thời lượng', pillNum('smins', mins, { step: 15, unit: 'phút' }), { id: 'smins' })}
   </div>
   <div class="fg">${frow('Nội dung', `<textarea id="scontent" class="input" rows="3" maxlength="2000" placeholder="Lý thuyết, thực hành trên lớp…">${esc(s?.content || '')}</textarea>`, { id: 'scontent', cls: 'col' })}
@@ -2204,6 +2216,11 @@ function autoAdds() {
   if (!set.book) {
     for (const c of classesList()) if (['su', 'misu'].includes(norm(kidName(c.kid))) && norm(c.name) === 'tiếng việt' && !String(c.book || '').trim()) { const { id, ...o } = c; put('paid', id, { ...o, book: SU_TV_BOOK }); }
     flags.book = 1;
+  }
+  // Sổ Tiếng Việt của Su: thứ 3 học 60 phút, chủ nhật 120 phút (một lần; sổ đã có thời lượng riêng thì giữ nguyên).
+  if (!set.dur) {
+    for (const c of classesList()) if (isSuTV(kidName(c.kid), c.name) && !Array.isArray(c.dur)) { const { id, ...o } = c; put('paid', id, { ...o, dur: SU_TV_DUR.slice() }); }
+    flags.dur = 1;
   }
   if (Object.keys(flags).length) put('paid', SETTINGS_ID, { ...set, ...flags });
 }
@@ -3178,12 +3195,12 @@ document.addEventListener('click', e => {
   if (a === 'att-del') { if (ATT) { ATT.files = ATT.files.filter(f => f.id !== b.dataset.fid); attDraw(); } return; }
   if (a === 'file-open') return okId(b.dataset.fid) && fileOpen(b.dataset.code, { id: b.dataset.fid, n: Math.min(20, Number(b.dataset.n) || 1), name: b.dataset.name || 'file', type: b.dataset.type || '', size: Number(b.dataset.size) || 0 });
   if (a === 'sess-save') {
-    const state = $('#sstate').value === 'plan' ? 'plan' : 'done', date = $('#sdate').value || '';
+    const state = radioVal('sstate') === 'plan' ? 'plan' : 'done', date = $('#sdate').value || '';
     if (!date && !$('#scontent').value.trim()) return toast('Chọn ngày học nhé.');
     if (state === 'done' && !date) return toast('Chọn ngày học nhé. Buổi chưa có ngày thì để Chưa học (kế hoạch).');
     if (ATT?.busy) return toast('Đợi file tải lên xong đã.');
     const old = id ? soOf(TEACH).sessions[id] : null, sid = id || uid(), topic = String(old?.topic || '');
-    const data = { date, state, mode: $('#smode').value, mins: Math.max(0, Math.round(Number($('#smins').value) || 0)), topic, content: $('#scontent').value.trim(), src: $('#ssrc').value.trim(),
+    const data = { date, state, mode: radioVal('smode') || '', mins: Math.max(0, Math.round(Number($('#smins').value) || 0)), topic, content: $('#scontent').value.trim(), src: $('#ssrc').value.trim(),
       note: $('#snote').value.trim(), next: $('#snext').value.trim(), links: linkList($('#slinks').value), files: attTake(old?.files), at: old?.at || new Date().toISOString() };
     if (!clsPut(TEACH, 'sessions', sid, data)) return;
     closeModal();
@@ -3697,7 +3714,12 @@ document.addEventListener('input', e => {
   if (e.target.classList?.contains('ft-long')) growTitle(e.target);
   if (['pzoom', 'px', 'py'].includes(e.target.id)) photoRender();
   // Form buổi học: tên buổi đổi theo ngày học đang chọn.
-  if (e.target.id === 'sdate' && $('#stitle') && !soOf(TEACH).sessions[$('#modal [data-act="sess-save"]')?.dataset.id || '']?.topic) $('#stitle').textContent = sessDayTitle(e.target.value);
+  if (e.target.id === 'sdate' && $('#stitle')) {
+    const sid = $('#modal [data-act="sess-save"]')?.dataset.id || '', old = soOf(TEACH).sessions[sid];
+    if (!old?.topic) $('#stitle').textContent = sessDayTitle(e.target.value);
+    // Buổi mới: đổi ngày thì thời lượng và hình thức đổi theo thứ của ngày đó (cô Thảo: thứ 3 60 phút, chủ nhật 120 phút).
+    if (!old && e.target.value) { const def = sessDefaults(soOf(TEACH), e.target.value), m = $('#smins'), r = document.querySelector(`#modal input[name="smode"][value="${def.mode}"]`); if (m) m.value = def.mins; if (r && def.sure) r.checked = true; }
+  }
   // Việc mới: biểu tượng tự đổi theo tên đang gõ, cho tới khi bố mẹ tự chọn một hình.
   if (e.target.id === 'cname' && e.target.dataset.new) {
     const g = guessIcon(e.target.value), r = g !== '✅' && [...document.querySelectorAll('#modal input[name=cico]')].find(x => x.value === g);
