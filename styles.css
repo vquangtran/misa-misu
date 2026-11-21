@@ -872,6 +872,8 @@ button.big-item:active{transform:scale(.98)}
 .pillsel option{color:initial;background:initial;font-weight:400}
 .pillin{padding:6px 14px;text-align:center;min-width:104px}
 .pillin.txt{width:156px}
+/* ô Môn của bài tập: tên buổi học thêm thường dài (Tiếng Anh cô Huyền) */
+#tsubj{width:220px}
 .pillin::placeholder{color:var(--muted);opacity:.6;font-weight:500}
 .pillnum{display:inline-flex;align-items:center;gap:2px;padding:0 4px}
 .pillnum input{width:104px;min-width:0;border:0;padding:6px 0;background:none;text-align:right;font-weight:500;-moz-appearance:textfield;appearance:textfield}
