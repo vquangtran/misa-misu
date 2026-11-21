@@ -645,7 +645,18 @@ a.item{color:var(--ink)}
 .who-s{font-size:14px;font-weight:500;color:var(--muted)}
 .who-s.full{color:var(--good)}
 /* hai tab của con: Hôm nay, Học tập */
-.km-tabs label>span{min-height:40px;font-size:15px;font-weight:600}
+.km-tabs label>span{min-height:40px;font-size:15px;font-weight:600;white-space:nowrap}
+@media (max-width:379px){.km-tabs label>span{font-size:13px}}
+/* tin mới ở tab Hôm nay của con: bị trừ tiền, thành tích vừa được duyệt */
+.km-news{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;padding:12px 34px 12px 16px;border-radius:20px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:15px;text-align:left}
+.km-news b{font-family:var(--display);font-size:17px;font-weight:700}
+.km-news.cut{background:var(--bad-soft);border-color:transparent}
+.km-news.cut b,.km-news.cut i{color:var(--bad)}
+.km-news.ok{background:var(--good-soft);border-color:transparent}
+.km-news.ok b,.km-news.ok i{color:var(--good)}
+.km-news i{font-style:normal;font-weight:600}
+.km-news .chev{position:absolute;right:14px;top:50%;width:12px;height:12px;margin-top:-6px;stroke:var(--muted)}
+.km-news:active{opacity:.7}
 /* nhãn buổi trong chế độ cho bé: to hơn (mục Học tập, .plain, giữ cỡ như bên bố mẹ) */
 .km:not(.plain) .slots{gap:18px}
 .km:not(.plain) .slot{gap:10px}
