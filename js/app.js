@@ -75,7 +75,7 @@ const SAMPLE_CHORES = [
   { name: 'Hoàn thành bài tập ở lớp', icon: '🏫', money: 0, days: [1, 2, 3, 4, 5], slot: 'toi' },
   { name: 'Tự chuẩn bị, cất cặp', icon: '🎒', money: 0, days: [1, 2, 3, 4, 5], slot: 'toi' },
   { name: 'Dọn bàn học', icon: '🪑', money: 0, days: DAILY, slot: 'toi' },
-  // prep: chỉ hiện vào tối trước ngày con có buổi học thêm. ver: mục mới của bản này, "Cập nhật bảng giá" thêm vào nhà đang dùng.
+  // prep: chỉ hiện vào tối trước ngày con có buổi học thêm. ver: mục mới của bản này.
   { name: 'Chuẩn bị sách vở cho buổi học thêm hôm sau', icon: '🎒', money: 0, days: DAILY, slot: 'toi', prep: true, ver: 2 },
   { name: 'Đánh răng, rửa mặt', also: ['Đánh răng rửa mặt', 'Đánh răng'], icon: '🪥', money: 0, days: DAILY, slot: 'sang' },
   { name: 'Tập thể dục ít nhất 15 phút', also: ['Nhảy dây mỗi ngày', 'Nhảy dây'], icon: '🏃', money: 15000, days: DAILY, slot: 'chieu', minutes: 15 },
@@ -124,6 +124,7 @@ const WEEK_BONUS = 35000;
 // Con cũ chưa ghi mức thưởng tuần thì vẫn tính theo mức mặc định trước đây, để số dư không tự đổi.
 const WEEK_BONUS_OLD = 25000;
 // Bản của bảng mẫu. Con chưa ghi bản này (k.tableVer) thì trang Bảng giá gợi ý cập nhật một lần.
+// k.tableFull: nhà này đã được thêm đủ việc và mục giá của bản đó (xem autoFill).
 const TABLE_VER = 2;
 // Số dư thật của từng con lúc chốt bảng bản 2 (21/11/2026), theo tên. "Cập nhật bảng giá" điền sẵn để khớp số dư, sửa được trước khi áp dụng.
 const TABLE_BALANCES = { su: 875000, misu: 875000, sa: 703270, misa: 703270 };
@@ -1410,8 +1411,52 @@ function addSamples(kidIds) {
   m.prices.forEach(({ also, ver, ...r }) => put('rewards', uid(), r));
   return m.chores.length + m.prices.length;
 }
+// Việc và mục giá có trong bảng mẫu mà nhà mình chưa có (tính cả tên cũ). Việc giao cho mọi con, bắt đầu từ hôm nay.
+// Mã cố định theo tên, để hai máy cùng thêm một lúc không sinh ra hai việc trùng nhau.
+// Thứ tự: chen vào cạnh việc của bảng mà nhà mình đã có, để trong mỗi buổi các việc vẫn theo thứ tự của bảng.
+const slug = v => norm(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+function sampleAdds() {
+  const kids = kidsList(), chores = choresList(), prices = pricesList(), ops = [];
+  const SL = { sang: 'buổi sáng', chieu: 'buổi chiều', toi: 'buổi tối', '': 'lúc nào cũng được' };
+  const hit = (list, m) => list.find(x => [m.name, ...(m.also || [])].some(y => norm(y) === norm(x.name)));
+  const have = SAMPLE_CHORES.map(m => hit(chores, m)), order = [];
+  let last = null, step = 0;
+  SAMPLE_CHORES.forEach((m, i) => {
+    if (have[i]) { last = have[i].order ?? 0; step = 0; return; }
+    if (last !== null) return (order[i] = last + ++step / 1000);
+    const j = have.findIndex((x, n) => n > i && x);
+    order[i] = j < 0 ? chores.length + i : (have[j].order ?? 0) - (j - i) / 1000;
+  });
+  SAMPLE_CHORES.forEach(({ also, ver, ...m }, i) => {
+    const nid = 'mau-' + slug(m.name); if (have[i] || S.chores[nid]) return;
+    ops.push({ col: 'chores', nid, add: { ...m, kids: kids.map(k => k.id), order: order[i], since: key(today()) }, ico: m.icon, t: `Thêm việc “${m.name}”`,
+      s: [isFun(m) ? 'việc thích làm' : isWeekly(m) ? 'việc bắt buộc' : isExtra(m) ? `việc làm thêm, ${money(m.money)}` : `${money(m.money)} mỗi lần`, isExtra(m) ? '' : SL[m.slot], m.prep ? 'chỉ hiện vào tối trước ngày có học thêm' : ''].filter(Boolean).join(' · ') });
+  });
+  for (const { also, ver, ...m } of SAMPLE_PRICES) {
+    const nid = 'gia-' + slug(m.name); if (hit(prices, { ...m, also }) || S.rewards[nid]) continue;
+    ops.push({ col: 'rewards', nid, add: m, ico: m.icon, t: `Thêm ${m.kind === 'penalty' ? 'lỗi' : 'mục'} “${m.name}”`, s: m.week ? 'mất hết tiền được thưởng trong tuần' : m.all ? 'mất hết tiền đang có' : giftTagOf(m.kind, m.price) });
+  }
+  return ops;
+}
+// Nhà đã dùng bảng bản này (mọi con đã thưởng theo ngày) mà lịch từng ngày còn thiếu việc của bảng: tự thêm một lần lúc mở app.
+// Lần cập nhật bản 2 trước đây chỉ thêm mục mới của bản, nên nhà chưa có việc nào thì các buổi vẫn trống.
+// Chỉ làm một lần cho mỗi nhà (k.tableFull): sau đó bố mẹ xoá việc nào thì việc đó không tự quay lại.
+let fillChecked = false;
+function autoFill() {
+  if (fillChecked || !loaded || stale) return;
+  const kids = kidsList(); if (!kids.length) return;
+  fillChecked = true;
+  const ver = k => Number(k.tableVer) || 0, full = k => Number(k.tableFull) || 0;
+  if (!kids.every(k => ver(k) >= TABLE_VER && isDaily(k)) || kids.every(k => full(k) >= TABLE_VER)) return;
+  const adds = sampleAdds();
+  for (const o of adds) put(o.col, o.nid, o.add);
+  for (const k of kids) put('kids', k.id, { ...S.kids[k.id], tableFull: TABLE_VER });
+  const nc = adds.filter(o => o.col === 'chores').length, np = adds.length - nc; if (!adds.length) return;
+  toast([nc ? `Đã đưa ${nc} việc của bảng vào lịch từng ngày` : '', np ? `${nc ? 'thêm' : 'Đã thêm'} ${np} mục vào bảng giá` : ''].filter(Boolean).join(', ') + '.',
+    () => { for (const o of adds) del(o.col, o.nid); toast('Đã hoàn tác, lịch như trước.'); });
+}
 // Cập nhật bảng giá một lần theo bảng mẫu bản mới: những gì sẽ đổi trong dữ liệu đang dùng.
-// Chỉ đụng tới mục trùng tên với bảng mẫu (tên mới hoặc tên cũ); mục gia đình tự thêm thì giữ nguyên.
+// Chỉ đụng tới mục trùng tên với bảng mẫu (tên mới hoặc tên cũ); mục gia đình tự thêm thì giữ nguyên. Việc và mục giá còn thiếu thì thêm đủ.
 // Trả về null khi không có gì để đổi, hoặc các con đã ghi bản này (đã áp dụng hoặc đã bỏ qua).
 function tableUpdate() {
   const kids = kidsList(); if (!kids.length || kids.every(k => (Number(k.tableVer) || 0) >= TABLE_VER)) return null;
@@ -1444,14 +1489,9 @@ function tableUpdate() {
     if (m.skip && r.note === SKIP_NOTE_OLD) next.note = m.note;
     if (notes.length) ops.push({ col: 'rewards', id: r.id, ico: next.icon || r.icon || '🏷️', next, t: r.name, s: notes.join(' · ') });
   }
-  // Mục mới của bản này mà nhà mình chưa có: thêm vào (việc thì giao cho mọi con).
-  const SLN = { sang: 'buổi sáng', chieu: 'buổi chiều', toi: 'buổi tối', '': 'lúc nào cũng được' };
-  for (const { also, ver, ...m } of SAMPLE_CHORES) if (ver === TABLE_VER && !hit(chores, norm(m.name)) && ![...(also || [])].some(x => cnames.has(norm(x))))
-    ops.push({ col: 'chores', add: { ...m, kids: kids.map(k => k.id), order: chores.length + ops.length, since: key(today()) }, ico: m.icon, t: `Thêm việc “${m.name}”`,
-      s: [isWeekly(m) ? 'việc bắt buộc' : isExtra(m) ? `việc làm thêm, ${money(m.money)}` : `${money(m.money)} mỗi lần`, SLN[m.slot], m.prep ? 'chỉ hiện vào tối trước ngày có học thêm' : ''].filter(Boolean).join(' · ') });
-  for (const { also, ver, ...m } of SAMPLE_PRICES) if (ver === TABLE_VER && !pnames.has(norm(m.name)) && ![...(also || [])].some(x => pnames.has(norm(x))))
-    ops.push({ col: 'rewards', add: m, ico: m.icon, t: `Thêm ${m.kind === 'penalty' ? 'lỗi' : 'mục'} “${m.name}”`, s: m.week ? 'mất hết tiền được thưởng trong tuần' : m.all ? 'mất hết tiền đang có' : giftTagOf(m.kind, m.price) });
-  const bals = kids.filter(k => TABLE_BALANCES[norm(k.name)] != null).map(k => ({ kid: k.id, name: k.name, target: TABLE_BALANCES[norm(k.name)] }));
+  // Việc và mục giá của bảng mà nhà mình chưa có: thêm đủ, để lịch từng ngày có sẵn việc.
+  ops.push(...sampleAdds());
+  const bals = kids.filter(k => (Number(k.tableVer) || 0) < TABLE_VER && TABLE_BALANCES[norm(k.name)] != null).map(k => ({ kid: k.id, name: k.name, target: TABLE_BALANCES[norm(k.name)] }));
   return ops.length ? { ops, kids, bals } : null;
 }
 function tableUpdateForm() {
@@ -1470,13 +1510,13 @@ function tableUpdateRun(apply, bals = []) {
   const save = (col, id, data) => { if (!raw[col][id]) return; before.push([col, id, { ...raw[col][id] }]); if (data) { put(col, id, data); raw[col][id] = data; } else { del(col, id); delete raw[col][id]; } };
   if (apply) for (const o of u.ops) {
     if (o.col === 'kids') { kidNext[o.id] = o.next; continue; }
-    if (o.add) { const nid = uid(); added.push([o.col, nid]); put(o.col, nid, o.add); raw[o.col][nid] = o.add; continue; }
+    if (o.add) { const nid = o.nid || uid(); if (raw[o.col][nid]) continue; added.push([o.col, nid]); put(o.col, nid, o.add); raw[o.col][nid] = o.add; continue; }
     if (o.del) { save(o.col, o.id, null); continue; }
     const data = { ...raw[o.col][o.id], ...o.next };
     for (const f of ['all', 'week']) if (data[f] === false) delete data[f];
     save(o.col, o.id, data);
   }
-  for (const k of u.kids) save('kids', k.id, { ...raw.kids[k.id], ...(kidNext[k.id] || {}), tableVer: TABLE_VER });
+  for (const k of u.kids) save('kids', k.id, { ...raw.kids[k.id], ...(kidNext[k.id] || {}), tableVer: TABLE_VER, tableFull: TABLE_VER });
   if (apply && bals.length) {
     memo = {}; const at = new Date().toISOString();
     for (const x of bals) {
@@ -2409,7 +2449,7 @@ document.addEventListener('click', e => {
       since: old?.since || key(today()),
     };
     const amt = sel => Math.max(0, Math.round(Number($(sel)?.value) || 0));
-    if (!old) Object.assign(data, { dayBonus: amt('#kdb'), dayFrom: key(weekStart(today())), tableVer: TABLE_VER });
+    if (!old) Object.assign(data, { dayBonus: amt('#kdb'), dayFrom: key(weekStart(today())), tableVer: TABLE_VER, tableFull: TABLE_VER });
     else if (isDaily(old)) {
       data.dayBonus = amt('#kdb');
       if (dayBonusOf(old) !== data.dayBonus) {
@@ -2684,7 +2724,7 @@ async function startFirebase() {
   render();
   try {
     store = await firebaseStore(firebaseConfig, family, (data, meta) => {
-      S = data; loaded = true; stale = !!meta.fromCache; render(); autoSeed();
+      S = data; loaded = true; stale = !!meta.fromCache; render(); autoSeed(); autoFill();
     }, (type, err) => {
       console.error(err);
       if (err?.code === 'permission-denied') toast('Firestore từ chối truy cập. Kiểm tra Rules trong README.');
@@ -2712,7 +2752,7 @@ if (firebaseConfig) {
   family = getFamily();
   if (family) startFirebase(); else showSetup();
 } else {
-  store = localStore((data) => { S = data; loaded = true; render(); });
+  store = localStore((data) => { S = data; loaded = true; render(); autoFill(); });
   store.start();
   autoSeed();
 }
