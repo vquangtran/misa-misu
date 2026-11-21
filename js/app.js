@@ -1476,6 +1476,12 @@ function hwState(t) {
   return { k: 'open', txt: t.due ? `hạn ${dueLabel(t.due)}` : 'chưa có hạn' };
 }
 // Ngày học tới của lớp: theo lịch học thêm nhà đã ghi, không có thì lấy buổi kế hoạch gần nhất đã có ngày.
+// Hạn nộp bài giao trong buổi ngày dk: buổi học tới sau ngày đó theo lịch học thêm; đã qua thì lấy buổi học tới tính từ hôm nay.
+function hwDueAfter(d, dk) {
+  const days = (d.info.lop?.days || []).map(x => Number(x.day)), base = dk ? parse(dk) : today();
+  for (let i = 1; days.length && i <= 14; i++) { const x = addDays(base, i); if (days.includes(x.getDay())) return key(x) > key(today()) ? x : nextClassDay(d); }
+  return nextClassDay(d);
+}
 function nextClassDay(d) {
   const days = (d.info.lop?.days || []).map(x => Number(x.day)), t = today();
   for (let i = 1; days.length && i <= 14; i++) if (days.includes(addDays(t, i).getDay())) return addDays(t, i);
@@ -1741,15 +1747,18 @@ function sessForm(id) {
     ${frow('Hình thức', segPick('smode', SESS_MODES.filter(x => x[0]), s ? s.mode || '' : def.mode), { sub: feeOf(info).on ? 'Học phí buổi Online và Offline khác nhau, cô chọn đúng hình thức nhé' : '' })}
     ${frow('Thời lượng', pillNum('smins', mins, { step: 15, unit: 'phút' }), { id: 'smins' })}
   </div>
-  <div class="fg">${frow('Nội dung', `<textarea id="scontent" class="input" rows="3" maxlength="2000" placeholder="Lý thuyết, thực hành trên lớp…">${esc(s?.content || '')}</textarea>`, { id: 'scontent', cls: 'col' })}
-    ${frow('Sách, nguồn tham khảo', `<input id="ssrc" class="input" maxlength="200" value="${esc(s?.src || '')}" placeholder="Ví dụ: SGK tập 1, bài 1–4">`, { id: 'ssrc', cls: 'col' })}</div>
-  <div class="fg">${frow('Nhận xét học sinh', `<textarea id="snote" class="input" rows="3" maxlength="2000" placeholder="Con học thế nào, cần chú ý gì…">${esc(s?.note || '')}</textarea>`, { id: 'snote', cls: 'col', sub: 'Phụ huynh đọc được. Trên máy của con không hiện phần này.' })}
-    ${frow('Mục tiêu buổi sau', `<input id="snext" class="input" maxlength="300" value="${esc(s?.next || '')}" placeholder="Ví dụ: chữa bài tập, sang chuyên đề mới">`, { id: 'snext', cls: 'col' })}</div>
-  <div class="fg">${frow('Slide, tài liệu', attBox(), { cls: 'col', sub: 'File hoặc ảnh, mỗi file tối đa 8 MB' })}
+  <p class="fg-cap">Cô cần ghi</p>
+  <div class="fg">${frow('Nội dung', `<textarea id="scontent" class="input" rows="3" maxlength="2000" placeholder="Hôm nay học gì: lý thuyết, thực hành trên lớp…">${esc(s?.content || '')}</textarea>`, { id: 'scontent', cls: 'col' })}
+    ${frow('Nhận xét học sinh', `<textarea id="snote" class="input" rows="3" maxlength="2000" placeholder="Con học thế nào, cần chú ý gì…">${esc(s?.note || '')}</textarea>`, { id: 'snote', cls: 'col', sub: 'Phụ huynh đọc được. Trên máy của con không hiện phần này.' })}
+    <div class="fr col"><div class="fl"><label for="shw">Bài tập về nhà</label><span class="fs">Mỗi dòng một bài, hiện ngay trên máy của con, hạn nộp là buổi học tới. Cần đính kèm file hay hướng dẫn thì bấm Giao bài chi tiết.</span></div>
+      ${hws.length ? `<div class="list menu">${hws.map(t => `<button class="item nav" data-act="sess-save" data-id="${id}" data-hw="${t.id}"><span class="ico">📝</span><span class="txt"><span class="t">${esc(t.title)}</span><span class="s">${esc(hwState(t).txt)}</span></span>${CHEV}</button>`).join('')}</div>` : ''}
+      <textarea id="shw" class="input" rows="2" maxlength="1000" placeholder="${hws.length ? 'Giao thêm bài (không bắt buộc)' : 'Ví dụ: Luyện viết trang 12'}"></textarea>
+      <button class="btn quiet sm" data-act="sess-save" data-id="${id || ''}" data-hw="new">📎 Giao bài chi tiết (file, hướng dẫn)</button></div></div>
+  <p class="fg-cap">Thêm nếu cần (không bắt buộc)</p>
+  <div class="fg">${frow('Sách, nguồn tham khảo', `<input id="ssrc" class="input" maxlength="200" value="${esc(s?.src || '')}" placeholder="Ví dụ: SGK tập 1, bài 1–4">`, { id: 'ssrc', cls: 'col' })}
+    ${frow('Mục tiêu buổi sau', `<input id="snext" class="input" maxlength="300" value="${esc(s?.next || '')}" placeholder="Ví dụ: chữa bài tập, sang chuyên đề mới">`, { id: 'snext', cls: 'col' })}
+    ${frow('Slide, tài liệu', attBox(), { cls: 'col', sub: 'File hoặc ảnh, mỗi file tối đa 8 MB' })}
     ${frow('Link', `<textarea id="slinks" class="input" rows="2" maxlength="2000" placeholder="https://…">${esc(linkList(s?.links).join('\n'))}</textarea>`, { id: 'slinks', cls: 'col', sub: 'Canva, Google Drive… mỗi dòng một link' })}</div>
-  <div class="fg"><div class="fr col"><div class="fl"><span class="lbl">Bài tập về nhà</span><span class="fs">Bấm là lưu buổi học rồi mở form bài tập.</span></div>
-    <div class="list menu">${hws.map(t => `<button class="item nav" data-act="sess-save" data-id="${id}" data-hw="${t.id}"><span class="ico">📝</span><span class="txt"><span class="t">${esc(t.title)}</span><span class="s">${esc(hwState(t).txt)}</span></span>${CHEV}</button>`).join('')}
-      <button class="item nav" data-act="sess-save" data-id="${id || ''}" data-hw="new"><span class="ico">📝</span><span class="txt"><span class="t">${hws.length ? 'Giao thêm bài cho buổi này' : 'Giao bài tập cho buổi này'}</span></span>${CHEV}</button></div></div></div>
   ${formFoot(s ? 'sess-del' : '', id, 'sess-save')}`);
   $('#modal .dialog')?.focus();
 }
@@ -3198,14 +3207,24 @@ document.addEventListener('click', e => {
     const state = radioVal('sstate') === 'plan' ? 'plan' : 'done', date = $('#sdate').value || '';
     if (!date && !$('#scontent').value.trim()) return toast('Chọn ngày học nhé.');
     if (state === 'done' && !date) return toast('Chọn ngày học nhé. Buổi chưa có ngày thì để Chưa học (kế hoạch).');
+    // Buổi đã học: Nội dung, Nhận xét học sinh và Bài tập về nhà là phần bắt buộc. Buổi chưa học (kế hoạch) thì không bắt buộc.
+    const hwLines = $('#shw').value.split('\n').map(x => x.replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 10);
+    if (state === 'done') {
+      if (!$('#scontent').value.trim()) { $('#scontent').focus(); return toast('Ghi nội dung buổi học nhé.'); }
+      if (!$('#snote').value.trim()) { $('#snote').focus(); return toast('Ghi nhận xét học sinh nhé.'); }
+      if (!b.dataset.hw && !hwLines.length && !(id && hwList(soOf(TEACH)).some(t => t.session === id))) { $('#shw').focus(); return toast('Ghi bài tập về nhà nhé.'); }
+    }
     if (ATT?.busy) return toast('Đợi file tải lên xong đã.');
     const old = id ? soOf(TEACH).sessions[id] : null, sid = id || uid(), topic = String(old?.topic || '');
     const data = { date, state, mode: radioVal('smode') || '', mins: Math.max(0, Math.round(Number($('#smins').value) || 0)), topic, content: $('#scontent').value.trim(), src: $('#ssrc').value.trim(),
       note: $('#snote').value.trim(), next: $('#snext').value.trim(), links: linkList($('#slinks').value), files: attTake(old?.files), at: old?.at || new Date().toISOString() };
     if (!clsPut(TEACH, 'sessions', sid, data)) return;
+    // Mỗi dòng ở ô Bài tập về nhà thành một bài, gắn với buổi này, hạn nộp là buổi học tới sau ngày học.
+    const due = hwDueAfter(soOf(TEACH), date), t0 = Date.now();
+    hwLines.forEach((title, i) => clsPut(TEACH, 'tasks', uid(), { title, notes: '', due: due ? key(due) : '', session: sid, steps: [], links: [], files: [], at: new Date(t0 + i).toISOString() }));
     closeModal();
     if (b.dataset.hw) return hwForm(b.dataset.hw === 'new' ? null : b.dataset.hw, sid);
-    return toast('Đã lưu buổi học.');
+    return toast(hwLines.length ? `Đã lưu buổi học và giao ${hwLines.length} bài${due ? `, hạn nộp ${dueLabel(key(due))}` : ''}.` : 'Đã lưu buổi học.');
   }
   if (a === 'sess-del') {
     if (!armed(b, 'Bấm lần nữa để xoá')) return;

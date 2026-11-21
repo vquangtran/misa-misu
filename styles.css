@@ -319,6 +319,7 @@ details.subj-more>*+*{margin-top:8px}
 .dialog .foot{display:flex;flex-direction:column;gap:8px}
 .dialog .foot .btn{width:100%}
 .lead{margin:-4px 0 0}
+.fg-cap{margin:4px 6px -6px;font-size:13px;font-weight:600;color:var(--muted)}
 @media (min-width:600px){.overlay{align-items:center;padding:24px}.dialog{border-radius:26px;box-shadow:var(--shadow-float)}.sheet-bar::before{display:none}.sheet-bar{padding-top:6px}}
 
 .toast{position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:80;background:var(--ink);color:var(--paper);padding:11px 20px;border-radius:14px;font-weight:500;font-size:14px;
