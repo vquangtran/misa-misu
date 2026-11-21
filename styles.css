@@ -326,6 +326,8 @@ textarea.hw-in{resize:none;overflow:hidden;min-height:44px}
 .linkbtn.hw-add .gl{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.6;stroke-linecap:round}
 .hw-chk .seg,.hw-lv{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .item.tap{cursor:pointer}
+.so-badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.so-today .cmt{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .cnt.late{color:var(--bad);opacity:1;font-weight:700}
 .so-need .slot-pill{color:var(--bad)}
 .item.tap:active{opacity:.6}

@@ -1016,6 +1016,9 @@ function viewToday() {
   // Bài cần nộp: cùng kiểu với các buổi, nằm trước để thấy ngay.
   const ts = isT ? tasksSoon(k.id) : [];
   if (ts.length) h += `<section class="slot s-task"><div class="slot-h"><a class="slot-pill" href="#lich-hoc" data-act="tkb-go" data-tab="bai-tap" data-kid="${k.id}">📝<span>Bài cần nộp</span><i class="num">${ts.length}</i>${CHEV}</a></div><div class="slot-list list">${ts.map(x => taskRow(x, false, 'mini')).join('')}</div></section>`;
+  // Sổ học của cô: mỗi sổ một dòng tóm tắt (buổi gần nhất, nhận xét mới nhất, học phí tháng này, buổi cô chưa ghi), bấm để mở sổ.
+  const cls = isT && !RO ? classesOf(k.id) : [];
+  if (cls.length) h += `<section class="slot">${secHead('📒', 'Sổ học của cô', { cnt: cls.length, key: 'today-so' })}${secIsOpen('today-so') ? `<div class="slot-list list">${cls.map(soTodayRow).join('')}</div>` : ''}</section>`;
   const cur = isT ? slotAt(nowMin()) : null, canAdd = d >= t;
   // Luôn đủ bốn buổi (từ hôm nay trở đi): buổi chưa có việc hiện ô trống có dấu + để thêm ngay tại chỗ.
   const groups = SLOTS.map(([id, label, icon]) => plan.find(g => !g.extra && g.id === id) || { id, label, icon, items: [], blank: true }).filter(g => !g.blank || canAdd);
@@ -1048,6 +1051,18 @@ function viewToday() {
   }
   h += `</div>`;
   return h;
+}
+function soTodayRow(c) {
+  const k = CLS[c.code], d = soOf(c.code), st = soStats(d), last = st.done[st.done.length - 1], f = feeOf(c), mk = key(today()).slice(0, 7);
+  const cur = soFees(d, f).find(r => r.mk === mk), paid = paidOf(d), mi = soMissing(d);
+  const owe = f.off ? [] : soFees(d, f).filter(r => r.mk < mk && !paid[r.mk]), noted = [...st.done].reverse().find(x => x.note);
+  // Bài đang làm: không tính bài cũ trước hwFrom (cũng không hiện ở phần của con).
+  const open = st.hw.filter(t => !t.done && !t.got && (!c.hwFrom || !t.due || t.due >= c.hwFrom)).length;
+  const sub = !k || !k.loaded ? 'Đang mở sổ…' : !st.ss.length ? 'Sổ còn trống. Gửi link cho cô để cô bắt đầu ghi.'
+    : [last ? `Gần nhất ${dateTxt(last.date)}` : '', `tháng ${today().getMonth() + 1}: ${st.month} buổi${cur && (f.fee || f.on) && !f.off ? ` · ${money(cur.amount)}${paid[mk] ? ' đã đóng' : ''}` : ''}`, open ? `${open} bài đang làm` : ''].filter(Boolean).join(' · ');
+  const badges = [mi.n ? `<span class="badge owe">${mi.n} buổi cô chưa ghi</span>` : '', owe.length ? `<span class="badge wait">Chưa đóng HP tháng ${owe.map(r => Number(r.mk.slice(5))).join(', ')}</span>` : '', st.wait ? `<span class="badge wait">${st.wait} bài chờ cô nhận</span>` : ''].filter(Boolean).join('');
+  return `<button class="item nav so-today" data-act="cls-open" data-id="${c.id}"><span class="ico">${lessonIcon(c.name) === '📚' ? '📒' : lessonIcon(c.name)}</span><span class="txt"><span class="t">${esc(classTitle(c))}</span><span class="s">${esc(sub)}</span>
+    ${noted ? `<span class="s so-p cmt"><b>Cô nhận xét ${esc(dm(parse(noted.date)))}:</b> ${esc(String(noted.note).slice(0, 160))}${String(noted.note).length > 160 ? '…' : ''}</span>` : ''}${badges ? `<span class="so-badges">${badges}</span>` : ''}</span>${CHEV}</button>`;
 }
 // Menu ⋯ của màn Hôm nay: những cách xem ít dùng hơn, để màn chính chỉ còn việc cần làm.
 function todayMenu() {
