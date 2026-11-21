@@ -2786,7 +2786,12 @@ function newFamilyCode() {
   const s = [...r].map(x => abc[x % abc.length]).join('');
   return s.match(/.{5}/g).join('-');
 }
-const cleanCode = v => String(v || '').trim().toLowerCase().replace(/^.*[?&]gd=/, '').replace(/[^a-z0-9-]/g, '');
+const cleanCode = v => String(v || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+// Tách mã gia đình và mã của con (nếu là link riêng của một con, ...?gd=...&con=...) từ thứ được dán vào: cả link hoặc chỉ mã.
+function parseInvite(v) {
+  const s = String(v || '').trim(), gd = /[?&]gd=([^&#\s]*)/i.exec(s), con = /[?&]con=([\w-]{1,40})(?![\w-])/i.exec(s);
+  return { code: cleanCode(gd ? gd[1] : s), con: gd && con ? con[1] : null };
+}
 function showSetup(err) {
   $('#shell').hidden = true; $('#tabs').hidden = true;
   const el = $('#setup'); el.hidden = false;
@@ -2807,33 +2812,27 @@ document.addEventListener('click', async e => {
     try { $('#famcode').value = await navigator.clipboard.readText(); }
     catch (err) { return toast('Không đọc được bộ nhớ tạm. Bấm giữ vào ô bên dưới rồi chọn Dán.'); }
   }
+  let con = null;
   if (b.dataset.setup === 'new') { family = newFamilyCode(); }
   else {
-    const c = cleanCode($('#famcode').value);
-    if (c.length < 20) return toast('Mã gia đình chưa đúng. Hãy dán cả link mời hoặc mã 23 ký tự.');
-    family = c;
+    const inv = parseInvite($('#famcode').value);
+    if (inv.code.length < 20) return toast('Mã gia đình chưa đúng. Hãy dán cả link mời hoặc mã 23 ký tự.');
+    family = inv.code; con = inv.con;
   }
   setFamily(family);
+  // Dán link riêng của một con: máy chưa chọn là của ai thì thành máy của con đó, như khi mở thẳng link.
+  if (con && !getRole()) setRole(con);
   $('#setup').hidden = true; $('#shell').hidden = false; $('#tabs').hidden = false;
   startFirebase();
 });
 
-// iPhone/iPad: app trên màn hình chính có bộ nhớ riêng, tách khỏi Safari, nên phải mang mã gia đình
-// theo địa chỉ mở app. Giữ ?gd= trên thanh địa chỉ và trỏ start_url của manifest vào đó, để
-// "Thêm vào MH chính" lưu luôn mã và app mở thẳng vào gia đình.
+// iPhone/iPad: app trên màn hình chính có bộ nhớ riêng, tách khỏi Safari, nên phải mang mã gia đình (và mã của con,
+// nếu là máy của con) theo địa chỉ mở app. Giữ ?gd=...&con=... trên thanh địa chỉ; iOS không được nạp manifest
+// (xem phần boot) nên "Thêm vào MH chính" lưu đúng địa chỉ đang hiện và biểu tượng mở thẳng vào gia đình, đúng phần của con.
 function keepFamilyInUrl() {
   if (!family) return;
-  // Máy của con: giữ luôn mã của con trên địa chỉ, để app thêm vào màn hình chính (bộ nhớ riêng) vẫn vào đúng phần của con.
   const r = getRole(), url = location.origin + location.pathname + '?gd=' + encodeURIComponent(family) + (r && r !== 'parent' ? '&con=' + encodeURIComponent(r) : '');
   if (location.origin + location.pathname + location.search !== url) history.replaceState(null, '', url + location.hash);
-  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const link = document.querySelector('link[rel="manifest"]');
-  if (!ios || !link) return;
-  const base = location.origin + location.pathname.replace(/[^/]*$/, '');
-  const m = { name: 'Misa Misu', short_name: 'Misa Misu', lang: 'vi', start_url: url, scope: base, display: 'standalone',
-    background_color: '#F5F4F0', theme_color: '#F5F4F0',
-    icons: [{ src: base + 'icons/icon-192.png', sizes: '192x192', type: 'image/png' }, { src: base + 'icons/icon-512.png', sizes: '512x512', type: 'image/png' }] };
-  link.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(m));
 }
 
 async function startFirebase() {
@@ -2861,12 +2860,19 @@ async function startFirebase() {
 }
 
 // ---------- boot ----------
+// Manifest chỉ nạp ngoài iOS. Trên iPhone/iPad, Safari đọc manifest ngay lúc mở trang và dùng start_url cố định trong đó ("./")
+// khi Thêm vào MH chính, làm rơi mất ?gd=...&con=...; không có manifest thì iOS lưu đúng địa chỉ đang hiện.
+const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+if (!IOS) document.head.appendChild(Object.assign(document.createElement('link'), { rel: 'manifest', href: 'manifest.webmanifest' }));
 autoIcons(); // emoji có hình trong js/icons.js được thay bằng hình vẽ 3D ở mọi chỗ app vẽ ra
 UI.view = viewOf(location.hash.slice(1));
 if (firebaseConfig) {
   const q = new URLSearchParams(location.search).get('gd');
   if (q && cleanCode(q).length >= 20) setFamily(cleanCode(q));
   family = getFamily();
+  // Bản trước dán link riêng của con (...&con=...) vào màn mở đầu thì mã của con dính luôn vào mã gia đình, thành một gia đình trống: tách lại.
+  const glued = /^([a-z0-9]{5}(?:-[a-z0-9]{5}){3})con([a-z0-9-]{1,40})$/.exec(family || '');
+  if (glued) { setFamily(family = glued[1]); if (!getRole()) setRole(glued[2]); }
   // Link riêng của một con (?gd=...&con=...): máy chưa chọn là của ai thì thành máy của con đó. Máy đã chọn rồi thì giữ nguyên.
   const con = new URLSearchParams(location.search).get('con');
   if (family && con && /^[\w-]{1,40}$/.test(con) && !getRole()) setRole(con);

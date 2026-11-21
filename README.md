@@ -108,5 +108,5 @@ Chỉ commit file `.enc.json`, không commit file sao lưu chưa mã hoá và kh
 
 ## Cài lên màn hình điện thoại
 
-- **iPhone (Safari):** mở link mời trong Safari trước, đợi app hiện bảng của nhà mình, rồi bấm nút Chia sẻ → **Thêm vào MH chính**. App trên màn hình chính của iPhone có bộ nhớ riêng, tách khỏi Safari, nên app giữ mã gia đình trên thanh địa chỉ (`?gd=...`) để biểu tượng mở thẳng vào gia đình. Nếu biểu tượng vẫn hỏi mã, sao chép link mời rồi bấm **Dán link mời**; chỉ phải làm một lần.
+- **iPhone, iPad (Safari):** mở link mời trong Safari trước, đợi app hiện bảng của nhà mình (nhà có mã PIN thì chọn xong *Máy này của ai?*), rồi bấm nút Chia sẻ → **Thêm vào MH chính**. App trên màn hình chính có bộ nhớ riêng, tách khỏi Safari, nên app giữ mã gia đình và mã của con trên thanh địa chỉ (`?gd=...&con=...`) để biểu tượng mở thẳng vào gia đình, đúng phần của con. Nếu biểu tượng vẫn hỏi mã, sao chép link (link mời hoặc link riêng của con) rồi bấm **Dán link mời**; chỉ phải làm một lần.
 - **Android (Chrome):** bấm menu ⋮ → **Thêm vào màn hình chính**.
