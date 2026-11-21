@@ -327,8 +327,18 @@ textarea.hw-in{resize:none;overflow:hidden;min-height:44px}
 .hw-chk .seg,.hw-lv{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .item.tap{cursor:pointer}
 .item .s.need-txt{color:var(--bad);font-weight:500}
-.sess-body{margin-top:6px;cursor:auto}
-.sess-body .row{margin-top:8px}
+.item.sess{flex-wrap:wrap}
+.sess-body{flex:1 1 100%;margin:2px 0 4px 52px;padding:12px 14px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line);display:flex;flex-direction:column;gap:12px;cursor:auto}
+.sess-body[hidden]{display:none}
+.sb-l{font-size:12px;font-weight:600;color:var(--muted);margin-bottom:3px}
+.sb-v{font-size:14px;line-height:1.5;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
+.sb-line+.sb-line{margin-top:4px}
+.sb-k{font-weight:600}
+.sb-k::after{content:":"}
+.sb-v .hw-line{margin-top:0;font-size:14px}
+.sb-v .hw-line+.hw-line{margin-top:6px}
+.btn.so-edit{align-self:stretch;justify-content:center;border:1.5px solid var(--accent);color:var(--accent);background:var(--surface);font-weight:600}
+@media (max-width:480px){.sess-body{margin-left:0}}
 .sess-chev .chev{width:18px;height:18px;stroke:var(--muted);fill:none;stroke-width:2.2;transition:transform .15s}
 .item.sess.open .sess-chev .chev{transform:rotate(180deg)}
 .so-badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}

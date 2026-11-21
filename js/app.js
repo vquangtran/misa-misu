@@ -1645,8 +1645,11 @@ function hwLine(code, t, mode) {
 // (nội dung, nhận xét, sách, mục tiêu buổi sau, bài tập, tài liệu); màn của cô có thêm nút Sửa. Máy nhớ buổi nào đang mở (UI.secOpen).
 function sessRow(code, s, hws, mode, inNeed) {
   const edit = mode === 'edit', k = `ss-${code}-${s.id}`, open = !!UI.secOpen[k], att = attView(code, s.files, s.links);
-  const body = [s.content ? `<div class="s so-p">${esc(s.content)}</div>` : '', s.src ? `<div class="s"><b>Sách, nguồn:</b> ${esc(s.src)}</div>` : '',
-    s.note ? `<div class="s so-p cmt"><b>Nhận xét:</b> ${esc(s.note)}</div>` : '', s.next ? `<div class="s"><b>Buổi sau:</b> ${esc(s.next)}</div>` : ''].join('');
+  // Chi tiết khi mở: mỗi mục một khối, nhãn nhỏ ở trên, nội dung ở dưới. Nội dung học dạng "Lý thuyết: …" thì tách nhãn ra cho dễ đọc.
+  const field = (label, html) => html ? `<div class="sb-f"><div class="sb-l">${label}</div><div class="sb-v">${html}</div></div>` : '';
+  const contentHtml = String(s.content || '').split('\n').map(x => x.trim()).filter(Boolean).map(x => { const m = /^([^:]{2,32}):\s*(.+)$/.exec(x); return m ? `<div class="sb-line"><span class="sb-k">${esc(m[1])}</span> ${esc(m[2])}</div>` : `<div class="sb-line">${esc(x)}</div>`; }).join('');
+  const body = [field('Nội dung học', contentHtml), field('Nhận xét học sinh', s.note ? esc(s.note) : ''), field('Bài tập về nhà', hws.map(t => hwLine(code, t, mode)).join('')),
+    field('Sách, nguồn tham khảo', s.src ? esc(s.src) : ''), field('Mục tiêu buổi sau', s.next ? esc(s.next) : ''), field('Slide, tài liệu', att)].join('');
   const sum = [hws.length ? `${hws.length} bài tập` : '', s.note ? 'có nhận xét' : '', att ? 'có tài liệu' : ''].filter(Boolean).join(' · ');
   // Nhãn Thiếu nhận xét chỉ hiện trong mục Cần điền, danh sách theo tháng giữ gọn.
   // Trong mục Cần điền: ghi rõ cô cần ghi thêm gì cho buổi này.
@@ -1654,8 +1657,9 @@ function sessRow(code, s, hws, mode, inNeed) {
   const needTxt = !inNeed ? '' : s.state === 'plan' ? `Buổi này đã qua: chuyển sang Đã học${lack.length ? ` và ghi ${lack.join(', ')}` : ''}. Hôm đó nghỉ thì xoá buổi hoặc đổi ngày.` : lack.length ? `Cần ghi: ${lack.join(', ')}.` : '';
   const badge = s.state === 'plan' ? (s.date && s.date < key(today()) ? '<span class="badge owe">Cần điền</span>' : '<span class="badge wait">Chưa học</span>') : '';
   return `<div class="item sess tap ${s.state === 'plan' ? 'plan' : ''} ${open ? 'open' : ''}" ${inNeed && edit ? `data-act="sess-form" data-id="${s.id}"` : `data-act="sess-toggle" data-key="${k}" aria-expanded="${open}"`} role="button" tabindex="0"><span class="ico">${s.state === 'plan' ? '🗓️' : '📖'}</span><div class="txt"><div class="t">Buổi ${s.no} · ${esc(sessName(s))}</div><div class="s">${esc([sessMeta(s), sum].filter(Boolean).join(' · '))}</div>${needTxt ? `<div class="s need-txt">${esc(needTxt)}</div>` : ''}
-    <div class="sess-body" data-act="none" ${open && !inNeed ? '' : 'hidden'}>${body}${hws.map(t => hwLine(code, t, mode)).join('')}${att}${edit ? `<div class="row"><button class="btn quiet sm" data-act="sess-form" data-id="${s.id}">Sửa buổi này</button></div>` : ''}</div></div>
-    <div class="acts">${badge}<span class="sess-chev">${inNeed && edit ? CHEV : DOWN}</span></div></div>`;
+</div>
+    <div class="acts">${badge}<span class="sess-chev">${inNeed && edit ? CHEV : DOWN}</span></div>
+    <div class="sess-body" data-act="none" ${open && !inNeed ? '' : 'hidden'}>${body || '<div class="sb-v muted">Buổi này chưa ghi nội dung.</div>'}${edit ? `<button class="btn sm so-edit" data-act="sess-form" data-id="${s.id}">✏️ Sửa buổi này</button>` : ''}</div></div>`;
 }
 const HW_BADGE = { got: 'ok', done: 'wait', late: 'owe', open: '' };
 const hwBadgeHtml = t => { const st = hwState(t); return `<span class="badge ${st.k === 'got' && t.chk ? chkKind(t.chk) : HW_BADGE[st.k]}">${esc(st.k === 'got' ? (t.chk ? CHK[t.chk] : 'Cô đã nhận') + (t.score ? ' · ' + t.score : '') : st.k === 'done' ? 'Chờ cô nhận' : st.k === 'late' ? st.txt : 'Đang làm')}</span>`; };
