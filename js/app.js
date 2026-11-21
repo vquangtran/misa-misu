@@ -749,9 +749,9 @@ const slotOpenDefault = (g, cur, full, nd, hasFun) => g.extra ? nd > 0 : cur && 
 const slotMissed = (g, cur, full, n) => !!cur && !g.extra && !!g.id && n > 0 && !full && SLOTS.findIndex(x => x[0] === g.id) < SLOTS.findIndex(x => x[0] === cur);
 const choreSlot = c => toMin(c.time) !== null ? slotAt(toMin(c.time)) : (c.slot || '');
 // Trong mỗi buổi, việc chia thành từng nhóm riêng, theo thứ tự: mốc giờ (vào học, tan học, học thêm), việc quan trọng,
-// việc phải làm (bắt buộc, tính vào tiến độ ngày và thưởng làm đủ việc), việc có tiền (không bắt buộc, làm lần nào cộng tiền lần đó), việc thích làm.
+// việc phải làm (bắt buộc, tính vào tiến độ ngày và thưởng làm đủ việc), việc được thưởng (không bắt buộc, làm lần nào cộng tiền lần đó), việc thích làm.
 const SECS = ['mark', 'imp', 'must', 'paid', 'fun'];
-const SEC_LABEL = { imp: 'Việc quan trọng', must: 'Việc phải làm', paid: 'Việc có tiền', fun: 'Việc thích làm' };
+const SEC_LABEL = { imp: 'Việc quan trọng', must: 'Việc phải làm', paid: 'Việc được thưởng', fun: 'Việc thích làm' };
 // Việc đã xong với con này: con đã làm, hoặc việc "ai làm trước thì tính" đã có con khác làm.
 const choreOk = (c, kidId, d) => isDone(d, kidId, c.id) || takenBy(c, kidId, d).length > 0;
 // Tiêu đề nhỏ của một nhóm trong buổi, kèm số việc đã xong.
@@ -761,8 +761,8 @@ function subHead(sec, items, kidId, d) {
 }
 // Các nhóm của một buổi: [{ sec, items }], bỏ nhóm trống. Việc làm thêm không chia nhóm.
 const slotSecs = g => g.extra ? [{ sec: 'extra', items: g.items }] : SECS.map(sec => ({ sec, items: g.items.filter(x => x.sec === sec) })).filter(x => x.items.length);
-// Con số trên nhãn của một buổi: chỉ đếm việc phải làm, việc có tiền không bắt buộc nên không tính vào.
-// Buổi chỉ có việc có tiền (và nhóm Việc làm thêm) thì ghi số việc, đã làm mấy việc thì ghi thêm ở trước.
+// Con số trên nhãn của một buổi: chỉ đếm việc phải làm, việc được thưởng không bắt buộc nên không tính vào.
+// Buổi chỉ có việc được thưởng (và nhóm Việc làm thêm) thì ghi số việc, đã làm mấy việc thì ghi thêm ở trước.
 function slotCount(g, kidId, d) {
   const ch = g.items.filter(x => x.type === 'chore' && !isFun(x.c)), ok = x => choreOk(x.c, kidId, d);
   const mine = ch.filter(x => x.req), nd = mine.filter(ok).length, full = mine.length > 0 && nd === mine.length;
