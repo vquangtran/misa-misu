@@ -125,6 +125,9 @@ const WEEK_BONUS = 35000;
 const WEEK_BONUS_OLD = 25000;
 // Bản của bảng mẫu. Con chưa ghi bản này (k.tableVer) thì trang Bảng giá gợi ý cập nhật một lần.
 const TABLE_VER = 2;
+// Số dư thật của từng con lúc chốt bảng bản 2 (21/11/2026), theo tên. "Cập nhật bảng giá" điền sẵn để khớp số dư, sửa được trước khi áp dụng.
+const TABLE_BALANCES = { su: 875000, misu: 875000, sa: 703270, misa: 703270 };
+const TABLE_BAL_DATE = '21/11';
 // Trước đây app tính bằng sao. Dữ liệu cũ (sao) được quy đổi: 1 sao = 5.000đ.
 const STAR_VND = 5000;
 
@@ -1448,28 +1451,41 @@ function tableUpdate() {
       s: [isWeekly(m) ? 'việc bắt buộc' : isExtra(m) ? `việc làm thêm, ${money(m.money)}` : `${money(m.money)} mỗi lần`, SLN[m.slot], m.prep ? 'chỉ hiện vào tối trước ngày có học thêm' : ''].filter(Boolean).join(' · ') });
   for (const { also, ver, ...m } of SAMPLE_PRICES) if (ver === TABLE_VER && !pnames.has(norm(m.name)) && ![...(also || [])].some(x => pnames.has(norm(x))))
     ops.push({ col: 'rewards', add: m, ico: m.icon, t: `Thêm ${m.kind === 'penalty' ? 'lỗi' : 'mục'} “${m.name}”`, s: m.week ? 'mất hết tiền được thưởng trong tuần' : m.all ? 'mất hết tiền đang có' : giftTagOf(m.kind, m.price) });
-  return ops.length ? { ops, kids } : null;
+  const bals = kids.filter(k => TABLE_BALANCES[norm(k.name)] != null).map(k => ({ kid: k.id, name: k.name, target: TABLE_BALANCES[norm(k.name)] }));
+  return ops.length ? { ops, kids, bals } : null;
 }
 function tableUpdateForm() {
   const u = tableUpdate(); if (!u) return toast('Bảng giá đã là bản mới.');
   openModal(`<h2>Cập nhật bảng giá</h2><p class="muted small lead">Bấm Áp dụng để đổi ${u.ops.length} mục dưới đây trong bảng của nhà mình. Việc và mục giá nhà mình tự thêm thì giữ nguyên, tiền các ngày đã qua không đổi. Áp dụng xong vẫn bấm Hoàn tác được.</p>
   <div class="fg"><div class="list">${u.ops.map(o => `<div class="item"><span class="ico">${esc(o.ico)}</span><div class="txt"><div class="t">${esc(o.t)}</div><div class="s">${esc(o.s)}</div></div></div>`).join('')}</div></div>
+  ${u.bals.length ? `<div class="fg">${u.bals.map(x => frow(`Số dư của ${esc(x.name)}`, pillNum(`tb-${x.kid}`, x.target, { attr: `step="1" data-tb="${x.kid}"` }), { id: `tb-${x.kid}`, sub: `Số bố mẹ chốt ngày ${TABLE_BAL_DATE}. Trong app đang là ${money(balance(x.kid))}. Từ đó tới nay đã khác thì sửa lại, bỏ trống nếu không muốn đổi` })).join('')}</div>` : ''}
   <div class="foot"><button class="btn danger left" data-act="table-skip">Không dùng bản này</button><button class="btn quiet" data-act="close">Để sau</button><button class="btn primary" data-act="table-apply">Áp dụng</button></div>`);
 }
 // Ghi các thay đổi của tableUpdate (apply = false thì chỉ ghi là đã xem bản này). Trả về hàm hoàn tác.
-function tableUpdateRun(apply) {
+// bals: [{ kid, target }] số dư cần khớp sau khi đổi, ghi bằng một khoản "Khớp số dư" cho phần chênh lệch.
+function tableUpdateRun(apply, bals = []) {
   const u = tableUpdate(); if (!u) return null;
   const raw = { kids: S.kids, chores: S.chores, rewards: S.rewards }, before = [], added = [], kidNext = {};
-  const save = (col, id, data) => { if (!raw[col][id]) return; before.push([col, id, { ...raw[col][id] }]); if (data) put(col, id, data); else del(col, id); };
+  // Ghi xong thì sửa luôn bản đang giữ trong máy, để số dư bên dưới tính theo dữ liệu mới mà không phải chờ đồng bộ.
+  const save = (col, id, data) => { if (!raw[col][id]) return; before.push([col, id, { ...raw[col][id] }]); if (data) { put(col, id, data); raw[col][id] = data; } else { del(col, id); delete raw[col][id]; } };
   if (apply) for (const o of u.ops) {
     if (o.col === 'kids') { kidNext[o.id] = o.next; continue; }
-    if (o.add) { const nid = uid(); added.push([o.col, nid]); put(o.col, nid, o.add); continue; }
+    if (o.add) { const nid = uid(); added.push([o.col, nid]); put(o.col, nid, o.add); raw[o.col][nid] = o.add; continue; }
     if (o.del) { save(o.col, o.id, null); continue; }
     const data = { ...raw[o.col][o.id], ...o.next };
     for (const f of ['all', 'week']) if (data[f] === false) delete data[f];
     save(o.col, o.id, data);
   }
   for (const k of u.kids) save('kids', k.id, { ...raw.kids[k.id], ...(kidNext[k.id] || {}), tableVer: TABLE_VER });
+  if (apply && bals.length) {
+    memo = {}; const at = new Date().toISOString();
+    for (const x of bals) {
+      const diff = S.kids[x.kid] ? x.target - balance(x.kid) : 0; if (!diff) continue;
+      const lid = uid(); added.push(['ledger', lid]);
+      put('ledger', lid, { kid: x.kid, amount: diff, kind: 'adjust', icon: '🏦', note: `Khớp số dư khi cập nhật bảng giá: ${money(x.target)}`, at });
+    }
+    memo = {};
+  }
   return () => { for (const [col, id, old] of before) put(col, id, old); for (const [col, id] of added) del(col, id); };
 }
 // Tiêu đề nhóm kèm nút thêm ngay tại chỗ: thêm đúng loại đang xem, không phải chọn lại loại trong form.
@@ -2374,9 +2390,10 @@ document.addEventListener('click', e => {
   if (a === 'table-update') return tableUpdateForm();
   if (a === 'table-apply' || a === 'table-skip') {
     if (a === 'table-skip' && !armed(b, 'Bấm lần nữa để bỏ qua')) return;
-    const n = tableUpdate()?.ops.length || 0, undo = tableUpdateRun(a === 'table-apply');
+    const bals = a === 'table-apply' ? [...document.querySelectorAll('#modal [data-tb]')].filter(i => i.value.trim() !== '' && Number.isFinite(Number(i.value))).map(i => ({ kid: i.dataset.tb, target: Math.round(Number(i.value)) })) : [];
+    const n = tableUpdate()?.ops.length || 0, undo = tableUpdateRun(a === 'table-apply', bals);
     closeModal(); if (!undo) return;
-    return toast(a === 'table-apply' ? `Đã cập nhật bảng giá: ${n} thay đổi.` : 'Đã bỏ qua bản này, bảng giá giữ nguyên.', () => { undo(); toast('Đã hoàn tác, bảng giá như trước.'); });
+    return toast(a === 'table-apply' ? `Đã cập nhật bảng giá: ${n} thay đổi${bals.length ? ', đã khớp số dư' : ''}.` : 'Đã bỏ qua bản này, bảng giá giữ nguyên.', () => { undo(); toast('Đã hoàn tác, bảng giá như trước.'); });
   }
   if (a === 'seed-prices') {
     const n = addSamples(kidsList().map(k => k.id));
