@@ -739,6 +739,8 @@ const slotAt = m => m < 12 * 60 ? 'sang' : m < 18 * 60 ? 'chieu' : 'toi';
 // "Lúc nào cũng được" mở khi còn việc chưa xong hoặc có việc thích làm; việc làm thêm mở khi đã có làm.
 // Xem ngày khác (cur = null) thì mở những buổi còn việc chưa xong. Bấm nhãn để mở, đóng; lựa chọn đó giữ tới khi sang buổi khác.
 const slotOpenDefault = (g, cur, full, nd, hasFun) => g.extra ? nd > 0 : cur && g.id ? g.id === cur : !full || hasFun;
+// Buổi đã qua trong hôm nay mà còn việc phải làm chưa xong: vẫn thu gọn, nhưng số việc trên nhãn tô đỏ để nhắc.
+const slotMissed = (g, cur, full, n) => !!cur && !g.extra && !!g.id && n > 0 && !full && SLOTS.findIndex(x => x[0] === g.id) < SLOTS.findIndex(x => x[0] === cur);
 const choreSlot = c => toMin(c.time) !== null ? slotAt(toMin(c.time)) : (c.slot || '');
 // Ghép việc nhà, giờ ở trường và học thêm của một con trong ngày d, chia theo buổi.
 function dayPlan(kidId, d) {
@@ -976,7 +978,7 @@ function viewToday() {
     const cnt = g.extra ? `${nd ? `${nd}/` : ''}${g.items.length}` : mine.length ? `${full ? '✓ ' : ''}${nd}/${mine.length}` : g.blank ? '0' : '';
     const add = !canAdd ? '' : g.extra ? `<button class="mini-add" data-act="chore-form" data-kind="extra" aria-label="Thêm việc làm thêm">${PLUS}</button>`
       : `<button class="mini-add" data-act="quick-add" data-slot="${g.id}" aria-label="Thêm việc: ${g.label}">${PLUS}</button>`;
-    h += `<section class="slot s-${g.extra ? 'them' : g.id || 'any'} ${isNow ? 'now' : ''} ${full ? 'full' : ''}" data-slot="${sk}"><div class="slot-h"><button class="slot-pill" data-act="slot-toggle" data-slot="${sk}" aria-expanded="${!!open}">${g.icon}<span>${g.label}</span>${cnt ? `<i class="num">${cnt}</i>` : ''}${DOWN}</button>${isNow ? '<span class="nowpill">Bây giờ</span>' : ''}${g.blank && open ? '' : add}</div>`;
+    h += `<section class="slot s-${g.extra ? 'them' : g.id || 'any'} ${isNow ? 'now' : ''} ${full ? 'full' : ''}" data-slot="${sk}"><div class="slot-h"><button class="slot-pill" data-act="slot-toggle" data-slot="${sk}" aria-expanded="${!!open}">${g.icon}<span>${g.label}</span>${cnt ? `<i class="num ${slotMissed(g, cur, full, mine.length) ? 'late' : ''}">${cnt}</i>` : ''}${DOWN}</button>${isNow ? '<span class="nowpill">Bây giờ</span>' : ''}${g.blank && open ? '' : add}</div>`;
     if (open && g.blank) h += `<button class="slot-blank" data-act="quick-add" data-slot="${g.id}"><span>${SLOT_ASK[g.id]}</span>${PLUS}</button>`;
     else if (open) {
       h += `<div class="slot-list list">`;
@@ -1886,7 +1888,7 @@ function drawKidMode() {
     const full = !g.extra && mine.length > 0 && nd === mine.length, hasFun = g.items.some(x => x.type === 'chore' && isFun(x.c));
     const open = UI.slotOpen[sk] ?? slotOpenDefault(g, cur, full, nd, hasFun);
     const cnt = g.extra ? `${nd ? `${nd}/` : ''}${g.items.length}` : mine.length ? `${full ? '✓ ' : ''}${nd}/${mine.length}` : '';
-    return `<section class="slot s-${g.extra ? 'them' : g.id || 'any'} ${full ? 'full' : ''}" data-slot="${sk}"><div class="slot-h"><button class="slot-pill" data-act="slot-toggle" data-slot="${sk}" aria-expanded="${!!open}">${g.icon}<span>${g.label}</span>${cnt ? `<i class="num">${cnt}</i>` : ''}${DOWN}</button>${isNow ? '<span class="nowpill">Bây giờ</span>' : ''}</div>
+    return `<section class="slot s-${g.extra ? 'them' : g.id || 'any'} ${full ? 'full' : ''}" data-slot="${sk}"><div class="slot-h"><button class="slot-pill" data-act="slot-toggle" data-slot="${sk}" aria-expanded="${!!open}">${g.icon}<span>${g.label}</span>${cnt ? `<i class="num ${slotMissed(g, cur, full, mine.length) ? 'late' : ''}">${cnt}</i>` : ''}${DOWN}</button>${isNow ? '<span class="nowpill">Bây giờ</span>' : ''}</div>
       ${open ? `<div class="big-list">${g.items.map(x => x.type === 'chore' ? bigChore(x, g) : markRow(x, true)).join('')}</div>` : ''}</section>`;
   }).join('');
   const stk = streakOf(k.id), left = list.length - n;
