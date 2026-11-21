@@ -1382,7 +1382,8 @@ const classSubj = c => classLessons(c)[0]?.name || c.name;
 // Gợi ý tạo sổ từ các buổi học thêm đã ghi: mỗi môn của mỗi con chưa có sổ là một nút, bấm là mở form đã điền sẵn môn và con.
 const classOffers = ks => ks.flatMap(k => [...new Set(lessonsOf(k.id).map(l => String(l.name || '').trim()).filter(Boolean))]
   .filter(n => !classesOf(k.id).some(c => classLessons(c).some(l => norm(l.name) === norm(n)))).map(n => ({ kid: k.id, name: n }))).slice(0, 8);
-const bookName = c => String(c?.book || '').trim() || `Sổ học ${c?.name || ''}`.trim();
+// Màn của cô đọc thông tin lớp (có student). Sổ Tiếng Việt của Su chưa được máy bố mẹ ghi tên sổ (book chưa có) thì vẫn hiện tên mới.
+const bookName = c => String(c?.book || '').trim() || (c?.book === undefined && c?.student && ['su', 'misu'].includes(norm(c.student)) && norm(c.name) === 'tiếng việt' ? SU_TV_BOOK : `Sổ học ${c?.name || ''}`.trim());
 const classTitle = c => `${String(c.book || '').trim() || c.name}${c.teacher ? ' · ' + c.teacher : ''}`;
 const teacherLink = code => location.origin + location.pathname + '?lop=' + encodeURIComponent(code);
 // Học phí do bố mẹ ghi ở sổ: fee (đồng), feeBy 'buoi' = mỗi buổi, 'gio' = mỗi giờ; feeOn: mức riêng cho buổi Online (0 = như buổi thường).
@@ -1457,7 +1458,7 @@ const hwList = d => Object.entries(d.tasks || {}).filter(([id, t]) => okId(id) &
 const SESS_MODES = [['', 'Chưa ghi'], ['off', 'Offline'], ['on', 'Online']];
 const dateTxt = dk => { const d = parse(dk); return `${WDN(d.getDay())} ${dm(d)}`; };
 const monthTxt = mk => mk ? `Tháng ${Number(mk.slice(5, 7))}, ${mk.slice(0, 4)}` : 'Chưa có ngày';
-const sessMeta = s => [s.date ? dateTxt(s.date) : 'chưa có ngày', (SESS_MODES.find(x => x[0] === s.mode && x[0]) || [])[1], Number(s.mins) ? durTxt(Number(s.mins)) : '', s.state === 'plan' ? 'chưa học' : ''].filter(Boolean).join(' · ');
+const sessMeta = s => [s.date ? dateTxt(s.date) : 'chưa có ngày', (SESS_MODES.find(x => x[0] === s.mode && x[0]) || [])[1], Number(s.mins) ? durTxt(Number(s.mins)) : ''].filter(Boolean).join(' · ');
 // Bài cô giao đang ở bước nào: cô đã nhận (kèm điểm), con báo đã làm xong, quá hạn, hay mới giao.
 function hwState(t) {
   if (t.got) return { k: 'got', txt: `cô đã nhận${t.score ? ' · ' + t.score : ''}` };
@@ -1581,15 +1582,16 @@ function sessRow(code, s, hws, mode) {
     s.note ? `<div class="s so-p cmt"><b>Nhận xét:</b> ${esc(s.note)}</div>` : '', s.next ? `<div class="s"><b>Buổi sau:</b> ${esc(s.next)}</div>` : ''].join('');
   return `<div class="item sess ${s.state === 'plan' ? 'plan' : ''}"><span class="ico">${s.state === 'plan' ? '🗓️' : '📖'}</span><div class="txt"><div class="t">Buổi ${s.no} · ${esc(s.topic || 'Chưa ghi nội dung')}</div><div class="s">${esc(sessMeta(s))}</div>
     ${body}${hws.map(t => hwLine(code, t, mode)).join('')}${attView(code, s.files, s.links)}</div>
-    ${edit ? `<div class="acts"><button class="edit" data-act="sess-form" data-id="${s.id}" aria-label="Sửa buổi ${s.no}">${CHEV}</button></div>` : ''}</div>`;
+    ${edit || s.state === 'plan' ? `<div class="acts">${s.state === 'plan' ? '<span class="badge wait">Chưa học</span>' : ''}${edit ? `<button class="edit" data-act="sess-form" data-id="${s.id}" aria-label="Sửa buổi ${s.no}">${CHEV}</button>` : ''}</div>` : ''}</div>`;
 }
+const HW_BADGE = { got: 'ok', done: 'wait', late: 'owe', open: '' };
 function hwRow(code, t, d, mode) {
   const st = hwState(t), s = t.session ? sessList(d).find(x => x.id === t.session) : null, nd = t.steps.filter(x => x.done).length;
-  const meta = [`<span class="hw-st ${st.k}">${esc(st.txt)}</span>`, st.k !== 'open' && st.k !== 'late' && t.due ? `hạn ${dm(parse(t.due))}` : '', s ? `buổi ${s.no}` : '', t.steps.length ? `${nd}/${t.steps.length} bước` : ''].filter(Boolean).join(' · ');
+  const meta = [t.due ? `hạn ${dm(parse(t.due))}` : 'chưa có hạn', s ? `buổi ${s.no}` : '', t.steps.length ? `${nd}/${t.steps.length} bước` : ''].filter(Boolean).join(' · ');
   const act = mode === 'edit' ? `data-act="hw-form" data-id="${t.id}"` : `data-act="hw-view" data-id="L~${code}~${t.id}"`;
   return `<div class="item sess"><span class="ico">📝</span><div class="txt"><div class="t">${esc(t.title)}</div><div class="s">${meta}</div>${t.notes ? `<div class="s snip">${esc(String(t.notes).slice(0, 160))}</div>` : ''}
     ${t.review ? `<div class="s cmt"><b>Nhận xét bài làm:</b> ${esc(t.review)}</div>` : ''}${attView(code, t.files, t.links)}</div>
-    <div class="acts"><button class="edit" ${act} aria-label="${mode === 'edit' ? 'Sửa' : 'Xem'}: ${esc(t.title)}">${CHEV}</button></div></div>`;
+    <div class="acts"><span class="badge ${HW_BADGE[st.k]}">${esc(st.k === 'got' ? 'Cô đã nhận' + (t.score ? ' · ' + t.score : '') : st.k === 'done' ? 'Chờ cô nhận' : st.k === 'late' ? st.txt : 'Đang làm')}</span><button class="edit" ${act} aria-label="${mode === 'edit' ? 'Sửa' : 'Xem'}: ${esc(t.title)}">${CHEV}</button></div></div>`;
 }
 const sessMonths = ss => [...new Set(ss.map(s => (s.date || '').slice(0, 7)))].sort().reverse();
 function soStats(d) {
@@ -1638,10 +1640,12 @@ function bankForm() {
   <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="bank-save">Lưu</button></div>`);
   $('#modal .dialog')?.focus();
 }
-const soTiles = (st, f, d) => { const cur = soFees(d, f).find(r => r.mk === key(today()).slice(0, 7));
-  return `<div class="tiles"><div class="tile"><span class="muted small">Đã học</span><span class="amt num">${st.done.length} buổi</span>${st.mins ? `<span class="muted small">${durTxt(st.mins)}</span>` : ''}</div>
-  <div class="tile"><span class="muted small">Tháng ${today().getMonth() + 1}</span><span class="amt num">${st.month} buổi</span>${cur && (f.fee || f.on) && !f.off ? `<span class="muted small">học phí <b class="num">${money(cur.amount)}</b></span>` : cur && cur.mins ? `<span class="muted small">${durTxt(cur.mins)}</span>` : ''}</div>
-  <div class="tile"><span class="muted small">Bài tập về nhà</span><span class="amt num">${st.got}/${st.hw.length}</span><span class="muted small">cô đã nhận${st.open ? ` · ${st.open} bài đang làm` : ''}</span></div></div>`; };
+// Thẻ tóm tắt đầu sổ, cùng kiểu thẻ ở màn Tài khoản: bên trái số buổi tháng này (kèm học phí), bên phải bài tập cô đã nhận (kèm thanh tiến độ).
+const soTiles = (st, f, d) => { const cur = soFees(d, f).find(r => r.mk === key(today()).slice(0, 7)), fee = cur && (f.fee || f.on) && !f.off;
+  return `<section class="stat2"><div class="stat"><b class="stat-n num">${st.month} buổi</b><span class="cap">Tháng ${today().getMonth() + 1}</span>
+      <span class="stat-c">${fee ? `học phí <b class="num">${money(cur.amount)}</b>` : cur && cur.mins ? durTxt(cur.mins) : ''}${st.done.length ? `${fee || cur?.mins ? ' · ' : ''}tất cả ${st.done.length} buổi` : 'Chưa có buổi đã học'}</span></div>
+    <div class="stat"><b class="stat-n num ${st.hw.length && st.got === st.hw.length ? 'plus' : ''}">${st.got}/${st.hw.length}</b><span class="cap">Bài tập cô đã nhận</span>
+      ${st.hw.length ? `${barCount(st.got, st.hw.length)}<span class="stat-c">${[st.wait ? `${st.wait} bài chờ cô nhận` : '', st.open ? `${st.open} bài đang làm` : ''].filter(Boolean).join(' · ') || 'Đã nhận hết'}</span>` : '<span class="stat-c">Chưa giao bài tập</span>'}</div></section>`; };
 // Các buổi theo tháng, tháng mới nhất ở trên, mỗi tháng đếm số buổi đã học (để tính học phí).
 function soMonths(code, d, mode) {
   const ss = sessList(d).filter(s => mode === 'edit' || s.state !== 'plan'), hws = hwList(d);
@@ -1689,7 +1693,7 @@ function drawTeacher() {
   const add = tab === 'buoi' ? `<button class="add" data-act="sess-form" aria-label="Ghi buổi học">${PLUS}</button>` : tab === 'bai' ? `<button class="add" data-act="hw-form" aria-label="Giao bài tập">${PLUS}</button>`
     : st.done.length ? `<button data-act="so-print" aria-label="In báo cáo" title="In báo cáo">🖨️</button>` : '';
   let h = `${head(esc(bookName(info)), add)}
-    <p class="so-sub">Học sinh: <b>${esc(info.student)}</b>${info.teacher ? ` · ${esc(info.teacher)}` : ''}${days ? ` · lịch học ${esc(days)}` : ''}</p>`;
+    <p class="so-sub">Học sinh: <b>${esc(info.student)}</b>${info.teacher ? ` · ${esc(info.teacher)}` : ''}${days ? ` · lịch học ${esc(days)}` : ''}</p>${soTiles(st, feeOf(info), d)}`;
   if (tab === 'buoi') {
     h += `<section class="slot">${secHead('📒', 'Buổi học', { cnt: st.ss.length || '', add: addBtn('sess-form', 'Ghi buổi học') })}${st.ss.length ? '' : blankAdd('Ghi buổi học: hôm nay học gì, nhận xét, bài tập về nhà', 'sess-form')}</section>`;
     h += st.ss.length ? `<div class="slots">${soMonths(TEACH, d, 'edit')}</div>` : `<p class="foot-note" style="margin-top:0">Mỗi buổi cô ghi nội dung, nhận xét và giao bài tập. Phụ huynh xem được ngay, bài tập tự hiện trên máy của ${esc(info.student)}.</p>`;
@@ -1700,7 +1704,7 @@ function drawTeacher() {
       return l.length ? `<section class="slot ${tint}">${secHead('', label, { cnt: l.length, key: k, closed: l.length > 5 })}${secIsOpen(k, l.length > 5) ? `<div class="slot-list list">${l.map(t => hwRow(TEACH, t, d, 'edit')).join('')}</div>` : ''}</section>` : ''; }).join('')}</div>`
       : `<p class="foot-note" style="margin-top:0">Bài cô giao hiện ngay trong mục Bài tập trên máy của ${esc(info.student)}, kèm file cô đính kèm. Con tick làm xong thì cô thấy ở đây.</p>`;
   } else {
-    h += soTiles(st, feeOf(info), d) + (st.done.length ? `<div class="slots">${feeSection(d, feeOf(info), null)}${bankSection(d, true)}${soMonths(TEACH, d, 'view')}</div>` : `<p class="foot-note" style="margin-top:0">Báo cáo theo tháng (số buổi đã dạy để tính học phí, nội dung, nhận xét, bài tập) sẽ hiện ở đây sau buổi học đầu tiên. Phụ huynh xem được đúng phần này.</p><div class="slots">${bankSection(d, true)}</div>`);
+    h += (st.done.length ? `<div class="slots">${feeSection(d, feeOf(info), null)}${bankSection(d, true)}${soMonths(TEACH, d, 'view')}</div>` : `<p class="foot-note" style="margin-top:0">Báo cáo theo tháng (số buổi đã dạy để tính học phí, nội dung, nhận xét, bài tập) sẽ hiện ở đây sau buổi học đầu tiên. Phụ huynh xem được đúng phần này.</p><div class="slots">${bankSection(d, true)}</div>`);
   }
   shell(nav, h);
 }

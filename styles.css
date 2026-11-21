@@ -123,6 +123,7 @@ main{flex:1;min-width:0;padding:calc(8px + env(safe-area-inset-top,0px)) max(16p
 .badge{font-size:12px;font-weight:500;padding:3px 10px;border-radius:999px;background:var(--fill);color:var(--muted);white-space:nowrap}
 .badge.owe{background:var(--bad-soft);color:var(--bad)}
 .badge.ok{background:var(--good-soft);color:var(--good)}
+.badge.wait{background:var(--accent-soft);color:var(--accent)}
 .chev{width:14px;height:14px;flex:none;stroke:var(--chev);fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
 
 /* ----- thẻ và danh sách ----- */
@@ -226,7 +227,7 @@ img.mini{width:1.35em;height:1.35em;border-radius:50%;object-fit:cover;vertical-
 .seg input:checked+span{border-color:var(--accent);background:var(--accent);color:var(--on-accent);font-weight:600}
 .seg input:active+span{transform:scale(.96)}
 .seg input:focus-visible+span{outline:3px solid var(--accent);outline-offset:2px}
-.seg .cnt,.tabbar .cnt{font-style:normal;font-size:12px;font-weight:500;opacity:.7}
+.seg .cnt,.tabbar .cnt,.tab .cnt,.rail .cnt{font-style:normal;font-size:12px;font-weight:500;opacity:.7}
 .seg.modes{flex-wrap:nowrap;gap:2px;background:var(--fill);border:0;border-radius:13px;padding:3px}
 .seg.modes label{flex:1 1 0}
 .seg.modes label>span{display:flex;min-height:34px;padding:4px 6px;border:0;border-radius:11px;background:none;box-shadow:none;color:var(--muted);line-height:1.2;text-align:center}
