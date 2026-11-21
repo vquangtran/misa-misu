@@ -1332,7 +1332,11 @@ const classOffers = ks => ks.flatMap(k => [...new Set(lessonsOf(k.id).map(l => S
   .filter(n => !classesOf(k.id).some(c => classLessons(c).some(l => norm(l.name) === norm(n)))).map(n => ({ kid: k.id, name: n }))).slice(0, 8);
 const classTitle = c => `${c.name}${c.teacher ? ' · ' + c.teacher : ''}`;
 const teacherLink = code => location.origin + location.pathname + '?lop=' + encodeURIComponent(code);
-const classInfo = c => ({ name: c.name, teacher: c.teacher || '', student: kidName(c.kid), days: classLessons(c).map(l => ({ day: Number(l.day) || 0, s: l.s || '', e: l.e || '' })).sort((a, b) => a.day - b.day || String(a.s).localeCompare(String(b.s))) });
+// Học phí do bố mẹ ghi ở sổ: fee (đồng), feeBy 'buoi' = mỗi buổi, 'gio' = mỗi giờ. Chép sang sổ để màn của cô tính cùng một con số.
+const feeOf = x => ({ fee: Math.max(0, Math.round(Number(x?.fee) || 0)), by: x?.feeBy === 'gio' ? 'gio' : 'buoi' });
+const feeAmount = (f, n, mins) => f.fee ? Math.round(f.by === 'gio' ? f.fee * mins / 60 : f.fee * n) : 0;
+const feeTxt = f => f.fee ? `${money(f.fee)} mỗi ${f.by === 'gio' ? 'giờ' : 'buổi'}` : '';
+const classInfo = c => ({ name: c.name, teacher: c.teacher || '', student: kidName(c.kid), fee: feeOf(c).fee, feeBy: feeOf(c).by, days: classLessons(c).map(l => ({ day: Number(l.day) || 0, s: l.s || '', e: l.e || '' })).sort((a, b) => a.day - b.day || String(a.s).localeCompare(String(b.s))) });
 
 function openClass(code) {
   if (CLS[code]) return CLS[code];
@@ -1358,7 +1362,7 @@ function classHeal(code) {
   const c = classesList().find(x => x.code === code), k = CLS[code];
   if (!c || !k || !k.loaded || k.stale || k.err || !k.st) return;
   const want = classInfo(c), have = k.data.info.lop;
-  if (!have || JSON.stringify(want) !== JSON.stringify({ name: have.name, teacher: have.teacher || '', student: have.student, days: have.days || [] })) clsPut(code, 'info', 'lop', want);
+  if (!have || JSON.stringify(want) !== JSON.stringify({ name: have.name, teacher: have.teacher || '', student: have.student, fee: feeOf(have).fee, feeBy: feeOf(have).by, days: have.days || [] })) clsPut(code, 'info', 'lop', want);
 }
 // Ghi vào sổ: sửa luôn bản đang giữ trên máy để màn hình đổi ngay, rồi mới gửi đi.
 function clsWrite(code, op, col, id, data) {
@@ -1529,20 +1533,34 @@ function soStats(d) {
   const ss = sessList(d), done = ss.filter(s => s.state !== 'plan' && s.date), mk = key(today()).slice(0, 7), hw = hwList(d);
   return { ss, done, month: done.filter(s => s.date.startsWith(mk)).length, mins: done.reduce((a, s) => a + (Number(s.mins) || 0), 0), hw, got: hw.filter(t => t.got).length, wait: hw.filter(t => t.done && !t.got).length, open: hw.filter(t => !t.done && !t.got).length };
 }
-const soTiles = st => `<div class="tiles"><div class="tile"><span class="muted small">Đã học</span><span class="amt num">${st.done.length} buổi</span>${st.mins ? `<span class="muted small">${durTxt(st.mins)}</span>` : ''}</div>
-  <div class="tile"><span class="muted small">Tháng ${today().getMonth() + 1}</span><span class="amt num">${st.month} buổi</span></div>
-  <div class="tile"><span class="muted small">Bài tập về nhà</span><span class="amt num">${st.got}/${st.hw.length}</span><span class="muted small">cô đã nhận${st.open ? ` · ${st.open} bài đang làm` : ''}</span></div></div>`;
+// Số buổi đã dạy, tổng thời lượng và học phí của từng tháng (tháng mới nhất ở trên). Chỉ tính buổi Đã học có ngày.
+function soFees(d, f) {
+  const done = sessList(d).filter(s => s.state !== 'plan' && s.date);
+  return sessMonths(done).map(mk => { const l = done.filter(s => s.date.startsWith(mk)), mins = l.reduce((a, s) => a + (Number(s.mins) || 0), 0); return { mk, n: l.length, mins, amount: feeAmount(f, l.length, mins) }; });
+}
+function feeSection(d, f, parent) {
+  const rows = soFees(d, f); if (!rows.length) return '';
+  return `<section class="slot tn3">${secHead('💰', 'Số buổi và học phí theo tháng')}<div class="slot-list list">${rows.map(r => `<div class="item"><span class="ico">🗓️</span><div class="txt"><div class="t">${monthTxt(r.mk)}</div><div class="s"><b class="num">${r.n} buổi</b>${r.mins ? ` · ${durTxt(r.mins)}` : ''}</div></div>${f.fee ? `<div class="acts"><span class="delta num">${money(r.amount)}</span></div>` : ''}</div>`).join('')}</div>
+    <p class="foot-note">${f.fee ? `Học phí ${feeTxt(f)}, tính theo các buổi cô ghi là Đã học.` : parent ? 'Muốn app tính luôn học phí thì bấm Sửa ở trên rồi ghi học phí mỗi buổi hoặc mỗi giờ.' : 'Số buổi tính theo các buổi cô ghi là Đã học. Phụ huynh ghi mức học phí thì app tính luôn số tiền mỗi tháng.'}</p></section>`;
+}
+const soTiles = (st, f, d) => { const cur = soFees(d, f).find(r => r.mk === key(today()).slice(0, 7));
+  return `<div class="tiles"><div class="tile"><span class="muted small">Đã học</span><span class="amt num">${st.done.length} buổi</span>${st.mins ? `<span class="muted small">${durTxt(st.mins)}</span>` : ''}</div>
+  <div class="tile"><span class="muted small">Tháng ${today().getMonth() + 1}</span><span class="amt num">${st.month} buổi</span>${cur && f.fee ? `<span class="muted small">học phí <b class="num">${money(cur.amount)}</b></span>` : cur && cur.mins ? `<span class="muted small">${durTxt(cur.mins)}</span>` : ''}</div>
+  <div class="tile"><span class="muted small">Bài tập về nhà</span><span class="amt num">${st.got}/${st.hw.length}</span><span class="muted small">cô đã nhận${st.open ? ` · ${st.open} bài đang làm` : ''}</span></div></div>`; };
 // Các buổi theo tháng, tháng mới nhất ở trên, mỗi tháng đếm số buổi đã học (để tính học phí).
 function soMonths(code, d, mode) {
   const ss = sessList(d).filter(s => mode === 'edit' || s.state !== 'plan'), hws = hwList(d);
   return sessMonths(ss).map(mk => { const l = ss.filter(s => (s.date || '').slice(0, 7) === mk).reverse(), n = l.filter(s => s.state !== 'plan').length;
     return `<section class="slot">${secHead('', monthTxt(mk), { cnt: mk ? `${n} buổi` : l.length })}<div class="slot-list list">${l.map(s => sessRow(code, s, hws.filter(t => t.session === s.id), mode)).join('')}</div></section>`; }).join('');
 }
-function printSo(code, title, student, teacher) {
-  const d = soOf(code), ss = sessList(d).filter(s => s.state !== 'plan' && s.date), hws = hwList(d), free = hws.filter(t => !ss.some(s => s.id === t.session));
+function printSo(code, title, student, teacher, f) {
+  const d = soOf(code), fees = soFees(d, f).reverse(), ss = sessList(d).filter(s => s.state !== 'plan' && s.date), hws = hwList(d), free = hws.filter(t => !ss.some(s => s.id === t.session));
   const hwCell = l => l.map(t => `<div>${esc(t.title)}${t.due ? ` (hạn ${dm(parse(t.due))})` : ''}</div>`).join(''), rvCell = l => l.map(t => `<div>${esc([hwState(t).txt, t.review].filter(Boolean).join('. '))}</div>`).join('');
   printHtml(`<h1 style="font-family:var(--display);margin:0;font-size:28px">Sổ học ${esc(title)}</h1>
     <div style="font-size:14px;margin:2px 0 10px">Học sinh: ${esc(student)}${teacher ? ' · ' + esc(teacher) : ''} · đã học ${ss.length} buổi · in ngày ${dm(today())}/${today().getFullYear()}</div>
+    <table class="ptable so-table so-fee"><thead><tr><th>Tháng</th><th>Số buổi</th><th>Thời lượng</th>${f.fee ? `<th>Học phí (${esc(feeTxt(f))})</th>` : ''}</tr></thead><tbody>
+      ${fees.map(r => `<tr><td>${monthTxt(r.mk)}</td><td class="num">${r.n}</td><td class="num">${r.mins ? durTxt(r.mins) : ''}</td>${f.fee ? `<td class="num">${money(r.amount)}</td>` : ''}</tr>`).join('')}
+      <tr><td><b>Tổng</b></td><td class="num"><b>${fees.reduce((a, r) => a + r.n, 0)}</b></td><td class="num">${durTxt(fees.reduce((a, r) => a + r.mins, 0))}</td>${f.fee ? `<td class="num"><b>${money(fees.reduce((a, r) => a + r.amount, 0))}</b></td>` : ''}</tr></tbody></table>
     ${sessMonths(ss).reverse().map(mk => { const l = ss.filter(s => s.date.startsWith(mk));
       return `<h2 style="font-family:var(--display);margin:12px 0 4px;font-size:17px">${monthTxt(mk)} · ${l.length} buổi</h2><table class="ptable so-table"><thead><tr><th>Buổi</th><th>Ngày</th><th>Nội dung</th><th>Nhận xét</th><th>Bài tập về nhà</th><th>Kết quả bài tập</th></tr></thead><tbody>
       ${l.map(s => { const h = hws.filter(t => t.session === s.id); return `<tr><td class="num">${s.no}</td><td class="num">${dm(parse(s.date))}</td><td><b>${esc(s.topic || '')}</b>${s.content ? `<div>${esc(s.content)}</div>` : ''}</td><td>${esc(s.note || '')}${s.next ? `<div><i>Buổi sau: ${esc(s.next)}</i></div>` : ''}</td><td>${hwCell(h)}</td><td>${rvCell(h)}</td></tr>`; }).join('')}</tbody></table>`; }).join('')}
@@ -1584,7 +1602,7 @@ function drawTeacher() {
       return l.length ? `<section class="slot ${tint}">${secHead('', label, { cnt: l.length, key: k, closed: l.length > 5 })}${secIsOpen(k, l.length > 5) ? `<div class="slot-list list">${l.map(t => hwRow(TEACH, t, d, 'edit')).join('')}</div>` : ''}</section>` : ''; }).join('')}</div>`
       : `<p class="foot-note" style="margin-top:0">Bài cô giao hiện ngay trong mục Bài tập trên máy của ${esc(info.student)}, kèm file cô đính kèm. Con tick làm xong thì cô thấy ở đây.</p>`;
   } else {
-    h += soTiles(st) + (st.done.length ? `<div class="row"><button class="btn quiet sm" data-act="so-print">🖨️ In báo cáo</button></div><div class="slots">${soMonths(TEACH, d, 'view')}</div>` : `<p class="foot-note" style="margin-top:0">Báo cáo theo tháng (số buổi, nội dung, nhận xét, bài tập) sẽ hiện ở đây sau buổi học đầu tiên. Phụ huynh xem được đúng phần này.</p>`);
+    h += soTiles(st, feeOf(info), d) + (st.done.length ? `<div class="row"><button class="btn quiet sm" data-act="so-print">🖨️ In báo cáo</button></div><div class="slots">${feeSection(d, feeOf(info), false)}${soMonths(TEACH, d, 'view')}</div>` : `<p class="foot-note" style="margin-top:0">Báo cáo theo tháng (số buổi đã dạy để tính học phí, nội dung, nhận xét, bài tập) sẽ hiện ở đây sau buổi học đầu tiên. Phụ huynh xem được đúng phần này.</p>`);
   }
   el.innerHTML = h + `</div>`;
   const tb = $('#km .tabbar .on'); if (tb) tb.parentElement.scrollLeft = Math.max(0, tb.offsetLeft - 60);
@@ -1665,6 +1683,10 @@ function classForm(id, kidPre, namePre) {
     ${kids.length > 1 ? kidRow('Con', 'clkid', 'radio', [kid]) : `<input type="hidden" name="clkid" value="${kid}">`}
     ${frow('Tên cô', `<input id="clteacher" class="pillin txt" maxlength="30" value="${esc(c?.teacher || '')}" placeholder="Cô Lan">`, { id: 'clteacher' })}
   </div>
+  <div class="fg">
+    ${frow('Học phí', pillNum('clfee', feeOf(c).fee || '', { step: 10000, ph: '0' }), { id: 'clfee', sub: 'Không bắt buộc. App đếm số buổi cô đã dạy mỗi tháng rồi nhân ra học phí; cô cũng thấy con số này.' })}
+    ${frow('Tính theo', pillSel('clfeeby', [['buoi', 'Mỗi buổi'], ['gio', 'Mỗi giờ']], feeOf(c).by), { id: 'clfeeby' })}
+  </div>
   <p class="muted small lead">Lưu xong app tạo một link riêng cho cô. Cô mở link là ghi được buổi học, nhận xét và giao bài tập; cô không thấy việc nhà, tiền hay phần khác của gia đình. Đặt tên môn trùng với buổi học thêm (ví dụ Toán) thì hạn nộp bài tự đặt vào buổi học tới.</p>
   ${formFoot(c ? 'cls-del' : '', id, 'cls-save', 'Lưu', 'Xoá sổ')}`);
 }
@@ -1682,7 +1704,7 @@ function classSheet(id) {
   <div class="row">${ava({ id: c.kid, ...S.kids[c.kid] }, 'sm')}<b>${esc(kidName(c.kid))}</b><span style="flex:1"></span><button class="btn primary sm" data-act="cls-link" data-id="${c.id}">🔗 Link cho cô</button>${st.done.length ? `<button class="btn quiet sm" data-act="cls-print" data-id="${c.id}">🖨️ In</button>` : ''}<button class="btn quiet sm" data-act="cls-form" data-id="${c.id}">Sửa</button></div>
   ${!k || !k.loaded ? '<p class="muted">Đang mở sổ…</p>' : k.err ? '<div class="note">Chưa mở được sổ học. Kiểm tra mạng rồi thử lại.</div>'
     : !st.ss.length && !st.hw.length ? `<div class="card empty"><div class="big">📒</div><h2>Sổ còn trống</h2><p class="muted">Gửi link cho ${esc(c.teacher || 'cô')}. Cô ghi buổi học và giao bài thì hiện ngay ở đây.</p></div>`
-    : `${soTiles(st)}<div class="slots">${free.length ? `<section class="slot tn0">${secHead('', 'Bài tập', { cnt: free.length })}<div class="slot-list list">${free.map(t => hwRow(c.code, t, d, 'view')).join('')}</div></section>` : ''}${soMonths(c.code, d, 'view')}</div>`}
+    : `${soTiles(st, feeOf(c), d)}<div class="slots">${feeSection(d, feeOf(c), true)}${free.length ? `<section class="slot tn0">${secHead('', 'Bài tập', { cnt: free.length })}<div class="slot-list list">${free.map(t => hwRow(c.code, t, d, 'view')).join('')}</div></section>` : ''}${soMonths(c.code, d, 'view')}</div>`}
   <div class="foot"><button class="btn quiet" data-act="close">Đóng</button></div>`, true);
 }
 // Bài cô giao, mở từ phần Bài tập của nhà hoặc máy của con: hướng dẫn, file đính kèm, điểm và nhận xét của cô. Chỉ xem, tick xong ở ngoài danh sách.
@@ -3021,11 +3043,11 @@ document.addEventListener('click', e => {
     delFiles(TEACH, [...(old?.files || []), ...(at?.added || [])]);
     closeModal(); clsDel(TEACH, 'tasks', id); return toast('Đã xoá bài tập.');
   }
-  if (a === 'so-print') { const info = soOf(TEACH).info.lop || {}; return printSo(TEACH, info.name || '', info.student || '', info.teacher || ''); }
+  if (a === 'so-print') { const info = soOf(TEACH).info.lop || {}; return printSo(TEACH, info.name || '', info.student || '', info.teacher || '', feeOf(info)); }
   if (a === 'cls-form') return classForm(id, b.dataset.kid, b.dataset.name);
   if (a === 'cls-open') return classSheet(id);
   if (a === 'cls-link') return classLinkSheet(id);
-  if (a === 'cls-print') { const c = classesList().find(x => x.id === id); return c && printSo(c.code, c.name, kidName(c.kid), c.teacher || ''); }
+  if (a === 'cls-print') { const c = classesList().find(x => x.id === id); return c && printSo(c.code, c.name, kidName(c.kid), c.teacher || '', feeOf(c)); }
   if (a === 'cls-copy') {
     const inp = $('#cl-link'), link = inp?.value; if (!link) return;
     const manual = () => { inp.focus(); inp.select(); toast('Bấm giữ vào link rồi chọn Sao chép.'); };
@@ -3036,7 +3058,8 @@ document.addEventListener('click', e => {
     const name = $('#clname').value.trim(); if (!name) { $('#clname').focus(); return toast('Nhập tên môn nhé.'); }
     const kid = radioVal('clkid') || document.querySelector('#modal input[name=clkid]')?.value; if (!S.kids[kid]) return;
     const old = id ? S.paid[id] : null, cid = id || 'lop-' + uid();
-    const data = { lop: 1, kid, name, teacher: $('#clteacher').value.trim(), code: old?.code || newFamilyCode(), at: old?.at || new Date().toISOString() };
+    const data = { lop: 1, kid, name, teacher: $('#clteacher').value.trim(), code: old?.code || newFamilyCode(), at: old?.at || new Date().toISOString(),
+      fee: Math.max(0, Math.round(Number($('#clfee').value) || 0)), feeBy: $('#clfeeby').value === 'gio' ? 'gio' : 'buoi' };
     closeModal(); put('paid', cid, data);
     if (old) return toast('Đã lưu sổ học.');
     return classLinkSheet(cid, { id: cid, ...data });
