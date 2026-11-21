@@ -49,9 +49,10 @@ const PRICE_ICONS = {
   gift: ['🎁', '🎟️', '🍿', '🌙', '🧹', '🥞', '👫', '🍰', '🎬', '🎮', '🍦', '🧋', '🍕', '🧁', '📖', '🎡', '🛝', '🚲', '🏊'],
   penalty: ['😤', '🐢', '🤐', '🙉', '📢', '⚠️', '🙅', '🥊', '📵'],
   fee: ['📱', '📺', '🎮', '💻', '🎧'],
+  merit: ['👏', '⭐', '💯', '🥈', '🏆', '🏅', '🥇', '🎖️', '📝', '📖', '🎤', '🎨', '⚽'],
 };
-// Các loại mục trong Bảng giá (nhóm "rewards"): đổi quà, phạt, phí sử dụng theo giờ.
-const PRICE_KINDS = [['penalty', 'Phạt', '⚠️'], ['fee', 'Phí sử dụng', '📱'], ['gift', 'Đổi quà', '🎁']];
+// Các loại mục trong Bảng giá (nhóm "rewards"): thành tích ở trường (con tự báo, bố mẹ duyệt), phạt, phí sử dụng theo giờ, đổi quà.
+const PRICE_KINDS = [['merit', 'Thành tích', '🏅'], ['penalty', 'Phạt', '⚠️'], ['fee', 'Phí sử dụng', '📱'], ['gift', 'Đổi quà', '🎁']];
 const NAV = [
   { id: 'hom-nay', label: 'Hôm nay', ic: 'checklist' },
   { id: 'lich-hoc', label: 'Học tập', ic: 'calendar' },
@@ -116,6 +117,15 @@ const SAMPLE_PRICES = [
   { name: 'Món tráng miệng', icon: '🍰', kind: 'gift', price: 10000, note: 'Một món tráng miệng con thích sau bữa tối' },
   { name: 'Thức khuya thêm 30 phút', icon: '🌙', kind: 'gift', price: 20000, note: 'Đi ngủ muộn hơn 30 phút, một tối' },
   { name: 'Một ngày không làm việc nhà', icon: '🧹', kind: 'gift', price: 20000, skip: true, note: 'Nghỉ hết việc phải làm trong một ngày, không làm đứt chuỗi ngày' },
+];
+// Thành tích ở trường: con tự báo khi có (nút + ở màn của con), nằm chờ tới khi bố mẹ duyệt mới cộng tiền.
+// Nhà nào cũng có sẵn 5 mục này (xem autoMerits), sửa hay thêm bớt ở trang Bảng giá.
+const SAMPLE_MERITS = [
+  { name: 'Được cô khen', icon: '👏', price: 5000 },
+  { name: 'Được 9', icon: '⭐', price: 10000 },
+  { name: 'Được 10', icon: '💯', price: 20000 },
+  { name: 'Thi được 9', icon: '🥈', price: 25000 },
+  { name: 'Thi được 10', icon: '🏆', price: 50000 },
 ];
 // Thưởng mỗi ngày con làm đủ mọi việc phải làm (con mới thêm, hoặc khi chuyển từ thưởng đủ tuần sang).
 const DAY_BONUS = 15000;
@@ -194,7 +204,7 @@ const choresList = () => Object.entries(S.chores).map(([id, c]) => ({ id, ...c }
 // Bảng giá: { name, icon, kind: 'gift' | 'penalty' | 'fee', price (đồng; phí sử dụng là đồng/giờ; quà giá 0 là miễn phí),
 //   all: true = phạt mất hết tiền đang có, week: true = phạt mất hết tiền được thưởng trong tuần }.
 // Mục cũ chỉ có cost (sao) và không có kind là đổi quà.
-const priceKind = r => ['penalty', 'fee'].includes(r.kind) ? r.kind : 'gift';
+const priceKind = r => ['penalty', 'fee', 'merit'].includes(r.kind) ? r.kind : 'gift';
 const priceVnd = r => r.price != null ? Math.max(0, Number(r.price) || 0) : (Number(r.cost) || 0) * STAR_VND;
 const pricesList = kind => Object.entries(S.rewards).map(([id, r]) => ({ id, ...r })).filter(r => !kind || priceKind(r) === kind)
   .sort((a, b) => (a.all ? 2 : a.week ? 1 : 0) - (b.all ? 2 : b.week ? 1 : 0) || priceVnd(a) - priceVnd(b) || String(a.name).localeCompare(String(b.name), 'vi'));
@@ -322,6 +332,12 @@ function dayBonuses(kidId) {
     return out;
   });
 }
+// Các mục thành tích con được báo. Nhà chưa từng được thêm sẵn (máy bố mẹ chưa mở bản này) thì dùng tạm bảng mẫu.
+const meritSeeded = () => !!S.paid?.caidat?.merit;
+const meritList = () => { const l = pricesList('merit'); return l.length || meritSeeded() ? l : SAMPLE_MERITS.map((m, i) => ({ id: 'merit-' + (i + 1), kind: 'merit', ...m })); };
+// Thành tích con đã báo, đang chờ bố mẹ duyệt. Nằm trong sổ tài khoản với amount = 0 (chưa tính vào số dư, cả với máy chưa cập nhật app),
+// số tiền sẽ cộng ghi ở ask. Duyệt: amount = ask, bỏ pending. Không duyệt: xoá.
+const pendingList = kidId => Object.entries(S.ledger).filter(([, l]) => l.pending && S.kids[l.kid] && (!kidId || l.kid === kidId)).map(([id, l]) => ({ id, ...l })).sort((a, b) => String(a.at).localeCompare(String(b.at)));
 // Tiền thưởng ngày đủ việc từ ngày a đến ngày b (khoá "YYYY-MM-DD").
 const dayBonusIn = (kidId, a = '', b = '9999') => dayBonuses(kidId).reduce((s, x) => s + (x.dk >= a && x.dk <= b ? x.amount : 0), 0);
 // Tiền con được thưởng trong tuần chứa ngày d, tính tới hết ngày d: tiền việc nhà, thưởng ngày đủ việc, thưởng thêm,
@@ -914,6 +930,7 @@ function viewToday() {
   <div class="day-head"><h1>${isT ? 'Hôm nay' : WD[d.getDay()]}</h1><div class="day-side"><label class="day-pick"><span>${dateTxt}</span>${CHEV}<input type="date" id="day-pick" value="${key(d)}" aria-label="Chọn ngày"></label>${isT ? '' : '<button class="linkbtn" data-act="day" data-n="0">Về hôm nay</button>'}</div></div>
   ${k ? weekStrip(d, k) : ''}`;
   if (!k) return h + noKids();
+  h += pendingCard();
   if (future) h += `<p class="foot-note">Ngày này chưa tới nên chưa đánh dấu được.</p>`;
   const list = mustFor(k.id, d), plan = dayPlan(k.id, d);
   const n = list.filter(c => isDone(d, k.id, c.id)).length, left = list.length - n;
@@ -1252,11 +1269,11 @@ const LEDGER_KIND = {
 const ACCT_KINDS = [['penalty', 'Phạt'], ['fee', 'Phí'], ['bonus', 'Thưởng'], ['spend', 'Chi tiêu']];
 const giftTagOf = (kind, vnd) => kind === 'gift' && !vnd ? 'miễn phí' : money(vnd) + (kind === 'fee' ? '/giờ' : '');
 const giftTag = r => priceVnd(r) ? money(priceVnd(r)) : 'Miễn phí';
-const priceTag = r => priceKind(r) === 'penalty' ? (r.all ? 'Mất hết tiền' : r.week ? 'Mất tiền thưởng tuần' : '−' + money(priceVnd(r)))
+const priceTag = r => priceKind(r) === 'merit' ? '+' + money(priceVnd(r)) : priceKind(r) === 'penalty' ? (r.all ? 'Mất hết tiền' : r.week ? 'Mất tiền thưởng tuần' : '−' + money(priceVnd(r)))
   : priceKind(r) === 'fee' ? money(priceVnd(r)) + '/giờ' : giftTag(r);
 // Lịch sử tài khoản của một con: sổ tài khoản, thưởng làm đủ việc (theo ngày hoặc cả tuần) và tiền việc nhà gộp theo ngày.
 function statement(kidId) {
-  const rows = Object.entries(S.ledger).filter(([, l]) => l.kid === kidId).map(([id, l]) => ({ id, ...l, vnd: ledgerVnd(l), legacy: l.amount == null }));
+  const rows = Object.entries(S.ledger).filter(([, l]) => l.kid === kidId && !l.pending).map(([id, l]) => ({ id, ...l, vnd: ledgerVnd(l), legacy: l.amount == null }));
   for (const w of weekBonuses(kidId)) {
     const end = addDays(w.ws, 6); end.setHours(23, 59);
     rows.push({ kind: 'week', vnd: w.amount, note: `Làm đủ việc phải làm tuần ${dm(w.ws)} – ${dm(addDays(w.ws, 6))}`, at: end.toISOString() });
@@ -1291,7 +1308,7 @@ function viewAccount() {
       ${st.possible ? `${barCount(st.done, st.possible)}<span class="stat-c"><span class="num">${st.done}/${st.possible}</span> việc phải làm${bonusNote}</span>` : '<span class="stat-c">Chưa có việc phải làm</span>'}</div></section>`;
 
   const kidName1 = esc(kidName(ak));
-  h += `<div class="slots"><section class="slot">${secHead('✏️', `Ghi cho ${kidName1}`)}<div class="acct-form">
+  h += `<div class="slots">${pendingCard(ak)}<section class="slot">${secHead('✏️', `Ghi cho ${kidName1}`)}<div class="acct-form">
     <div class="seg modes">${ACCT_KINDS.map(([v, l]) => `<label><input type="radio" name="akind" value="${v}" ${v === kind ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div>`;
   const presets = list => `<div class="presets">${list.map(r => `<button class="preset ${priceKind(r)}" data-act="acct-preset" data-id="${r.id}"><span class="ico">${esc(r.icon || '•')}</span><span class="t">${esc(r.name)}</span>${r.note ? `<span class="muted small">${esc(r.note)}</span>` : ''}<b class="num">${priceTag(r)}</b></button>`).join('')}</div>`;
   const custom = (label, btn, ph) => `<div class="row2"><div class="field"><label for="aamt">${label}</label><input id="aamt" class="input num" type="number" min="0" step="1000" inputmode="numeric" placeholder="Ví dụ: 10000"></div>
@@ -1307,7 +1324,7 @@ function viewAccount() {
       <span class="muted small">Nửa giờ là 0,5. Tiền trừ = giá mỗi giờ × số giờ.</span></div>`;
     h += ps.length ? presets(ps) : `<p class="muted small" style="margin:0">Chưa có mục phí sử dụng nào. Thêm ở trang <a href="#bang-gia">Bảng giá</a>.</p>`;
   } else if (kind === 'bonus') {
-    h += `<p class="muted small" style="margin:0">Tiền việc nhà và tiền thưởng làm đủ việc được cộng tự động. Ở đây ghi các khoản thưởng thêm khác.</p>${custom('Số tiền thưởng (đồng)', 'Thưởng tiền', 'Ví dụ: Được điểm 10, giúp bà nấu cơm')}`;
+    h += `<p class="muted small" style="margin:0">Tiền việc nhà và tiền thưởng làm đủ việc được cộng tự động. Ở đây ghi các khoản thưởng thêm khác.</p>${pricesList('merit').length ? presets(pricesList('merit')) : ''}${custom('Số tiền thưởng (đồng)', 'Thưởng tiền', 'Ví dụ: Được điểm 10, giúp bà nấu cơm')}`;
   } else {
     const gs = pricesList('gift');
     h += `<p class="muted small" style="margin:0">Con tiêu tiền trong tài khoản: đổi phiếu thưởng, mua quà hoặc rút tiền mặt.</p>`;
@@ -1330,6 +1347,28 @@ function viewAccount() {
   return h + `</section></div>`;
 }
 
+// Thành tích con báo, chờ bố mẹ duyệt. Chưa duyệt thì chưa tính vào số dư.
+function pendingCard(kidId) {
+  const list = pendingList(kidId); if (!list.length) return '';
+  return `<section class="slot tn3">${secHead('🏅', 'Chờ bố mẹ duyệt', { cnt: list.length })}<div class="slot-list list">${list.map(l => {
+    const dt = new Date(l.at);
+    return `<div class="item pend"><span class="ico">${esc(l.icon || '🏅')}</span><div class="txt"><div class="t">${esc(l.note || 'Thành tích')}</div><div class="s">${esc(kidName(l.kid))} báo ${WDN(dt.getDay())} ${dm(dt)} · <b class="num plus">+${money(l.ask)}</b></div></div>
+      <div class="acts"><button class="linkbtn undo" data-act="merit-no" data-id="${l.id}">Không</button><button class="btn primary sm" data-act="merit-ok" data-id="${l.id}">Duyệt</button></div></div>`;
+  }).join('')}</div></section>`;
+}
+// Con báo thành tích: chọn một mục có sẵn, ghi thêm môn nếu muốn, rồi gửi bố mẹ duyệt.
+function meritSheet(kidId) {
+  if (!S.kids[kidId]) return;
+  openModal(`<h2>Con đạt được gì?</h2><p class="muted small lead">Chọn một mục rồi gửi. Bố mẹ xem và duyệt thì tiền mới vào tài khoản của con.</p>
+  <div class="fg"><div class="list menu">${meritList().map(r => `<button class="item nav" data-act="merit-pick" data-id="${r.id}" data-kid="${kidId}"><span class="ico">${esc(r.icon || '🏅')}</span><span class="txt"><span class="t">${esc(r.name)}</span><span class="s"><b class="num plus">+${money(priceVnd(r))}</b></span></span>${CHEV}</button>`).join('')}</div></div>
+  <div class="foot"><button class="btn quiet" data-act="close">Đóng</button></div>`);
+}
+function meritForm(kidId, rid) {
+  const r = meritList().find(x => x.id === rid); if (!r || !S.kids[kidId]) return;
+  openModal(`<h2>${esc(r.icon || '🏅')} ${esc(r.name)}</h2><p class="muted small lead">Bố mẹ duyệt thì con được cộng <b class="num plus">+${money(priceVnd(r))}</b>.</p>
+  <div class="fg">${frow('Môn gì, bài gì?', `<input id="mnote" class="input" maxlength="60" placeholder="Ví dụ: Toán, bài kiểm tra 15 phút">`, { id: 'mnote', cls: 'col', sub: 'Không bắt buộc, ghi để bố mẹ dễ xem' })}</div>
+  <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="merit-ask" data-id="${rid}" data-kid="${kidId}">Gửi bố mẹ duyệt</button></div>`);
+}
 // Phiếu nghỉ việc nhà: hỏi con muốn nghỉ ngày nào rồi mới trừ tiền.
 function skipForm(rid, kidId) {
   const r = S.rewards[rid]; if (!r) return;
@@ -1476,6 +1515,16 @@ function autoFill() {
   toast([nc ? `Đã đưa ${nc} việc của bảng vào lịch từng ngày` : '', np ? `${nc ? 'thêm' : 'Đã thêm'} ${np} mục vào bảng giá` : ''].filter(Boolean).join(', ') + '.',
     () => { for (const o of adds) del(o.col, o.nid); toast('Đã hoàn tác, lịch như trước.'); });
 }
+// Thêm sẵn 5 mục thành tích vào Bảng giá, một lần cho mỗi nhà (đánh dấu ở cài đặt của gia đình), từ máy của bố mẹ.
+// Mã mục cố định nên hai máy cùng thêm cũng không bị trùng. Sau đó bố mẹ sửa, xoá tuỳ ý, app không tự thêm lại.
+let meritChecked = false;
+function autoMerits() {
+  if (meritChecked || !loaded || stale || deviceRole() !== 'parent' || !kidsList().length) return;
+  meritChecked = true;
+  if (meritSeeded()) return;
+  if (!pricesList('merit').length) SAMPLE_MERITS.forEach((m, i) => put('rewards', 'merit-' + (i + 1), { ...m, kind: 'merit' }));
+  put('paid', SETTINGS_ID, { ...(S.paid[SETTINGS_ID] || {}), merit: 1 });
+}
 // Cập nhật bảng giá một lần theo bảng mẫu bản mới: những gì sẽ đổi trong dữ liệu đang dùng.
 // Chỉ đụng tới mục trùng tên với bảng mẫu (tên mới hoặc tên cũ); mục gia đình tự thêm thì giữ nguyên. Việc và mục giá còn thiếu thì thêm đủ.
 // Trả về null khi không có gì để đổi, hoặc các con đã ghi bản này (đã áp dụng hoặc đã bỏ qua).
@@ -1580,12 +1629,12 @@ function viewPrices() {
     weekly.length ? (allDaily ? 'Không cộng tiền từng lần. Ngày nào làm đủ hết thì ngày đó được thưởng.' : 'Không cộng tiền từng lần. Làm đủ tất cả các ngày thì cuối tuần được thưởng.') : kids.length ? `Chưa có việc bắt buộc nào, nên ${allDaily ? 'thưởng ngày đủ việc' : 'thưởng đủ tuần'} đang tính theo tất cả việc mỗi ngày bên dưới. Mở một việc, chọn Cách thưởng là Bắt buộc mỗi ngày để đưa việc đó lên đây.` : '');
   if (each.length) h += sec('bg-each', 'tn1', '💰', 'Việc mỗi ngày có tiền', each.length, ['chore-form', 'each'], `<div class="slot-list list">${each.map(choreRow).join('')}</div>`, weekly.length ? 'Làm lần nào cộng tiền lần đó. Không tính vào thưởng làm đủ việc.' : '');
   h += sec('bg-extra', 'tn4', '💪', 'Việc làm thêm', extra.length || '', ['chore-form', 'extra'], extra.length ? `<div class="slot-list list">${extra.map(choreRow).join('')}</div>` : off ? '' : blankAdd('Việc không bắt buộc, làm lúc nào được tiền lúc đó', 'chore-form', 'data-kind="extra"'));
-  const EMPTY = { penalty: 'Lỗi nào thì bị trừ tiền. Ví dụ: nổi nóng, trì hoãn', fee: 'Dùng điện thoại, xem tivi mất bao nhiêu tiền mỗi giờ', gift: 'Con dùng tiền để đổi. Ví dụ: chọn phim tối nay' }, TINT = { penalty: 's-late', fee: 'tn2', gift: 'tn5' };
+  const EMPTY = { merit: 'Con tự báo, bố mẹ duyệt mới cộng tiền. Ví dụ: được điểm 10', penalty: 'Lỗi nào thì bị trừ tiền. Ví dụ: nổi nóng, trì hoãn', fee: 'Dùng điện thoại, xem tivi mất bao nhiêu tiền mỗi giờ', gift: 'Con dùng tiền để đổi. Ví dụ: chọn phim tối nay' }, TINT = { merit: 'tn3', penalty: 's-late', fee: 'tn2', gift: 'tn5' };
   for (const [kind, label, ic] of PRICE_KINDS) {
     const list = pricesList(kind);
     h += `<section class="slot ${TINT[kind]}">${secHead(ic, label, { cnt: list.length || '', key: 'bg-' + kind, add: addBtn('price-form', `Thêm: ${label}`, `data-kind="${kind}"`) })}${!secIsOpen('bg-' + kind) ? '' : list.length
-      ? `<div class="slot-list list">${list.map(r => `<div class="item"><span class="ico">${esc(r.icon || ic)}</span><div class="txt"><div class="t">${esc(r.name)}</div><div class="s"><b class="num ${kind === 'gift' ? '' : 'minus'}">${priceTag(r)}</b>${r.all ? ' · trừ hết số tiền đang có' : r.week ? ' · tiền việc nhà và tiền thưởng từ Thứ Hai tới lúc phạt' : r.skip ? ' · miễn việc phải làm một ngày' : ''}</div></div>
-      <div class="acts">${editBtn('price-form', r.id, r.name)}</div></div>`).join('')}</div>` : blankAdd(EMPTY[kind], 'price-form', `data-kind="${kind}"`)}</section>`;
+      ? `<div class="slot-list list">${list.map(r => `<div class="item"><span class="ico">${esc(r.icon || ic)}</span><div class="txt"><div class="t">${esc(r.name)}</div><div class="s"><b class="num ${kind === 'gift' ? '' : kind === 'merit' ? 'plus' : 'minus'}">${priceTag(r)}</b>${r.all ? ' · trừ hết số tiền đang có' : r.week ? ' · tiền việc nhà và tiền thưởng từ Thứ Hai tới lúc phạt' : r.skip ? ' · miễn việc phải làm một ngày' : ''}</div></div>
+      <div class="acts">${editBtn('price-form', r.id, r.name)}</div></div>`).join('')}</div>${kind === 'merit' ? '<p class="foot-note" style="margin:0 6px">Con tự báo ở màn của con khi đạt được. Bố mẹ duyệt thì mới cộng tiền.</p>' : ''}` : blankAdd(EMPTY[kind], 'price-form', `data-kind="${kind}"`)}</section>`;
   }
   return h + `</div>`;
 }
@@ -1598,6 +1647,7 @@ function printPrices() {
     ${sec('Thưởng', chores.filter(c => !isWeekly(c)).map(c => cell(c.icon, c.name, money(choreVnd(c)))))}
     ${chores.some(isWeekly) ? `<h2>Việc bắt buộc mỗi ngày${rules ? `: ${rules}` : ''}</h2><div class="pp-line">${chores.filter(isWeekly).map(c => `${esc(c.icon || '')} ${esc(c.name)}`).join(' · ')}</div>` : ''}
     ${rules && !chores.some(isWeekly) ? `<div class="pp-line">🏆 Việc phải làm: <b>${rules}</b></div>` : ''}
+    ${sec('Thành tích ở trường (con báo, bố mẹ duyệt)', meritList().map(r => cell(r.icon, r.name, '+' + money(priceVnd(r)))))}
     ${sec('Phạt', pricesList('penalty').map(r => cell(r.icon, r.name, r.all ? 'mất hết tiền' : r.week ? 'mất tiền thưởng của tuần' : 'trừ ' + money(priceVnd(r)), 'minus')))}
     ${sec('Phí sử dụng', pricesList('fee').map(r => cell(r.icon, r.name, money(priceVnd(r)) + '/giờ', 'minus')))}
     ${sec('Đổi quà', pricesList('gift').map(r => cell(r.icon, r.name, giftTag(r))))}</div>`);
@@ -1663,13 +1713,16 @@ const kidLink = id => inviteLink() + '&con=' + encodeURIComponent(id);
 // Việc máy của con được làm: đánh dấu việc, bài tập của chính mình, gập mở các buổi, và xin vào phần bố mẹ.
 // Thêm các nút chỉ để xem ở mục Học tập: đổi tab, chọn ngày, chọn thứ, mở nhóm đã qua.
 const KID_ACTS = new Set(['close', 'tick', 'step', 'slot-toggle', 'task-done', 'task-step', 'role-kid', 'role-kid-ok', 'role-parent', 'pin-ok',
-  'tkb-go', 'learn-tab', 'tkb-day', 'ag-day', 'ag-week', 'hist-all', 'sec-toggle']);
+  'tkb-go', 'learn-tab', 'tkb-day', 'ag-day', 'ag-week', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel']);
 function kidMay(a, b) {
   const r = deviceRole(); if (r === 'parent') return true;
   if (!KID_ACTS.has(a)) return false;
   if (a === 'tick' || a === 'step') return b.dataset.kid === r;
   if (a === 'task-done' || a === 'task-step') return S.tasks[b.dataset.id]?.kid === r;
   if (a === 'role-kid' || a === 'role-kid-ok') return r === 'ask';
+  // Thành tích: con chỉ báo cho chính mình và chỉ huỷ mục của mình đang chờ duyệt. Duyệt là việc của bố mẹ.
+  if (a === 'merit-open' || a === 'merit-pick' || a === 'merit-ask') return b.dataset.kid === r;
+  if (a === 'merit-cancel') { const l = S.ledger[b.dataset.id]; return !!l && !!l.pending && l.kid === r; }
   return true;
 }
 // mode 'unlock': nhập PIN để máy này thành máy của bố mẹ. mode 'set': đặt hoặc đổi PIN (chỉ máy của bố mẹ).
@@ -1750,6 +1803,12 @@ function drawKidMode() {
   const school = (kts.length ? `<section class="slot s-task">${secHead('📝', 'Bài cần nộp', { cnt: kts.length })}<div class="big-list">${kts.map(t => taskRow(t, false, 'big')).join('')}</div></section>` : '')
     + (sc ? `<section class="slot tn4">${secHead(sc.bag ? '🎒' : '🏫', esc(sc.title))}<div class="slot-list pad"><div class="sj-list">${subjChips(sc.subjects)}</div></div></section>` : '');
   const after = eventLines(k, 'km-event') + goal;
+  // Thành tích ở trường: những mục con đã báo đang chờ duyệt, và nút + để báo mục mới.
+  const pend = pendingList(k.id);
+  const merit = meritList().length ? `<section class="slot tn3">${secHead('🏅', 'Thành tích ở trường', { cnt: pend.length || '' })}
+    ${pend.length ? `<div class="slot-list list">${pend.map(l => `<div class="item pend"><span class="ico">${esc(l.icon || '🏅')}</span><div class="txt"><div class="t">${esc(l.note || 'Thành tích')}</div><div class="s">⏳ Chờ bố mẹ duyệt · ${dm(new Date(l.at))}</div></div>
+      <div class="acts col"><span class="delta num wait">+${money(l.ask)}</span><button class="linkbtn undo" data-act="merit-cancel" data-id="${l.id}">Huỷ</button></div></div>`).join('')}</div>` : ''}
+    <button class="slot-blank" data-act="merit-open" data-kid="${k.id}"><span>Được cô khen, được điểm 9, điểm 10? Bấm để báo bố mẹ</span>${PLUS}</button></section>` : '';
   const bigChore = (x, g) => {
     const c = x.c, on = isDone(t, k.id, c.id), steps = (c.steps || []).filter(Boolean), mask = stepMask(t, k.id, c.id);
     const sub = `<span class="s">${choreMeta(c, k.id, t, true)}</span>`;
@@ -1783,7 +1842,7 @@ function drawKidMode() {
     ${barCount(n, list.length)}${weekLine}</section>` : ''}
   ${skipNote(k, t)}
   <div class="slots">${school}${list.length || plan.length ? timeline
-    : `<div class="card empty"><div class="big">🎈</div><h2>${school ? 'Hôm nay con không có việc nhà nào.' : 'Hôm nay con được nghỉ!'}</h2></div>`}</div>
+    : `<div class="card empty"><div class="big">🎈</div><h2>${school ? 'Hôm nay con không có việc nhà nào.' : 'Hôm nay con được nghỉ!'}</h2></div>`}${merit}</div>
   ${after}</div>`;
 }
 
@@ -1971,7 +2030,7 @@ function choreForm(id, kindPre, pre) {
   </details>
   <div class="foot">${c ? `<button class="btn danger left" data-act="chore-del" data-id="${id}">Xoá việc này</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="chore-save" data-id="${id || ''}">Lưu</button></div>`);
 }
-const PRICE_HELP = { penalty: 'Trừ tiền khi con mắc lỗi', fee: 'Trừ tiền theo số giờ dùng điện thoại, tivi…', gift: 'Con dùng tiền trong tài khoản để đổi' }, PRICE_FEE = 'Tính cho mỗi giờ sử dụng';
+const PRICE_HELP = { merit: 'Con tự báo khi đạt được, bố mẹ duyệt thì mới cộng tiền', penalty: 'Trừ tiền khi con mắc lỗi', fee: 'Trừ tiền theo số giờ dùng điện thoại, tivi…', gift: 'Con dùng tiền trong tài khoản để đổi' }, PRICE_FEE = 'Tính cho mỗi giờ sử dụng';
 function priceForm(id, kindPre) {
   const r = id ? S.rewards[id] : null, kind = r ? priceKind(r) : PRICE_KINDS.some(x => x[0] === kindPre) ? kindPre : 'penalty';
   const icons = [...new Set([...PRICE_ICONS[kind], ...Object.values(PRICE_ICONS).flat()])];
@@ -2670,6 +2729,7 @@ document.addEventListener('click', e => {
         if (!armed(b, `Bấm lần nữa: ${who} mất ${money(g)}`)) return;
         e = { amount: -g, kind: 'penalty', note: r.name + ' (mất tiền thưởng của tuần)', wipe: key(weekStart(today())) };
       } else if (k === 'penalty') e = { amount: -p, kind: 'penalty', note: r.name };
+      else if (k === 'merit') e = { amount: p, kind: 'bonus', note: r.name };
       else if (k === 'fee') {
         const hrs = Math.max(0.25, Math.round((Number($('#ahours')?.value) || 1) * 100) / 100);
         e = { amount: -Math.round(p * hrs), kind: 'fee', note: `${r.name} ${String(hrs).replace('.', ',')} giờ`, qty: hrs };
@@ -2711,6 +2771,25 @@ document.addEventListener('click', e => {
     }
     closeModal();
     return toast(done.length ? `Đã khớp số dư: ${done.join(', ')}.` : 'Số dư đã đúng, không cần đổi.');
+  }
+  if (a === 'merit-open') return meritSheet(b.dataset.kid);
+  if (a === 'merit-pick') return meritForm(b.dataset.kid, id);
+  if (a === 'merit-ask') {
+    const kid = b.dataset.kid, r = meritList().find(x => x.id === id); if (!r || !S.kids[kid]) return;
+    const extra = ($('#mnote')?.value || '').trim(), vnd = priceVnd(r);
+    closeModal();
+    put('ledger', uid(), { kid, amount: 0, ask: vnd, kind: 'bonus', note: r.name + (extra ? ` (${extra})` : ''), icon: r.icon || '🏅', at: new Date().toISOString(), pending: true });
+    return toast(`Đã gửi “${r.name}”. Bố mẹ duyệt thì con được +${money(vnd)}.`);
+  }
+  if (a === 'merit-cancel') { const l = S.ledger[id]; if (!l?.pending || !armed(b, 'Chắc chưa?')) return; del('ledger', id); return toast('Đã huỷ mục này.'); }
+  if (a === 'merit-ok' || a === 'merit-no') {
+    const l = S.ledger[id]; if (!l?.pending) return;
+    const who = kidName(l.kid), vnd = Math.max(0, Math.round(Number(l.ask) || 0)), back = () => { put('ledger', id, l); toast('Đã hoàn tác, mục này lại chờ duyệt.'); };
+    if (a === 'merit-no') { del('ledger', id); return toast(`Không duyệt “${l.note}” của ${who}.`, back); }
+    const { pending, ask, ...rest } = l, bal = balance(l.kid);
+    put('ledger', id, { ...rest, amount: vnd, okAt: new Date().toISOString() });
+    confetti();
+    return toast(`Đã duyệt: cộng ${money(vnd)} cho ${who} (${l.note}). Còn ${money(bal + vnd)}.`, back);
   }
   if (a === 'ledger-undo') { if (!armed(b, 'Chắc chưa?')) return; del('ledger', id); return toast('Đã huỷ mục này.'); }
 });
@@ -2863,7 +2942,7 @@ async function startFirebase() {
   render();
   try {
     store = await firebaseStore(firebaseConfig, family, (data, meta) => {
-      S = data; loaded = true; stale = !!meta.fromCache; render(); autoSeed(); autoFill();
+      S = data; loaded = true; stale = !!meta.fromCache; render(); autoSeed(); autoFill(); autoMerits();
     }, (type, err) => {
       console.error(err);
       if (err?.code === 'permission-denied') toast('Firestore từ chối truy cập. Kiểm tra Rules trong README.');
@@ -2901,7 +2980,7 @@ if (firebaseConfig) {
   if (family && con && /^[\w-]{1,40}$/.test(con) && !getRole()) setRole(con);
   if (family) startFirebase(); else showSetup();
 } else {
-  store = localStore((data) => { S = data; loaded = true; render(); autoFill(); });
+  store = localStore((data) => { S = data; loaded = true; render(); autoFill(); autoMerits(); });
   store.start();
   autoSeed();
 }
