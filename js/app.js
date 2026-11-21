@@ -1404,7 +1404,7 @@ const classInfo = c => ({ name: c.name, book: String(c.book || '').trim(), teach
 function openClass(code) {
   if (CLS[code]) return CLS[code];
   const c = CLS[code] = { st: null, data: emptySo(), loaded: false, stale: false, err: null };
-  const onData = (d, meta) => { if (CLS[code] !== c) return; c.data = d; c.loaded = true; c.stale = !!meta.fromCache; render(); classHeal(code); };
+  const onData = (d, meta) => { if (CLS[code] !== c) return; c.data = d; c.loaded = true; c.stale = !!meta.fromCache; render(); classHeal(code); hwPenSync(code); };
   const fail = err => { if (CLS[code] !== c) return; console.error(err); c.err = err; c.loaded = true; render(); };
   (firebaseConfig ? firebaseClass(firebaseConfig, 'lop-' + code, onData, fail) : Promise.resolve(localClass('lop-' + code, onData)))
     .then(st => { if (CLS[code] !== c) return; c.st = st; st.start(); }).catch(fail);
@@ -1415,7 +1415,7 @@ function openClass(code) {
 function syncClasses() {
   if (TEACH) return;
   const want = new Set(classesList().map(c => c.code));
-  for (const code of want) { openClass(code); classHeal(code); }
+  for (const code of want) { openClass(code); classHeal(code); hwPenSync(code); }
   for (const code of Object.keys(CLS)) if (!want.has(code)) { CLS[code].st?.stop(); delete CLS[code]; }
 }
 // Tên môn, tên cô, tên con và lịch học trong sổ là do nhà ghi. Máy của bố mẹ thấy lệch (đổi tên con, đổi lịch học thêm) thì ghi lại.
@@ -1433,6 +1433,35 @@ function classHeal(code) {
   // Chốt chặn: cùng một nội dung chỉ ghi một lần. Ghi rồi mà dữ liệu nhận về vẫn khác thì không ghi nữa, để không bao giờ lặp.
   if (HEALED[code] === ws) return;
   HEALED[code] = ws; clsPut(code, 'info', 'lop', want);
+}
+// Cô tick bài tập buổi trước là Thiếu hoặc Không làm: máy của bố mẹ tự trừ tiền của con theo mục phạt Thiếu BTVN (lần 2 trong tuần phạt nặng hơn).
+// Mỗi bài phạt một lần: mã khoản phạt cố định theo sổ và bài (hai máy cùng ghi vẫn chỉ ra một khoản), bài đã phạt được đánh dấu trong sổ (hwPen)
+// nên bố mẹ Huỷ khoản phạt trong lịch sử thì app không phạt lại. Cô đổi lại thành Hoàn thành thì khoản phạt được xoá.
+const HW_PEN_SEEN = new Set();   // "mã lớp~mã bài~tình trạng" đã xử lý trên máy này, chờ dữ liệu ghi xong quay về
+let hwPenBusy = false;            // ghi vào kho trên máy gọi lại hàm này ngay lập tức: chặn để không tính lặp
+function hwPenSync(code) {
+  if (hwPenBusy || TEACH || !loaded || stale || deviceRole() !== 'parent') return;
+  const c = classesList().find(x => x.code === code), k = CLS[code];
+  if (!c || !k || !k.loaded || k.stale || k.err) return;
+  const pr = S.rewards[HW_PENALTY[0]]?.kind === 'penalty' ? { id: HW_PENALTY[0], ...S.rewards[HW_PENALTY[0]] } : pricesList('penalty').find(r => norm(r.name) === norm(HW_PENALTY[1].name));
+  const marks = { ...(c.hwPen || {}) }, ops = [], fined = [];
+  let n = pr ? penaltyTimes(pr.id, c.kid) : 0;
+  for (const t of hwList(k.data)) {
+    const miss = !!(t.got && t.chk && t.chk !== 'du'), lid = `hw-${code}-${t.id}`, seen = `${code}~${t.id}~${miss ? 1 : 0}`;
+    if (miss === !!marks[t.id] || HW_PEN_SEEN.has(seen)) continue;
+    if (miss) {
+      if (!pr || pr.all || pr.week || S.ledger[lid]) continue;
+      const amt = againVnd(pr) && n ? againVnd(pr) : priceVnd(pr), no = n + 1;
+      ops.push(() => put('ledger', lid, { kid: c.kid, amount: -amt, kind: 'penalty', icon: pr.icon || '📕', note: `${pr.name}${againVnd(pr) ? ` (lần ${no} trong tuần)` : ''}: ${t.title} · ${CHK[t.chk]} · ${c.teacher || c.name}`, rid: pr.id, at: new Date().toISOString() }));
+      marks[t.id] = 1; n++; fined.push(amt);
+    } else { if (S.ledger[lid]) ops.push(() => del('ledger', lid)); delete marks[t.id]; }
+    HW_PEN_SEEN.add(seen);
+  }
+  if (!ops.length && JSON.stringify(marks) === JSON.stringify(c.hwPen || {})) return;
+  const { id, ...rest } = c;
+  hwPenBusy = true;
+  try { ops.forEach(f => f()); put('paid', id, { ...rest, hwPen: marks }); } finally { hwPenBusy = false; }
+  if (fined.length) toast(`${c.teacher || 'Cô'} báo ${kidName(c.kid)} thiếu BTVN: đã trừ ${money(fined.reduce((a, x) => a + x, 0))} theo mục phạt ${pr.name}.`);
 }
 // Ghi vào sổ: sửa luôn bản đang giữ trên máy để màn hình đổi ngay, rồi mới gửi đi.
 function clsWrite(code, op, col, id, data) {
@@ -1705,7 +1734,7 @@ function drawTeacher() {
   const st = soStats(d), tab = T_TABS.some(x => x[0] === UI.tTab) ? UI.tTab : 'buoi';
   const days = (info.days || []).map(x => `${WDS[x.day]} ${x.s}`).join(', ');
   const nav = cls => T_TABS.map(([v, l, ic]) => `<a href="#${v}" class="${cls} ${v === tab ? 'on' : ''}" data-act="t-tab" data-v="${v}" ${v === tab ? 'aria-current="page"' : ''}>${iconSvg(ic)}<span>${l}${v === 'bai' && st.wait ? ` <i class="cnt num">${st.wait}</i>` : ''}</span></a>`).join('');
-  const add = tab === 'buoi' ? `<button class="add" data-act="sess-form" aria-label="Ghi buổi học">${PLUS}</button>` : tab === 'bai' ? `<button class="add" data-act="hw-form" aria-label="Giao bài tập">${PLUS}</button>`
+  const add = tab === 'buoi' ? `<button class="add" data-act="sess-form" aria-label="Ghi buổi học">${PLUS}</button>` : tab === 'bai' ? `<button class="add" data-act="sess-form" aria-label="Ghi buổi học và giao bài tập">${PLUS}</button>`
     : st.done.length ? `<button data-act="so-print" aria-label="In báo cáo" title="In báo cáo">🖨️</button>` : '';
   let h = `${head(esc(bookName(info)), add)}
     <p class="so-sub">Học sinh: <b>${esc(info.student)}</b>${info.teacher ? ` · ${esc(info.teacher)}` : ''}${days ? ` · lịch học ${esc(days)}` : ''}</p>${soTiles(st, feeOf(info), d)}`;
@@ -1713,7 +1742,8 @@ function drawTeacher() {
     h += `<section class="slot">${secHead('📒', 'Buổi học', { cnt: st.ss.length || '', add: addBtn('sess-form', 'Ghi buổi học') })}${st.ss.length ? '' : blankAdd('Ghi buổi học: hôm nay học gì, nhận xét, bài tập về nhà', 'sess-form')}</section>`;
     h += st.ss.length ? `<div class="slots">${soMonths(TEACH, d, 'edit')}</div>` : `<p class="foot-note" style="margin-top:0">Mỗi buổi cô ghi nội dung, nhận xét và giao bài tập. Phụ huynh xem được ngay, bài tập tự hiện trên máy của ${esc(info.student)}.</p>`;
   } else if (tab === 'bai') {
-    h += `<section class="slot">${secHead('✏️', 'Bài tập', { cnt: st.hw.length || '', add: addBtn('hw-form', 'Giao bài tập') })}${st.hw.length ? '' : blankAdd('Giao bài tập: tên bài, hạn nộp, đính kèm phiếu bài tập', 'hw-form')}</section>`;
+    // Bài tập giao kèm từng buổi học (form Ghi buổi học), tab này chỉ để xem, nhận bài và cho điểm.
+    h += `<section class="slot">${secHead('✏️', 'Bài tập', { cnt: st.hw.length || '' })}${st.hw.length ? '' : blankAdd('Bài tập giao kèm buổi học: bấm để ghi buổi học và giao bài', 'sess-form')}</section>`;
     const groups = [['Con báo đã làm xong, chờ cô nhận', t => t.done && !t.got, 'tn3', ''], ['Đang làm', t => !t.done && !t.got, 'tn0', ''], ['Cô đã nhận', t => t.got, '', 'so-got']];
     h += st.hw.length ? `<div class="slots">${groups.map(([label, f, tint, k]) => { const l = st.hw.filter(f); if (k) l.reverse();
       return l.length ? `<section class="slot ${tint}">${secHead('', label, { cnt: l.length, key: k, closed: l.length > 5 })}${secIsOpen(k, l.length > 5) ? `<div class="slot-list list">${l.map(t => hwRow(TEACH, t, d, 'edit')).join('')}</div>` : ''}</section>` : ''; }).join('')}</div>`
@@ -1771,7 +1801,7 @@ function sessForm(id) {
     ${frow('Hạn nộp', `<input id="shdue" class="pillin num" type="date" value="${esc(dueDef)}">`, { id: 'shdue', sub: 'Mặc định là buổi học tới' })}
     <div class="fr"><button class="btn quiet sm" data-act="sess-save" data-id="${id || ''}" data-hw="new">📎 Đính kèm file (nếu có)</button></div></div>
   ${prevHw.length ? `<p class="fg-cap">Bài tập buổi trước</p>
-  <div class="fg">${prevHw.map(t => hwCheckRow(t)).join('')}</div>` : ''}
+  <div class="fg">${prevHw.map(t => hwCheckRow(t)).join('')}</div><p class="foot-note" style="margin:-8px 6px 0">Chọn Thiếu hoặc Không làm thì con bị trừ tiền theo mục phạt Thiếu BTVN của nhà.</p>` : ''}
   <p class="fg-cap">Thêm nếu cần (không bắt buộc)</p>
   <div class="fg">${frow('Sách, nguồn tham khảo', `<input id="ssrc" class="input" maxlength="200" value="${esc(s?.src || '')}" placeholder="Ví dụ: SGK tập 1, bài 1–4">`, { id: 'ssrc', cls: 'col' })}
     ${frow('Mục tiêu buổi sau', `<input id="snext" class="input" maxlength="300" value="${esc(s?.next || '')}" placeholder="Ví dụ: chữa bài tập, sang chuyên đề mới">`, { id: 'snext', cls: 'col' })}
@@ -3211,7 +3241,7 @@ document.addEventListener('click', e => {
   // ----- sổ học của cô -----
   if (a === 't-tab') { e.preventDefault(); UI.tTab = b.dataset.v; window.scrollTo(0, 0); return render(); }
   if (a === 'sess-form') return sessForm(id);
-  if (a === 'hw-form') return hwForm(id);
+  if (a === 'hw-form') return id ? hwForm(id) : sessForm();
   if (a === 'hw-view') return hwView(id);
   if (a === 'hw-due') {
     const v = b.dataset.v; let d = null;
@@ -3227,6 +3257,8 @@ document.addEventListener('click', e => {
     if (state === 'done' && !date) return toast('Chọn ngày học nhé. Buổi chưa có ngày thì để Chưa học (kế hoạch).');
     // Buổi đã học: Nội dung, Nhận xét học sinh và Bài tập về nhà là phần bắt buộc. Buổi chưa học (kế hoạch) thì không bắt buộc.
     const hwLines = [...document.querySelectorAll('#shw-list .hw-in')].map(x => x.value.replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 10);
+    const hasHw = id && hwList(soOf(TEACH)).some(t => t.session === id);
+    if (b.dataset.hw === 'new' && !hwLines.length && !hasHw) { $('#shw-list .hw-in')?.focus(); return toast('Ghi nhiệm vụ trước rồi đính kèm file nhé.'); }
     if (state === 'done') {
       if (!$('#scontent').value.trim()) { $('#scontent').focus(); return toast('Ghi nội dung buổi học nhé.'); }
       if (!$('#snote').value.trim()) { $('#snote').focus(); return toast('Ghi nhận xét học sinh nhé.'); }
@@ -3247,8 +3279,8 @@ document.addEventListener('click', e => {
       clsPatch(TEACH, 'tasks', tid, { chk: c, chkBy: sid, got: true, gotAt: cur.gotAt || date || key(today()) });
     }
     closeModal();
-    // Đính kèm file: mở bài vừa ghi (nhiệm vụ đầu tiên) để đính kèm; chưa ghi nhiệm vụ nào thì mở form giao bài mới.
-    if (b.dataset.hw) return hwForm(b.dataset.hw === 'new' ? newIds[0] || null : b.dataset.hw, sid);
+    // Đính kèm file: mở bài vừa ghi (nhiệm vụ đầu tiên, hoặc bài đã giao của buổi này) để đính kèm.
+    if (b.dataset.hw) return hwForm(b.dataset.hw === 'new' ? newIds[0] || hwList(soOf(TEACH)).find(t => t.session === sid)?.id : b.dataset.hw, sid);
     return toast(hwLines.length ? `Đã lưu buổi học và giao ${hwLines.length} bài${due ? `, hạn nộp ${dueLabel(due)}` : ''}.` : 'Đã lưu buổi học.');
   }
   if (a === 'hw-row-add') {
@@ -3314,7 +3346,7 @@ document.addEventListener('click', e => {
     const kid = radioVal('clkid') || document.querySelector('#modal input[name=clkid]')?.value; if (!S.kids[kid]) return;
     const old = id ? S.paid[id] : null, cid = id || 'lop-' + uid();
     const book = $('#clbook').value.trim();
-    const data = { lop: 1, kid, name, ...(book ? { book } : {}), teacher: $('#clteacher').value.trim(), code: old?.code || newFamilyCode(), at: old?.at || new Date().toISOString(),
+    const data = { lop: 1, kid, name, ...(book ? { book } : {}), ...(old?.dur ? { dur: old.dur } : {}), ...(old?.hwPen ? { hwPen: old.hwPen } : {}), teacher: $('#clteacher').value.trim(), code: old?.code || newFamilyCode(), at: old?.at || new Date().toISOString(),
       fee: Math.max(0, Math.round(Number($('#clfee').value) || 0)), feeOn: Math.max(0, Math.round(Number($('#clfeeon').value) || 0)), feeBy: $('#clfeeby').value === 'gio' ? 'gio' : 'buoi', feeOff: !$('#clfeeshow').checked };
     closeModal(); put('paid', cid, data);
     if (old) return toast('Đã lưu sổ học.');
