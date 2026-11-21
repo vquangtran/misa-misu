@@ -1664,17 +1664,19 @@ function feeSection(d, f, cls) {
   return `<section class="slot tn3">${secHead('💰', 'Số buổi và học phí theo tháng')}<div class="slot-list list">${rows.map(r => `<div class="item fee-row"><span class="ico">🗓️</span><div class="txt"><div class="t">${monthTxt(r.mk)}</div><div class="s"><b class="num">${r.n} buổi</b>${f.on ? ` · ${r.n - r.on} Offline, ${r.on} Online` : ''}${r.mins ? ` · ${durTxt(r.mins)}` : ''}</div></div><div class="acts col">${has ? `<span class="delta num">${money(r.amount)}</span>` : ''}${pay(r)}</div></div>`).join('')}</div>
     <p class="foot-note">${has ? `Học phí ${feeTxt(f)}, tính theo các buổi cô ghi là Đã học.${unk ? ` Có ${unk} buổi chưa ghi Offline hay Online, đang tính theo mức Offline.` : ''}` : cls ? 'Muốn app tính luôn học phí thì bấm Sửa ở trên rồi ghi học phí mỗi buổi hoặc mỗi giờ.' : 'Số buổi tính theo các buổi cô ghi là Đã học. Phụ huynh ghi mức học phí thì app tính luôn số tiền mỗi tháng.'}${cls ? ' Chuyển khoản xong thì bấm Đã chuyển khoản, cô sẽ thấy ngay.' : ' Phụ huynh chuyển khoản xong sẽ bấm xác nhận ở đây.'}</p></section>`;
 }
-// Tài khoản nhận học phí. Màn của cô (edit): bấm để ghi, sửa. Phần bố mẹ xem: có nút sao chép số tài khoản.
-function bankSection(d, edit, teacher) {
+// Tài khoản nhận học phí. Màn của cô (edit): bấm để ghi, sửa. Phần bố mẹ xem (clsId): nút sao chép số tài khoản,
+// bố mẹ cũng ghi, sửa được (ví dụ chép từ mã QR cô gửi qua Zalo).
+function bankSection(d, edit, teacher, clsId = '') {
   const b = bankOf(d), has = b.number || b.bank || b.holder;
   const head = secHead('🏦', 'Tài khoản nhận học phí');
-  if (!has) return `<section class="slot tn4">${head}${edit ? `<button class="slot-blank" data-act="bank-form"><span>Ghi ngân hàng và số tài khoản để phụ huynh chuyển khoản học phí</span>${PLUS}</button>` : `<div class="slot-blank ro"><span>${esc(teacher || 'Cô')} chưa ghi số tài khoản. Cô ghi ở tab Báo cáo trên màn của cô.</span></div>`}</section>`;
+  if (!has) return `<section class="slot tn4">${head}${edit ? `<button class="slot-blank" data-act="bank-form"><span>Ghi ngân hàng và số tài khoản để phụ huynh chuyển khoản học phí</span>${PLUS}</button>` : `<button class="slot-blank" data-act="bank-form" data-id="${clsId}"><span>${esc(teacher || 'Cô')} chưa ghi số tài khoản. Bấm để ghi tài khoản cô gửi (ngân hàng, số tài khoản, chủ tài khoản)</span>${PLUS}</button>`}</section>`;
   return `<section class="slot tn4">${head}<div class="slot-list list"><div class="item"><span class="ico">🏦</span><div class="txt"><div class="t">${esc(b.bank || 'Ngân hàng')}${b.number ? ` · <span class="num">${esc(b.number)}</span>` : ''}</div>${b.holder ? `<div class="s">${esc(b.holder)}</div>` : ''}${b.note ? `<div class="s so-p">${esc(b.note)}</div>` : ''}</div>
-    <div class="acts">${edit ? `<button class="edit" data-act="bank-form" aria-label="Sửa tài khoản">${CHEV}</button>` : b.number ? `<button class="btn quiet sm" data-act="cls-copy" data-link="${esc(b.number)}" data-msg="Đã sao chép số tài khoản.">Sao chép số</button>` : ''}</div></div></div></section>`;
+    <div class="acts">${edit ? `<button class="edit" data-act="bank-form" aria-label="Sửa tài khoản">${CHEV}</button>` : `${b.number ? `<button class="btn quiet sm" data-act="cls-copy" data-link="${esc(b.number)}" data-msg="Đã sao chép số tài khoản.">Sao chép số</button>` : ''}<button class="edit" data-act="bank-form" data-id="${clsId}" aria-label="Sửa tài khoản">${CHEV}</button>`}</div></div></div></section>`;
 }
 const BANKS = ['Vietcombank', 'VietinBank', 'BIDV', 'Agribank', 'Techcombank', 'MB Bank', 'ACB', 'VPBank', 'TPBank', 'Sacombank', 'VIB', 'HDBank', 'SHB', 'MSB', 'OCB', 'SeABank', 'Eximbank', 'LPBank', 'Nam A Bank', 'Cake', 'Timo'];
-function bankForm() {
-  const b = bankOf(soOf(TEACH));
+function bankForm(clsId) {
+  const code = clsId ? classesList().find(x => x.id === clsId)?.code : TEACH; if (!code) return;
+  const b = bankOf(soOf(code));
   openModal(`<h2>Tài khoản nhận học phí</h2>
   <div class="fg">
     ${frow('Ngân hàng', `<input id="bbank" class="pillin txt" list="bank-list" maxlength="40" value="${esc(b.bank)}" placeholder="Vietcombank">`, { id: 'bbank' })}
@@ -1682,8 +1684,8 @@ function bankForm() {
     ${frow('Số tài khoản', `<input id="bnumber" class="pillin txt num" inputmode="numeric" maxlength="30" autocomplete="off" value="${esc(b.number)}" placeholder="0123456789">`, { id: 'bnumber' })}
     ${frow('Chủ tài khoản', `<input id="bholder" class="pillin txt" maxlength="60" autocomplete="off" value="${esc(b.holder)}" placeholder="NGUYEN THI A">`, { id: 'bholder' })}
   </div>
-  <div class="fg">${frow('Ghi chú', `<textarea id="bnote" class="input" rows="2" maxlength="200" placeholder="Ví dụ: nội dung chuyển khoản ghi tên con và tháng">${esc(b.note)}</textarea>`, { id: 'bnote', cls: 'col', sub: 'Phụ huynh thấy thông tin này khi xem sổ. Cô sửa lại lúc nào cũng được.' })}</div>
-  <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="bank-save">Lưu</button></div>`);
+  <div class="fg">${frow('Ghi chú', `<textarea id="bnote" class="input" rows="2" maxlength="200" placeholder="Ví dụ: nội dung chuyển khoản ghi tên con và tháng">${esc(b.note)}</textarea>`, { id: 'bnote', cls: 'col', sub: clsId ? 'Cô cũng thấy thông tin này ở tab Báo cáo và sửa lại được.' : 'Phụ huynh thấy thông tin này khi xem sổ. Cô sửa lại lúc nào cũng được.' })}</div>
+  <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="bank-save" data-id="${clsId || ''}">Lưu</button></div>`);
   $('#modal .dialog')?.focus();
 }
 // Thẻ tóm tắt đầu sổ, cùng kiểu thẻ ở màn Tài khoản: bên trái số buổi tháng này (kèm học phí), bên phải bài tập cô đã nhận (kèm thanh tiến độ).
@@ -2002,8 +2004,8 @@ function classSheet(id, keep) {
   openModal(`<h2>${esc(classTitle(c))}</h2>
   <div class="row">${ava({ id: c.kid, ...S.kids[c.kid] }, 'sm')}<b>${esc(kidName(c.kid))}</b><span style="flex:1"></span><button class="btn primary sm" data-act="cls-link" data-id="${c.id}">🔗 Link cho cô</button>${st.done.length ? `<button class="btn quiet sm" data-act="cls-print" data-id="${c.id}">🖨️ In</button>` : ''}<button class="btn quiet sm" data-act="so-import" data-id="${c.id}">📥 Nhập Excel</button><button class="btn quiet sm" data-act="cls-form" data-id="${c.id}">Sửa</button></div>
   ${!k || !k.loaded ? '<p class="muted">Đang mở sổ…</p>' : k.err ? '<div class="note">Chưa mở được sổ học. Kiểm tra mạng rồi thử lại.</div>'
-    : !st.ss.length && !st.hw.length ? `<div class="card empty"><div class="big">📒</div><h2>Sổ còn trống</h2><p class="muted">Gửi link cho ${esc(c.teacher || 'cô')}. Cô ghi buổi học và giao bài thì hiện ngay ở đây.</p></div><div class="slots">${bankSection(d, false, c.teacher)}</div>`
-    : `${soTiles(st, feeOf(c), d)}<div class="slots">${feeSection(d, feeOf(c), c)}${bankSection(d, false, c.teacher)}${free.length ? `<section class="slot tn0">${secHead('', 'Bài tập', { cnt: free.length })}<div class="slot-list list">${free.map(t => hwRow(c.code, t, d, 'view')).join('')}</div></section>` : ''}${soMonths(c.code, d, 'view')}</div>`}
+    : !st.ss.length && !st.hw.length ? `<div class="card empty"><div class="big">📒</div><h2>Sổ còn trống</h2><p class="muted">Gửi link cho ${esc(c.teacher || 'cô')}. Cô ghi buổi học và giao bài thì hiện ngay ở đây.</p></div><div class="slots">${bankSection(d, false, c.teacher, c.id)}</div>`
+    : `${soTiles(st, feeOf(c), d)}<div class="slots">${feeSection(d, feeOf(c), c)}${bankSection(d, false, c.teacher, c.id)}${free.length ? `<section class="slot tn0">${secHead('', 'Bài tập', { cnt: free.length })}<div class="slot-list list">${free.map(t => hwRow(c.code, t, d, 'view')).join('')}</div></section>` : ''}${soMonths(c.code, d, 'view')}</div>`}
   <div class="foot"><button class="btn quiet" data-act="close">Đóng</button></div>`, true, keep);
 }
 // Bài cô giao, mở từ phần Bài tập của nhà hoặc máy của con: hướng dẫn, file đính kèm, điểm và nhận xét của cô. Chỉ xem, tick xong ở ngoài danh sách.
@@ -3429,11 +3431,12 @@ document.addEventListener('click', e => {
   if (a === 'cls-open') return classSheet(id);
   if (a === 'cls-link') return classLinkSheet(id);
   if (a === 'cls-print') { const c = classesList().find(x => x.id === id); return c && printSo(c.code, bookName(c), kidName(c.kid), c.teacher || '', feeOf(c)); }
-  if (a === 'bank-form') return bankForm();
+  if (a === 'bank-form') return bankForm(TEACH ? '' : id);
   if (a === 'bank-save') {
     const v = (i, n) => $('#' + i).value.trim().slice(0, n), data = { bank: v('bbank', 40), number: v('bnumber', 30).replace(/[^\dA-Za-z .-]/g, ''), holder: v('bholder', 60), note: v('bnote', 200), at: new Date().toISOString() };
-    if (!clsPut(TEACH, 'info', 'bank', data)) return;
-    closeModal(); return toast('Đã lưu tài khoản. Phụ huynh thấy ngay khi xem sổ.');
+    const code = TEACH || classesList().find(x => x.id === id)?.code; if (!code || !clsPut(code, 'info', 'bank', data)) return;
+    closeModal(); if (!TEACH) { classSheet(id); return toast('Đã lưu tài khoản của cô. Cô cũng thấy ở tab Báo cáo.'); }
+    return toast('Đã lưu tài khoản. Phụ huynh thấy ngay khi xem sổ.');
   }
   // Bố mẹ xác nhận đã chuyển khoản học phí của một tháng (hoặc huỷ khi bấm nhầm). Ghi cả danh sách các tháng trong một tài liệu của sổ.
   if (a === 'fee-paid' || a === 'fee-unpaid') {
