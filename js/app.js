@@ -1423,7 +1423,7 @@ const classInfo = c => ({ name: c.name, book: String(c.book || '').trim(), teach
 function openClass(code) {
   if (CLS[code]) return CLS[code];
   const c = CLS[code] = { st: null, data: emptySo(), loaded: false, stale: false, err: null };
-  const onData = (d, meta) => { if (CLS[code] !== c) return; c.data = d; c.loaded = true; c.stale = !!meta.fromCache; render(); classHeal(code); hwPenSync(code); suAutoImport(code); };
+  const onData = (d, meta) => { if (CLS[code] !== c) return; c.data = d; c.loaded = true; c.stale = !!meta.fromCache; render(); classHeal(code); hwPenSync(code); suAutoImport(code); suTeachFix(code); };
   const fail = err => { if (CLS[code] !== c) return; console.error(err); c.err = err; c.loaded = true; render(); };
   (firebaseConfig ? firebaseClass(firebaseConfig, 'lop-' + code, onData, fail) : Promise.resolve(localClass('lop-' + code, onData)))
     .then(st => { if (CLS[code] !== c) return; c.st = st; st.start(); }).catch(fail);
@@ -1872,7 +1872,7 @@ let suAutoBusy = false;
 async function suAutoImport(code) {
   if (suAutoBusy || TEACH || !loaded || stale || deviceRole() !== 'parent') return;
   const c = classesList().find(x => x.code === code), k = CLS[code];
-  if (!c || (c.xlAuto && c.paidFix && c.fix1711 && c.fill1) || !isSuTV(kidName(c.kid), c.name) || !k || !k.loaded || k.stale || k.err || !k.st) return;
+  if (!c || (c.xlAuto && k && SU_FIXES.every(f => suFixDone(c, k.data, f))) || !isSuTV(kidName(c.kid), c.name) || !k || !k.loaded || k.stale || k.err || !k.st) return;
   if (c.xlAuto) return suFixes(code, c, k);
   suAutoBusy = true;
   try {
@@ -1891,16 +1891,25 @@ async function suAutoImport(code) {
 //  paidFix: tháng 10 đóng ngày 1/11 (không phải ngày nhập), tháng 11 chưa đóng (hết tháng mới đóng).
 //  fix1711: buổi 10 (CN 15/11) đã học; T3 17/11 là buổi 11 (cô chưa ghi); các buổi kế hoạch sau đó xếp lần lượt vào các ngày có lịch
 //           từ CN 22/11; mọi buổi vào chủ nhật là Offline 2 tiếng, thứ 3 là Online 1 tiếng (sửa cả buổi cũ ghi lệch).
+// Cờ đã sửa lưu cả trong sổ (info/fixes, máy của cô cũng đọc được) lẫn ở sổ của nhà (bản trước chỉ lưu ở đây): có một trong hai là đã sửa.
+const SU_FIXES = ['paidFix', 'fix1711', 'fill1'];
+const suFixDone = (c, d, f) => !!((c && c[f]) || d.info?.fixes?.[f]);
+let suFixBusy = false;
 function suFixes(code, c, k) {
-  const flags = {};
-  if (!c.paidFix) {
+  if (suFixBusy || SU_FIXES.every(f => suFixDone(c, k.data, f))) return;
+  suFixBusy = true;
+  try { suFixesRun(code, c, k); } finally { suFixBusy = false; }
+}
+function suFixesRun(code, c, k) {
+  const flags = {}, done = f => suFixDone(c, k.data, f);
+  if (!done('paidFix')) {
     const p0 = paidOf(k.data), next = { ...p0 };
     if (next['2026-10']) next['2026-10'] = { ...next['2026-10'], at: '2026-11-01' };
     delete next['2026-11'];
     if (JSON.stringify(next) !== JSON.stringify(p0)) clsPut(code, 'info', 'paid', next);
     flags.paidFix = 1;
   }
-  if (!c.fix1711) {
+  if (!done('fix1711')) {
     const raw = k.data.sessions || {}, all = sessList(k.data), used = new Set(all.map(x => x.date).filter(Boolean));
     const setS = (id, patch) => { if (raw[id]) clsPut(code, 'sessions', id, { ...raw[id], ...patch }); };
     if (raw['xl-10']?.state === 'plan' && raw['xl-10'].date === '2026-11-15') setS('xl-10', { state: 'done' });
@@ -1921,12 +1930,20 @@ function suFixes(code, c, k) {
     flags.fix1711 = 1;
   }
   // fill1: chỉ buổi 11 (T3 17/11, cô chưa ghi) là buổi cô cần ghi; các buổi khác trong file coi như đã ghi xong, không cần bổ sung nhận xét.
-  if (!c.fill1) {
+  if (!done('fill1')) {
     const raw = k.data.sessions || {};
     for (const id of ['xl-11']) if (raw[id] && raw[id].state === 'done' && !raw[id].fill) clsPut(code, 'sessions', id, { ...raw[id], fill: 1 });
     flags.fill1 = 1;
   }
-  if (Object.keys(flags).length) { const { id, ...o } = classesList().find(x => x.code === code) || c; put('paid', id, { ...o, ...flags }); }
+  if (!Object.keys(flags).length) return;
+  clsPut(code, 'info', 'fixes', { ...(k.data.info?.fixes || {}), ...flags });
+  if (c && !TEACH) { const { id, ...o } = classesList().find(x => x.code === code) || c; put('paid', id, { ...o, ...flags }); }
+}
+// Máy của cô: sổ Tiếng Việt của Su đã có dữ liệu nhập từ file (xl-…) thì tự sửa luôn, không phải chờ máy của bố mẹ mở app.
+function suTeachFix(code) {
+  const k = CLS[code], info = k?.data?.info?.lop;
+  if (!TEACH || code !== TEACH || !k || !k.loaded || k.stale || k.err || !k.st || !info || !isSuTV(info.student, info.name) || !k.data.sessions?.['xl-1']) return;
+  suFixes(code, null, k);
 }
 // Chi tiết một buổi (màn của cô, chỉ xem): mọi thứ cô đã ghi, bài giao trong buổi và kết quả bài tập buổi trước cô đã tick. Có nút Sửa.
 function sessView(id) {
