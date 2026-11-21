@@ -506,24 +506,52 @@ a.item{color:var(--ink)}
 .tkb-card{display:flex;flex-direction:column;gap:12px}
 .tkb-card .kid-head+*{margin-top:0}
 .tkb-card .acts{display:flex;gap:16px}
-.tkb-today{background:var(--surface-2);border-radius:14px;padding:10px 14px;font-size:14px;display:flex;flex-direction:column;gap:8px}
+/* Thời khoá biểu trên màn hình: xem theo ngày (thanh gạt chọn thứ, mỗi tiết một dòng), bên dưới là bản cả tuần xếp dọc. */
+.tkb-card{scroll-margin-top:88px}
+.tkb-days{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;background:var(--surface-2);border:2px solid var(--line);border-radius:15px;padding:3px}
+.tkb-days button{position:relative;min-width:0;min-height:40px;padding:2px 2px 6px;border:0;border-radius:11px;background:none;color:var(--muted);font-size:14px;font-weight:700;white-space:nowrap}
+.tkb-days button.on{background:var(--surface);color:var(--ink);box-shadow:0 2px 0 var(--lip)}
+.tkb-days button.today{color:var(--accent)}
+.tkb-days button.today::after{content:"";position:absolute;left:50%;bottom:4px;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--accent)}
+.tkb-days button:active{opacity:.6}
+.td-head{display:flex;flex-direction:column;gap:1px}
+.td-list{display:flex;flex-direction:column;gap:5px}
+.td-row{display:grid;grid-template-columns:20px 40px minmax(0,1fr);align-items:center;gap:8px}
+.td-n{font-family:var(--display);font-size:17px;font-weight:800;color:var(--muted);text-align:center}
+.td-t{font-size:11.5px;line-height:1.3;color:var(--muted);text-align:right}
+.td-s{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;padding:6px 14px;border-radius:13px;font-size:16px;font-weight:700;line-height:1.25;overflow-wrap:anywhere}
+.td-s i{flex:none;font-style:normal;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--sun);color:var(--on-sun)}
+.td-row.now .td-s{box-shadow:inset 0 0 0 3px var(--sun-deep)}
+.td-row.no .td-s{min-height:32px;background:var(--surface-2);color:var(--muted);font-size:13px;font-weight:500;opacity:.75}
+.td-lunch{margin:3px 0;padding:5px 12px;border-radius:11px;background:var(--sun-soft);font-size:13px;font-weight:700;text-align:center}
+.tkb-week{display:flex;flex-direction:column;padding:2px 14px}
+.twd{display:flex;flex-direction:column;gap:8px;width:100%;padding:12px 0 14px;border:0;border-top:2px solid var(--line);background:none;color:var(--ink);text-align:left}
+.twd:first-child{border-top:0}
+.twd:active{opacity:.6}
+.twd-d{display:flex;align-items:baseline;gap:8px;font-size:12px;line-height:1.3;color:var(--muted)}
+.twd-d b{font-family:var(--display);font-size:17px;font-weight:800;line-height:1.35;color:var(--ink);padding:0 8px;margin-left:-8px;border-radius:9px}
+.twd.on .twd-d b{background:var(--sun);color:var(--on-sun);margin-left:0}
+.twd-now{font-weight:700;color:var(--accent)}
+.twd-s{display:flex;flex-direction:column;gap:6px;min-width:0}
+.twd .sj-list{gap:5px}
+.twd .sj-chip{font-size:13px;padding:3px 10px;gap:4px}
+.twd .sj-chip b{font-weight:700;opacity:.7}
+@media (min-width:900px){
+  .tkb-week{display:grid;grid-template-columns:repeat(var(--n,5),minmax(0,1fr));gap:0 14px;padding:6px 14px}
+  .twd{border-top:0}
+  .twd-d{flex-direction:column;align-items:flex-start;gap:2px;min-height:60px}
+  .twd .sj-list{flex-direction:column;align-items:stretch}
+  .twd .sj-list.pm{padding-top:6px;border-top:2px dashed var(--line)}
+  .twd .sj-chip{justify-content:space-between;border-radius:11px;padding:6px 11px}
+}
+/* bảng lưới cả tuần, chỉ dùng khi in */
 .tkb{border-collapse:separate;border-spacing:3px;width:100%;min-width:540px;table-layout:fixed;font-size:13px}
 .tkb th{font-family:var(--display);font-size:14px;font-weight:800;padding:6px 2px;border-radius:10px;background:var(--surface-2)}
-.tkb th.on{background:var(--sun);color:var(--on-sun)}
 .tkb td{padding:6px 3px;text-align:center;border-radius:10px;line-height:1.25;height:46px;overflow-wrap:anywhere;font-weight:600}
 .tkb td.p{font-family:var(--display);font-weight:800;font-size:15px;color:var(--muted)}
 .tkb td.tm{font-size:11.5px;font-weight:500;color:var(--muted)}
 .tkb td.no{background:var(--surface-2);opacity:.5}
-.tkb td.col{box-shadow:inset 0 0 0 2px var(--sun-soft)}
-.tkb td.now{box-shadow:inset 0 0 0 3px var(--sun-deep);font-weight:800}
 .tkb tr.lunch td{background:var(--sun-soft);height:auto;padding:5px;font-weight:700}
-/* hai cột Tiết và Giờ đứng yên khi cuộn ngang trên điện thoại */
-.tkb th:nth-child(-n+2),.tkb td.p,.tkb td.tm{position:sticky;z-index:1;background:var(--surface);box-shadow:0 0 0 3px var(--surface)}
-.tkb td.p,.tkb td.tm{border-radius:0}
-.tkb th:nth-child(1),.tkb td.p{left:0}
-.tkb th:nth-child(2),.tkb td.tm{left:47px}
-.tkb th:nth-child(-n+2){background:var(--surface-2)}
-.tkb tr.lunch td{position:static}
 .tkb-times{border-collapse:collapse;width:100%}
 .tkb-times th{font-size:13px;font-weight:700;color:var(--muted);text-align:left;padding:0 4px 4px}
 .tkb-times td{padding:3px 4px}

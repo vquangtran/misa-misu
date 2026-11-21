@@ -151,7 +151,7 @@ const SAMPLE_TKBS = [
 
 // ---------- state ----------
 let S = Object.fromEntries(COLS.map(c => [c, {}]));
-const UI = { view: 'hom-nay', date: today(), acctKid: null, acctKind: 'penalty', histAll: false, slotOpen: {}, learn: 'sap-toi', todayMode: 'day', todayKid: null, secOpen: {}, gridWs: null, planNext: false, agDate: null, taskDone: false, tkbKid: null, km: { on: false, kid: null }, sheet: false };
+const UI = { view: 'hom-nay', date: today(), acctKid: null, acctKind: 'penalty', histAll: false, slotOpen: {}, learn: 'sap-toi', todayMode: 'day', todayKid: null, secOpen: {}, gridWs: null, planNext: false, agDate: null, taskDone: false, tkbKid: null, tkbDay: null, km: { on: false, kid: null }, sheet: false };
 let store = null, loaded = false, stale = false, family = null;
 const FAMILY_KEY = 'be-cham-ngoan-family';
 const getFamily = () => { try { return localStorage.getItem(FAMILY_KEY); } catch (e) { return null; } };
@@ -461,19 +461,59 @@ function yearForm() {
 // Màu cố định cho mỗi môn, để cùng một môn luôn cùng một màu.
 const subjTint = name => { let h = 0; for (const ch of String(name).toLowerCase().trim()) h = (h * 31 + ch.codePointAt(0)) >>> 0; return h % 6; };
 const subjChips = list => list.map(s => `<span class="sj-chip sj${subjTint(s)}">${esc(s)}</span>`).join('');
-function tkbTable(t, hl = null) {
-  const days = tkbDays(t), now = hl !== null ? nowMin() : null, lunch = Number(t.lunch) || 0;
+// Bảng lưới cả tuần, chỉ dùng khi in.
+function tkbTable(t) {
+  const days = tkbDays(t), lunch = Number(t.lunch) || 0;
   let h = `<div class="tbl-wrap"><table class="tkb"><colgroup><col style="width:44px"><col style="width:62px">${days.map(() => '<col>').join('')}</colgroup>
-    <thead><tr><th>Tiết</th><th>Giờ</th>${days.map(d => `<th class="${d === hl ? 'on' : ''}">${WDN(d)}</th>`).join('')}</tr></thead><tbody>`;
+    <thead><tr><th>Tiết</th><th>Giờ</th>${days.map(d => `<th>${WDN(d)}</th>`).join('')}</tr></thead><tbody>`;
   t.rows.forEach((r, i) => {
     if (i > 0 && i === lunch) h += `<tr class="lunch"><td colspan="${days.length + 2}">🍱 Nghỉ trưa ${esc(t.rows[i - 1].e)} – ${esc(r.s)}</td></tr>`;
-    const live = now !== null && toMin(r.s) <= now && now < toMin(r.e);
     h += `<tr><td class="p num">${i + 1}</td><td class="tm num">${esc(r.s)}<br>${esc(r.e)}</td>${days.map(d => {
-      const v = String((r.d || {})[d] || '').trim(), col = d === hl ? ' col' : '';
-      return v ? `<td class="sj sj${subjTint(v)}${col}${live && col ? ' now' : ''}">${esc(v)}</td>` : `<td class="no${col}"></td>`;
+      const v = String((r.d || {})[d] || '').trim();
+      return v ? `<td class="sj sj${subjTint(v)}">${esc(v)}</td>` : `<td class="no"></td>`;
     }).join('')}</tr>`;
   });
   return h + `</tbody></table></div>`;
+}
+// Thứ đang xem ở tab Thời khoá biểu. Chưa chọn thì là buổi học tới, để soạn cặp: Thứ Bảy, Chủ nhật hiện Thứ Hai, Thứ Hai hiện Thứ Ba.
+// Thứ tự chọn thì lấy ngày gần nhất rơi vào thứ đó, tính cả hôm nay.
+function tkbDayOf(k, t) {
+  const days = tkbDays(t), td = today(), nx = nextSchool(t, td, k.id);
+  const picked = days.includes(UI.tkbDay);
+  const wd = picked ? UI.tkbDay : nx ? nx.date.getDay() : days[0];
+  const date = !picked && nx ? nx.date : addDays(td, (wd - td.getDay() + 7) % 7);
+  return { wd, date, isNext: !!nx && key(nx.date) === key(date) };
+}
+// Một ngày: thanh gạt chọn thứ, rồi mỗi tiết một dòng (số tiết, giờ, môn).
+function tkbDayView(k, t) {
+  const days = tkbDays(t), td = today(), { wd, date, isNext } = tkbDayOf(k, t), lunch = Number(t.lunch) || 0;
+  const isT = key(date) === key(td), hol = holidayOn(k.id, date), info = hol ? null : schoolDay(t, wd), now = isT ? nowMin() : null;
+  const dd = isT ? 'Hôm nay' : key(date) === key(addDays(td, 1)) ? 'Ngày mai' : '';
+  const span = info ? `${info.list.length} tiết, ${esc(info.start)} – ${esc(info.end)}` : '';
+  const sub = hol ? `Nghỉ học: ${esc(hol.name)}` : !info ? 'Không có tiết nào' : isT && now >= toMin(info.end) ? `Đã tan học · ${span}` : isNext ? `🎒 Soạn cặp cho buổi này · ${span}` : span;
+  const rows = info ? t.rows.map((r, i) => {
+    const v = String((r.d || {})[wd] || '').trim(), live = now !== null && toMin(r.s) <= now && now < toMin(r.e);
+    return `${i > 0 && i === lunch ? `<div class="td-lunch">🍱 Nghỉ trưa <span class="num">${esc(t.rows[i - 1].e)} – ${esc(r.s)}</span></div>` : ''}
+      <div class="td-row ${v ? '' : 'no'} ${live && v ? 'now' : ''}"><b class="td-n num">${i + 1}</b><span class="td-t num">${esc(r.s)}<br>${esc(r.e)}</span><span class="td-s ${v ? 'sj' + subjTint(v) : ''}">${v ? esc(v) : 'Không có tiết'}${live && v ? '<i>Đang học</i>' : ''}</span></div>`;
+  }).join('') : '';
+  return `<div class="tkb-days" role="tablist" aria-label="Chọn thứ">${days.map(d => `<button role="tab" aria-selected="${d === wd}" class="${d === wd ? 'on' : ''} ${d === td.getDay() ? 'today' : ''}" data-act="tkb-day" data-d="${d}">${days.length > 5 ? WDS[d] : WDN(d)}</button>`).join('')}</div>
+    <div class="td-head"><b class="kid-sum-t">${dd ? `${dd}, ${WD[wd].toLowerCase()}` : WD[wd]} ${dm(date)}</b><span class="muted small">${sub}</span></div>
+    ${rows ? `<div class="td-list">${rows}</div>` : ''}`;
+}
+// Cả tuần: mỗi thứ một dòng, buổi sáng ở trên, buổi chiều ở dưới; các tiết liền nhau cùng môn gộp lại (Toán ×2). Bấm một thứ để xem ngày đó.
+function tkbWeek(k, t) {
+  const days = tkbDays(t), td = today().getDay(), { wd } = tkbDayOf(k, t), lunch = Number(t.lunch) || 0;
+  const chips = list => {
+    const out = [];
+    for (const x of list) { const last = out[out.length - 1]; if (last && last.subj === x.subj && last.to === x.i - 1) { last.n++; last.to = x.i; } else out.push({ subj: x.subj, n: 1, to: x.i }); }
+    return out.map(x => `<span class="sj-chip sj${subjTint(x.subj)}">${esc(x.subj)}${x.n > 1 ? ` <b class="num">×${x.n}</b>` : ''}</span>`).join('');
+  };
+  return `<section class="slot">${secHead('', 'Cả tuần')}<div class="slot-list tkb-week" style="--n:${days.length}">${days.map(d => {
+    const info = schoolDay(t, d), am = info ? info.list.filter(x => !lunch || x.i < lunch) : [], pm = info && lunch ? info.list.filter(x => x.i >= lunch) : [];
+    return `<button class="twd ${d === wd ? 'on' : ''} ${d === td ? 'today' : ''}" data-act="tkb-day" data-d="${d}" data-kid="${k.id}" aria-label="Xem ${WD[d]}">
+      <span class="twd-d"><b>${WDN(d)}</b>${info ? `<span class="num">${esc(info.start)} – ${esc(info.end)}</span>` : ''}${d === td ? '<span class="twd-now">hôm nay</span>' : ''}</span>
+      <span class="twd-s">${info ? `${am.length ? `<span class="sj-list">${chips(am)}</span>` : ''}${pm.length ? `<span class="sj-list pm">${chips(pm)}</span>` : ''}` : '<span class="muted small">Không có tiết</span>'}</span></button>`;
+  }).join('')}</div></section>`;
 }
 function tkbStats(t) {
   let periods = 0, inClass = 0, atSchool = 0;
@@ -660,8 +700,6 @@ function draw() {
   drawKidMode();
   if (UI.sheet) drawSheet();
   const tb = $('#app .tabbar .on'); if (tb) tb.parentElement.scrollLeft = Math.max(0, tb.offsetLeft - 60);
-  const on = $('#app .tkb th.on');
-  if (on) { const w = on.closest('.tbl-wrap'); if (w.scrollWidth > w.clientWidth) w.scrollLeft = Math.max(0, on.offsetLeft - 112); }
 }
 const brand = () => `<div class="brand"><span class="brand-mark">${STAR}</span>Misa Misu</div>`;
 function topbar() {
@@ -797,7 +835,7 @@ function viewToday() {
   // Các dòng nhắc gom vào một khối: con đang ở đâu, giờ ở trường, mốc sắp tới, phiếu nghỉ.
   const st = stayLine(d.getDay(), isT), sc = schoolNow(k, d, isT);
   let notes = st ? `<a class="stay-note ${stayInfo(d.getDay()).moved ? 'moved' : ''}" href="#lich-hoc" data-act="tkb-go" data-tab="hoc-them" data-kid="all">${esc(st)}</a>` : '';
-  if (sc) notes += `<a class="school-line" href="#lich-hoc" data-act="tkb-go" data-tab="tkb" data-kid="${k.id}"><b>${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}:</b> ${esc(sc.subjects.join(', '))}</a>`;
+  if (sc) notes += `<a class="school-line" href="#lich-hoc" data-act="tkb-go" data-tab="tkb" data-kid="${k.id}" data-wd="${sc.bag ? '' : d.getDay()}"><b>${sc.bag ? '🎒' : '🏫'} ${esc(sc.title)}:</b> ${esc(sc.subjects.join(', '))}</a>`;
   notes += eventLines(k) + skipNote(k, d);
   if (notes) h += `<div class="notes">${notes}</div>`;
   // Nhà chưa có việc nào: một dòng gợi ý bảng mẫu, gọn để các ô thêm việc vẫn nằm ngay bên dưới.
@@ -1041,7 +1079,7 @@ function viewAgenda(ks) {
 
 // part: 'tkb' (ở trường và số giờ mỗi tuần) hoặc 'lessons' (học thêm).
 function kidSchedule(k, part) {
-  const t = tkbOf(k.id), td = today(), wd = td.getDay(), now = nowMin();
+  const t = tkbOf(k.id), wd = today().getDay();
   let h = '';
   if (part === 'lessons') return `<div class="slots">${kidsList().length === 1 ? staysCard(wd) : ''}${kidLessons(k)}</div>`;
   if (!t && lessonsOf(k.id).length) {
@@ -1051,19 +1089,9 @@ function kidSchedule(k, part) {
     <p class="muted">Nhập các tiết học một lần. App sẽ cho biết hôm nay con học những môn gì, và tối nay cần soạn cặp cho môn nào.</p>
     <div class="row" style="justify-content:center;margin-top:10px">${tkbOffer(k) ? `<button class="btn primary" data-act="tkb-form" data-sample="1" data-kid="${k.id}">Dùng ${esc(sampleLabel(tkbOffer(k)))}</button><button class="btn quiet" data-act="tkb-form" data-kid="${k.id}">Tự nhập</button>` : `<button class="btn primary" data-act="tkb-form" data-kid="${k.id}">Tạo thời khoá biểu</button>`}</div></section>`;
   } else {
-    const info = schoolOn(k.id, td), hol = holidayOn(k.id, td);
-    let line;
-    if (info && now < toMin(info.end)) {
-      const cur = info.list.find(x => toMin(x.s) <= now && now < toMin(x.e));
-      line = `<div><b>Hôm nay ${esc(k.name)} học ${info.list.length} tiết</b>, ${esc(info.start)} – ${esc(info.end)}.${cur ? ` Đang học: <b>${esc(cur.subj)}</b> (tiết ${cur.i + 1}).` : ''}</div>`;
-    } else {
-      const nx = nextSchool(t, td, k.id);
-      line = nx ? `<div><b>${info ? 'Hôm nay đã tan học.' : hol ? `Hôm nay nghỉ: ${esc(hol.name)}.` : 'Hôm nay không đi học.'}</b> ${esc(nx.label)} có:</div><div class="sj-list">${subjChips(nx.info.subjects)}</div>` : '<div>Chưa có tiết nào trong thời khoá biểu.</div>';
-    }
-    h += `<section class="card tkb-card"><div class="kid-head">${ava(k, 'sm')}<div><div class="kid-name">${esc(t.cls || k.name)}</div>${t.year ? `<div class="muted small">Năm học ${esc(t.year)}</div>` : ''}</div>
+    h += `<section class="card tkb-card" data-tkb="${k.id}"><div class="kid-head">${ava(k, 'sm')}<div><div class="kid-name">${esc(t.cls || k.name)}</div>${t.year ? `<div class="muted small">Năm học ${esc(t.year)}</div>` : ''}</div>
       <div class="acts" style="margin-left:auto"><button class="linkbtn" data-act="tkb-print" data-kid="${k.id}">In</button><button class="linkbtn" data-act="tkb-form" data-kid="${k.id}">Sửa</button></div></div>
-      <div class="tkb-today">${line}</div>
-      ${tkbTable(t, info ? wd : null)}</section>`;
+      ${tkbDayView(k, t)}</section>${tkbWeek(k, t)}`;
   }
   const ls = lessonsOf(k.id);
   return h + weekTotals(k, t, ls);
@@ -1938,10 +1966,16 @@ document.addEventListener('click', e => {
     setDone(key(d), kid, cid + '~s', mask);
     return;
   }
-  if (a === 'tkb-go') { UI.tkbKid = b.dataset.kid; if (b.dataset.tab) UI.learn = b.dataset.tab; return; } // link tự chuyển sang #lich-hoc
+  if (a === 'tkb-go') { UI.tkbKid = b.dataset.kid; if (b.dataset.tab) UI.learn = b.dataset.tab; UI.tkbDay = b.dataset.wd ? Number(b.dataset.wd) : null; return; } // link tự chuyển sang #lich-hoc
   if (a === 'grid-week') { const n = Number(b.dataset.n); UI.gridWs = n ? addDays(UI.gridWs || weekStart(today()), n) : null; return render(); }
   if (a === 'grid-tick') { const d = parse(b.dataset.d), cid = b.dataset.chore; if (!S.chores[cid] || d > today()) return; return markChore(d, b.dataset.kid, cid, !isDone(d, b.dataset.kid, cid)); }
-  if (a === 'learn-tab') { UI.learn = b.dataset.v; UI.histAll = false; return render(); }
+  if (a === 'learn-tab') { UI.learn = b.dataset.v; UI.histAll = false; UI.tkbDay = null; return render(); }
+  if (a === 'tkb-day') {
+    UI.tkbDay = Number(b.dataset.d); render();
+    // Bấm ở bản cả tuần thì cuộn lên thẻ của ngày vừa chọn.
+    if (b.dataset.kid) requestAnimationFrame(() => document.querySelector(`[data-tkb="${b.dataset.kid}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
+    return;
+  }
   if (a === 'ag-day') { UI.agDate = b.dataset.d ? parse(b.dataset.d) : null; return render(); }
   if (a === 'ag-week') { UI.agDate = addDays(UI.agDate || today(), Number(b.dataset.n)); return render(); }
   if (a === 'task-form') return taskForm(id, b.dataset.kid);
@@ -2371,7 +2405,7 @@ const cancelHold = () => { clearTimeout(holdT); document.querySelectorAll('.hold
 
 // Điều hướng bằng #hash
 const viewOf = h => { h = NAV_ALIAS[h] || h; return NAV.some(n => n.id === h) ? h : 'hom-nay'; };
-function route() { UI.view = viewOf(location.hash.slice(1)); render(); window.scrollTo(0, 0); }
+function route() { UI.view = viewOf(location.hash.slice(1)); if (UI.view !== 'lich-hoc') UI.tkbDay = null; render(); window.scrollTo(0, 0); }
 window.addEventListener('hashchange', route);
 window.addEventListener('online', render);
 window.addEventListener('offline', render);
