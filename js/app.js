@@ -2,6 +2,7 @@ import { firebaseConfig } from './config.js';
 import { COLS, localStore, firebaseStore, firebaseClass, localClass } from './store.js';
 import { AVATAR_SETS, avatarPick, isSvgAvatar } from './avatars.js';
 import { autoIcons, icon, iconify, iconSvg } from './icons.js';
+import { readXlsx, excelDate } from './xlsx.js';
 
 // ---------- helpers ----------
 const $ = (s, r = document) => r.querySelector(s);
@@ -1696,9 +1697,92 @@ const soTiles = (st, f, d) => { const cur = soFees(d, f).find(r => r.mk === key(
 function soMonths(code, d, mode) {
   const all = sessList(d), hws = hwList(d), edit = mode === 'edit', ss = all.filter(s => s.state !== 'plan'), plan = edit ? all.filter(s => s.state === 'plan') : [];
   const row = s => sessRow(code, s, hws.filter(t => t.session === s.id), mode), months = sessMonths(ss);
-  return (plan.length ? `<section class="slot tn0">${secHead('🗓️', 'Sắp tới', { cnt: plan.length })}<div class="slot-list list">${plan.map(row).join('')}</div></section>` : '')
+  return (plan.length ? `<section class="slot tn0">${secHead('🗓️', 'Sắp tới', { cnt: plan.length, key: 'so-plan', closed: plan.length > 5 })}${secIsOpen('so-plan', plan.length > 5) ? `<div class="slot-list list">${plan.map(row).join('')}</div>` : ''}</section>` : '')
     + months.map((mk, i) => { const l = ss.filter(s => (s.date || '').slice(0, 7) === mk).reverse(), key = edit ? 'so-m-' + (mk || 'none') : '';
       return `<section class="slot">${secHead('', monthTxt(mk), { cnt: `${l.length} buổi`, key, closed: i > 0 })}${secIsOpen(key, i > 0) ? `<div class="slot-list list">${l.map(row).join('')}</div>` : ''}</section>`; }).join('');
+}
+// ----- nhập sổ từ file Excel theo dõi tiến độ -----
+// Mẫu file: mỗi hàng một buổi, hàng tiêu đề có các cột Buổi, Hình thức, Thời lượng (phút), Ngày học, Chuyên đề / mục tiêu, Lý thuyết / đọc hiểu,
+// Thực hành trên lớp, Bài tập về nhà, SGK / nguồn tham khảo, Trạng thái, Điểm bài tập, Nhận xét BTVN, BTVN (Đã nộp / Đã giao / Chưa giao),
+// Nhận xét học viên, Link slide, Mục tiêu buổi sau. Thiếu cột nào thì bỏ qua cột đó.
+// Buổi Đã học có ngày → buổi Đã học; còn lại là buổi kế hoạch (Chưa học), tên buổi là chuyên đề. BTVN Đã giao / Đã nộp → một bài tập gắn với buổi,
+// hạn nộp là buổi sau; Đã nộp thì coi như cô đã nhận, kèm điểm và nhận xét. Buổi đã có trong sổ (cùng ngày, hoặc đã nhập trước) được giữ nguyên.
+let SO_IMPORT = null;
+const cellTxt = v => v == null ? '' : String(v).replace(/\r/g, '').trim();
+const pad2 = n => String(n).padStart(2, '0');
+function xlDay(v) {
+  if (typeof v === 'number' && v > 20000) { const d = excelDate(v); return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`; }
+  const m = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(cellTxt(v)); return m ? okDate(`${m[3]}-${pad2(m[2])}-${pad2(m[1])}`) : '';
+}
+// Điểm "7/10" bị Excel tự đổi thành ngày 10/7 (kiểu tháng/ngày): đổi lại thành chữ như lúc gõ.
+const xlScore = v => { if (typeof v === 'number' && v > 20000) { const d = excelDate(v); return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`; } return cellTxt(v); };
+function parseSoRows(rows) {
+  const hi = rows.findIndex(r => r && r.some(x => norm(x).startsWith('buổi')) && r.some(x => norm(x).includes('ngày học')));
+  if (hi < 0) return null;
+  const H = rows[hi].map(x => norm(x)), col = (...keys) => H.findIndex(h => keys.some(k => typeof k === 'function' ? k(h) : h.includes(k)));
+  const C = { no: col(h => h.startsWith('buổi')), mode: col('hình thức'), mins: col('thời lượng'), date: col('ngày học'), topic: col('chuyên đề'), theory: col('lý thuyết'), practice: col('thực hành'),
+    hw: col('bài tập về nhà'), src: col('sgk', 'nguồn'), state: col('trạng thái'), score: col('điểm'), hwRv: col('nhận xét btvn', 'nhận xét bài'), hwSt: col(h => h === 'btvn'),
+    note: col('nhận xét học'), link: col('link'), next: col('mục tiêu buổi sau') };
+  const get = (r, k) => C[k] >= 0 ? r[C[k]] : null, t0 = Date.now();
+  const list = rows.slice(hi + 1).filter(r => r && cellTxt(get(r, 'no'))).map((r, i) => {
+    const no = Number((/\d+/.exec(cellTxt(get(r, 'no'))) || [])[0]) || i + 1, date = xlDay(get(r, 'date')), done = norm(get(r, 'state')).startsWith('đã') && !!date;
+    return { no, i, date, done, mode: /online/i.test(cellTxt(get(r, 'mode'))) ? 'on' : /offline/i.test(cellTxt(get(r, 'mode'))) ? 'off' : '', mins: Math.max(0, Math.round(Number(get(r, 'mins')) || 0)),
+      topic: cellTxt(get(r, 'topic')).replace(/\s+/g, ' ').slice(0, 300), theory: cellTxt(get(r, 'theory')), practice: cellTxt(get(r, 'practice')), hw: cellTxt(get(r, 'hw')), src: cellTxt(get(r, 'src')).slice(0, 200),
+      score: xlScore(get(r, 'score')), hwRv: cellTxt(get(r, 'hwRv')), hwSt: norm(get(r, 'hwSt')), note: cellTxt(get(r, 'note')), link: cellTxt(get(r, 'link')), next: cellTxt(get(r, 'next')).slice(0, 300) };
+  });
+  const sessions = [], tasks = [];
+  list.forEach((x, k) => {
+    const sid = `xl-${x.no}`, hasTask = x.hw && (x.hwSt.includes('đã nộp') || x.hwSt.includes('đã giao')), scoreOk = /\d/.test(x.score);
+    const lines = [x.theory && `Lý thuyết / đọc hiểu: ${x.theory}`, x.practice && `Thực hành trên lớp: ${x.practice}`,
+      !hasTask && x.hw && `Bài tập về nhà${x.done ? '' : ' dự kiến'}: ${x.hw}`, !hasTask && (x.score || x.hwRv) && [x.score && `Điểm: ${x.score}`, x.hwRv && `Nhận xét: ${x.hwRv}`].filter(Boolean).join('. ')].filter(Boolean);
+    sessions.push({ id: sid, date: x.date, data: { date: x.date, state: x.done ? 'done' : 'plan', mode: x.mode, mins: x.mins, topic: x.topic, content: lines.join('\n').slice(0, 2000), src: x.src,
+      note: x.note.slice(0, 2000), next: x.next, links: linkList(x.link), files: [], at: new Date(t0 + x.i).toISOString(), xl: 1 } });
+    if (!hasTask) return;
+    const due = list.slice(k + 1).find(y => y.date)?.date || '', got = x.hwSt.includes('đã nộp');
+    tasks.push({ id: `xl-h${x.no}`, data: { title: x.hw.replace(/\s+/g, ' ').slice(0, 300), notes: '', due, session: sid, steps: [], links: [], files: [], at: new Date(t0 + x.i).toISOString(),
+      ...(got ? { got: true, gotAt: due || x.date, score: scoreOk ? x.score.slice(0, 30) : '' } : {}), review: [!scoreOk && x.score, x.hwRv].filter(Boolean).join('. ').slice(0, 2000) } });
+  });
+  return { sessions, tasks };
+}
+function soImportPick(clsId) {
+  const code = clsId ? classesList().find(x => x.id === clsId)?.code : TEACH; if (!code) return;
+  if (!window.DecompressionStream) return toast('Trình duyệt này chưa đọc được file Excel. Cập nhật trình duyệt rồi thử lại nhé.');
+  const inp = Object.assign(document.createElement('input'), { type: 'file', accept: '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  inp.onchange = async () => {
+    const f = inp.files?.[0]; if (!f) return;
+    let parsed = null;
+    try { parsed = parseSoRows(await readXlsx(f)); } catch (e) { console.error(e); }
+    if (!parsed || !parsed.sessions.length) return toast('Không đọc được buổi học nào trong file này. File cần có hàng tiêu đề với cột Buổi và Ngày học.');
+    const d = soOf(code), have = sessList(d), dates = new Set(have.map(x => x.date).filter(Boolean));
+    const fresh = parsed.sessions.filter(x => !d.sessions[x.id] && !(x.date && dates.has(x.date))), keep = new Set(fresh.map(x => x.id));
+    const tasks = parsed.tasks.filter(t => !d.tasks[t.id] && keep.has(t.data.session));
+    const c = clsId ? classesList().find(x => x.id === clsId) : null, mk = key(today()).slice(0, 7);
+    const months = c && !feeOf(c).off ? [...new Set(fresh.filter(x => x.data.state === 'done' && x.date.slice(0, 7) < mk).map(x => x.date.slice(0, 7)))].sort() : [];
+    SO_IMPORT = { code, clsId, sessions: fresh, tasks, months };
+    const done = fresh.filter(x => x.data.state === 'done').length;
+    openModal(`<h2>Nhập từ file Excel</h2>
+    <p class="muted small lead">${esc(f.name)}</p>
+    <div class="fg">${frow('Buổi đã học', `<span class="fv-val num">${done}</span>`)}${frow('Buổi kế hoạch', `<span class="fv-val num">${fresh.length - done}</span>`)}${frow('Bài tập về nhà', `<span class="fv-val num">${tasks.length}</span>`)}
+      ${parsed.sessions.length > fresh.length ? frow('Bỏ qua', `<span class="fv-val num">${parsed.sessions.length - fresh.length}</span>`, { sub: 'Buổi đã có trong sổ (cùng ngày hoặc đã nhập trước), giữ nguyên' }) : ''}</div>
+    ${months.length ? `<div class="fg"><div class="fr">${toggle('so-imp-paid', `Đánh dấu đã đóng học phí ${months.map(m => 'tháng ' + Number(m.slice(5))).join(', ')} <span class="fs">Tháng này (tháng ${today().getMonth() + 1}) vẫn để chưa đóng</span>`, true)}</div></div>` : ''}
+    <p class="muted small lead">Bài tập Đã nộp được tính là cô đã nhận, kèm điểm và nhận xét. Bài nhập từ file không bị trừ tiền phạt.</p>
+    <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="so-import-go"${fresh.length ? '' : ' disabled'}>Nhập ${fresh.length} buổi</button></div>`);
+  };
+  inp.click();
+}
+function soImportGo() {
+  const x = SO_IMPORT; if (!x) return; SO_IMPORT = null;
+  const paid = x.months.length && $('#so-imp-paid')?.checked;
+  for (const s of x.sessions) if (!clsPut(x.code, 'sessions', s.id, s.data)) return;
+  for (const t of x.tasks) clsPut(x.code, 'tasks', t.id, t.data);
+  if (paid) {
+    const c = classesList().find(y => y.id === x.clsId), fees = soFees(soOf(x.code), feeOf(c)), next = { ...paidOf(soOf(x.code)) };
+    for (const mk of x.months) if (!next[mk]) next[mk] = { at: key(today()), amount: fees.find(r => r.mk === mk)?.amount || 0 };
+    clsPut(x.code, 'info', 'paid', next);
+  }
+  closeModal();
+  if (x.clsId) classSheet(x.clsId);
+  toast(`Đã nhập ${x.sessions.length} buổi và ${x.tasks.length} bài tập vào sổ.${paid ? ` Đã đánh dấu đóng học phí ${x.months.map(m => 'tháng ' + Number(m.slice(5))).join(', ')}.` : ''}`);
 }
 // Chi tiết một buổi (màn của cô, chỉ xem): mọi thứ cô đã ghi, bài giao trong buổi và kết quả bài tập buổi trước cô đã tick. Có nút Sửa.
 function sessView(id) {
@@ -1772,6 +1856,7 @@ function drawTeacher() {
       return l.length ? `<section class="slot ${tint}">${secHead('', label, { cnt: l.length, key: k, closed: l.length > 5 })}${secIsOpen(k, l.length > 5) ? `<div class="slot-list list">${l.map(t => hwRow(TEACH, t, d, 'edit')).join('')}</div>` : ''}</section>` : ''; }).join('')}</div>`
       : `<p class="foot-note" style="margin-top:0">Bài cô giao hiện ngay trong mục Bài tập trên máy của ${esc(info.student)}, kèm file cô đính kèm. Con tick làm xong thì cô thấy ở đây.</p>`;
   } else {
+    h += `<div class="row"><button class="btn quiet sm" data-act="so-import">📥 Nhập từ file Excel</button></div>`;
     h += (st.done.length ? `<div class="slots">${feeSection(d, feeOf(info), null)}${bankSection(d, true)}${soMonths(TEACH, d, 'view')}</div>` : `<p class="foot-note" style="margin-top:0">Báo cáo theo tháng (số buổi đã dạy để tính học phí, nội dung, nhận xét, bài tập) sẽ hiện ở đây sau buổi học đầu tiên. Phụ huynh xem được đúng phần này.</p><div class="slots">${bankSection(d, true)}</div>`);
   }
   shell(nav, h);
@@ -1915,7 +2000,7 @@ function classSheet(id, keep) {
   const c = classesList().find(x => x.id === id); if (!c) return;
   const k = CLS[c.code], d = soOf(c.code), st = soStats(d), free = st.hw.filter(t => !st.ss.some(s => s.id === t.session && s.state !== 'plan'));
   openModal(`<h2>${esc(classTitle(c))}</h2>
-  <div class="row">${ava({ id: c.kid, ...S.kids[c.kid] }, 'sm')}<b>${esc(kidName(c.kid))}</b><span style="flex:1"></span><button class="btn primary sm" data-act="cls-link" data-id="${c.id}">🔗 Link cho cô</button>${st.done.length ? `<button class="btn quiet sm" data-act="cls-print" data-id="${c.id}">🖨️ In</button>` : ''}<button class="btn quiet sm" data-act="cls-form" data-id="${c.id}">Sửa</button></div>
+  <div class="row">${ava({ id: c.kid, ...S.kids[c.kid] }, 'sm')}<b>${esc(kidName(c.kid))}</b><span style="flex:1"></span><button class="btn primary sm" data-act="cls-link" data-id="${c.id}">🔗 Link cho cô</button>${st.done.length ? `<button class="btn quiet sm" data-act="cls-print" data-id="${c.id}">🖨️ In</button>` : ''}<button class="btn quiet sm" data-act="so-import" data-id="${c.id}">📥 Nhập Excel</button><button class="btn quiet sm" data-act="cls-form" data-id="${c.id}">Sửa</button></div>
   ${!k || !k.loaded ? '<p class="muted">Đang mở sổ…</p>' : k.err ? '<div class="note">Chưa mở được sổ học. Kiểm tra mạng rồi thử lại.</div>'
     : !st.ss.length && !st.hw.length ? `<div class="card empty"><div class="big">📒</div><h2>Sổ còn trống</h2><p class="muted">Gửi link cho ${esc(c.teacher || 'cô')}. Cô ghi buổi học và giao bài thì hiện ngay ở đây.</p></div><div class="slots">${bankSection(d, false, c.teacher)}</div>`
     : `${soTiles(st, feeOf(c), d)}<div class="slots">${feeSection(d, feeOf(c), c)}${bankSection(d, false, c.teacher)}${free.length ? `<section class="slot tn0">${secHead('', 'Bài tập', { cnt: free.length })}<div class="slot-list list">${free.map(t => hwRow(c.code, t, d, 'view')).join('')}</div></section>` : ''}${soMonths(c.code, d, 'view')}</div>`}
@@ -2494,7 +2579,7 @@ const kidLink = id => inviteLink() + '&con=' + encodeURIComponent(id);
 const KID_ACTS = new Set(['close', 'tick', 'step', 'slot-toggle', 'task-done', 'task-step', 'role-kid', 'role-kid-ok', 'role-parent', 'pin-ok',
   'tkb-go', 'learn-tab', 'tkb-day', 'ag-day', 'ag-week', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel', 'fun-form', 'fun-ask', 'fun-cancel', 'num-step', 'km-acct', 'task-form', 'task-save', 'task-del', 'task-subj', 'task-due', 'hw-view', 'file-open']);
 // Việc màn của cô được làm: chỉ những gì thuộc sổ học.
-const TEACH_ACTS = new Set(['close', 't-tab', 'sess-form', 'sess-view', 'sess-save', 'hw-row-add', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'att-del', 'so-print', 'sec-toggle', 'num-step', 'bank-form', 'bank-save']);
+const TEACH_ACTS = new Set(['close', 't-tab', 'sess-form', 'sess-view', 'sess-save', 'hw-row-add', 'so-import', 'so-import-go', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'att-del', 'so-print', 'sec-toggle', 'num-step', 'bank-form', 'bank-save']);
 function kidMay(a, b) {
   const r = deviceRole(); if (r === 'parent') return true;
   if (!KID_ACTS.has(a)) return false;
@@ -3307,6 +3392,8 @@ document.addEventListener('click', e => {
     return toast(hwLines.length ? `Đã lưu buổi học và giao ${hwLines.length} bài${due ? `, hạn nộp ${dueLabel(due)}` : ''}.` : 'Đã lưu buổi học.');
   }
   if (a === 'sess-view') return sessView(id);
+  if (a === 'so-import') return soImportPick(TEACH ? null : id);
+  if (a === 'so-import-go') return soImportGo();
   if (a === 'hw-row-add') {
     const box = $('#shw-list'); if (!box) return;
     const n = Number(box.dataset.base || 0) + box.querySelectorAll('.hw-in').length + 1; if (n > 10) return toast('Mỗi buổi giao tối đa 10 nhiệm vụ.');
