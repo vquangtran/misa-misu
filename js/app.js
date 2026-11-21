@@ -696,9 +696,9 @@ const placeTxt = l => l.home === true ? `🏠 ${esc(placeName(l.at) || 'Ở nhà
   ? `${l.at ? '📍 ' + esc(placeName(l.at)) + ' · ' : ''}${l.go ? whoIcon(l.go) + ' Đi: ' + esc(l.go) : '⚠️ Chưa có người đưa'} · ${l.back ? 'Về: ' + esc(l.back) : '⚠️ chưa có người đón'}` : (l.at ? '📍 ' + esc(placeName(l.at)) : '');
 // ---------- các con ở đâu ----------
 // stays: id = thứ ("0".."6"), { day: ban ngày ở đâu (bỏ trống = đi học / như buổi tối), night: tối ngủ ở đâu }.
-const PLACE_NAMES = ['Nhà bố', '6th Element', 'Nhà ông bà'];
-// Tên cũ được hiện bằng tên mới (dữ liệu cũ ghi "Nhà mẹ").
-const PLACE_ALIAS = { 'nhà mẹ': '6th Element' };
+const PLACE_NAMES = ['Nhà B4', '6th Element', 'Nhà ông bà'];
+// Tên cũ được hiện bằng tên mới: nhà gọi theo tên toà nhà, không theo bố hay mẹ (dữ liệu cũ ghi "Nhà mẹ", "Nhà bố").
+const PLACE_ALIAS = { 'nhà mẹ': '6th Element', 'nhà bố': 'Nhà B4' };
 const placeName = p => { const v = String(p || '').trim(); return PLACE_ALIAS[v.toLowerCase()] || v; };
 // Viết thường chữ "nhà" ở giữa câu, giữ nguyên tên riêng ("6th Element").
 const placeLow = p => placeName(p).replace(/^nhà(?=\s)/i, 'nhà');
@@ -1321,7 +1321,7 @@ function staysCard(wd) {
   const head = secHead('🏠', 'Các con ở đâu', { side: hasStays() && !RO ? '<button class="linkbtn" data-act="stay-form">Sửa</button>' : '' });
   return `<section class="slot tn4">${head}${hasStays()
     ? `<div class="slot-list pad">${stayStrip()}<div class="muted small" style="margin-top:6px">Dòng trên: ban ngày (nếu không đi học). Ô màu: buổi tối ngủ ở đâu. Viền đậm: ngày đổi nhà.${stayLine(wd, true) ? ` <b>Hôm nay:</b> ${esc(stayLine(wd, true).replace(/^\S+\s/, '').toLowerCase())}.` : ''}</div></div>`
-    : blankAdd('Ghi ngày nào các con ở nhà bố, 6th Element hay nhà ông bà', 'stay-form')}</section>`;
+    : blankAdd('Ghi ngày nào các con ở nhà B4, 6th Element hay nhà ông bà', 'stay-form')}</section>`;
 }
 // Cả nhà: lịch học thêm của các con theo từng ngày, kèm lịch đưa đón và cảnh báo.
 function familyWeek(kids) {
