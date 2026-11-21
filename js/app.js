@@ -1649,11 +1649,13 @@ function sessRow(code, s, hws, mode, inNeed) {
     s.note ? `<div class="s so-p cmt"><b>Nhận xét:</b> ${esc(s.note)}</div>` : '', s.next ? `<div class="s"><b>Buổi sau:</b> ${esc(s.next)}</div>` : ''].join('');
   const sum = [hws.length ? `${hws.length} bài tập` : '', s.note ? 'có nhận xét' : '', att ? 'có tài liệu' : ''].filter(Boolean).join(' · ');
   // Nhãn Thiếu nhận xét chỉ hiện trong mục Cần điền, danh sách theo tháng giữ gọn.
-  const blank = inNeed && s.state !== 'plan' && !String(s.note || '').trim();
-  const badge = s.state === 'plan' ? (s.date && s.date < key(today()) ? '<span class="badge owe">Cần điền</span>' : '<span class="badge wait">Chưa học</span>') : blank ? '<span class="badge owe">Thiếu nhận xét</span>' : '';
-  return `<div class="item sess tap ${s.state === 'plan' ? 'plan' : ''} ${open ? 'open' : ''}" data-act="sess-toggle" data-key="${k}" role="button" tabindex="0" aria-expanded="${open}"><span class="ico">${s.state === 'plan' ? '🗓️' : '📖'}</span><div class="txt"><div class="t">Buổi ${s.no} · ${esc(sessName(s))}</div><div class="s">${esc([sessMeta(s), sum].filter(Boolean).join(' · '))}</div>
-    <div class="sess-body" data-act="none" ${open ? '' : 'hidden'}>${body}${hws.map(t => hwLine(code, t, mode)).join('')}${att}${edit ? `<div class="row"><button class="btn quiet sm" data-act="sess-form" data-id="${s.id}">Sửa buổi này</button></div>` : ''}</div></div>
-    <div class="acts">${badge}<span class="sess-chev">${DOWN}</span></div></div>`;
+  // Trong mục Cần điền: ghi rõ cô cần ghi thêm gì cho buổi này.
+  const lack = [!String(s.content || '').trim() && 'nội dung học', !String(s.note || '').trim() && 'nhận xét học sinh', !hws.length && 'bài tập về nhà'].filter(Boolean);
+  const needTxt = !inNeed ? '' : s.state === 'plan' ? `Buổi này đã qua: chuyển sang Đã học${lack.length ? ` và ghi ${lack.join(', ')}` : ''}. Hôm đó nghỉ thì xoá buổi hoặc đổi ngày.` : lack.length ? `Cần ghi: ${lack.join(', ')}.` : '';
+  const badge = s.state === 'plan' ? (s.date && s.date < key(today()) ? '<span class="badge owe">Cần điền</span>' : '<span class="badge wait">Chưa học</span>') : '';
+  return `<div class="item sess tap ${s.state === 'plan' ? 'plan' : ''} ${open ? 'open' : ''}" ${inNeed && edit ? `data-act="sess-form" data-id="${s.id}"` : `data-act="sess-toggle" data-key="${k}" aria-expanded="${open}"`} role="button" tabindex="0"><span class="ico">${s.state === 'plan' ? '🗓️' : '📖'}</span><div class="txt"><div class="t">Buổi ${s.no} · ${esc(sessName(s))}</div><div class="s">${esc([sessMeta(s), sum].filter(Boolean).join(' · '))}</div>${needTxt ? `<div class="s need-txt">${esc(needTxt)}</div>` : ''}
+    <div class="sess-body" data-act="none" ${open && !inNeed ? '' : 'hidden'}>${body}${hws.map(t => hwLine(code, t, mode)).join('')}${att}${edit ? `<div class="row"><button class="btn quiet sm" data-act="sess-form" data-id="${s.id}">Sửa buổi này</button></div>` : ''}</div></div>
+    <div class="acts">${badge}<span class="sess-chev">${inNeed && edit ? CHEV : DOWN}</span></div></div>`;
 }
 const HW_BADGE = { got: 'ok', done: 'wait', late: 'owe', open: '' };
 const hwBadgeHtml = t => { const st = hwState(t); return `<span class="badge ${st.k === 'got' && t.chk ? chkKind(t.chk) : HW_BADGE[st.k]}">${esc(st.k === 'got' ? (t.chk ? CHK[t.chk] : 'Cô đã nhận') + (t.score ? ' · ' + t.score : '') : st.k === 'done' ? 'Chờ cô nhận' : st.k === 'late' ? st.txt : 'Đang làm')}</span>`; };
@@ -1728,7 +1730,8 @@ function soMissing(d) {
   const info = d.info?.lop || {}, slots = info.days || [], wds = [...new Set(slots.map(x => Number(x.day)))], ss = sessList(d), tk = key(today());
   const stale = ss.filter(s => s.state === 'plan' && s.date && s.date < tk);
   // Buổi đã học trong 14 ngày gần đây mà cô chưa ghi nhận xét học sinh.
-  const blank = ss.filter(s => s.state !== 'plan' && s.date && s.date <= tk && s.date >= key(addDays(today(), -14)) && !String(s.note || '').trim());
+  // Buổi nhập từ file (xl) coi như đã ghi xong, trừ buổi cần cô ghi thêm (fill: buổi kế hoạch trong file mà thật ra đã học).
+  const blank = ss.filter(s => s.state !== 'plan' && s.date && s.date <= tk && s.date >= key(addDays(today(), -14)) && !String(s.note || '').trim() && (!s.xl || s.fill));
   stale.push(...blank);
   const first = ss.find(s => s.state !== 'plan' && s.date)?.date;
   if (!wds.length || !first) return { miss: [], stale, n: stale.length };
@@ -1753,10 +1756,10 @@ function soMonths(code, d, mode) {
   const row = s => sessRow(code, s, hws.filter(t => t.session === s.id), mode), months = sessMonths(ss);
   const mi = edit ? soMissing(d) : { miss: [], stale: [] }, staleIds = new Set(mi.stale.map(x => x.id));
   const slotTxt = dk => (d.info?.lop?.days || []).filter(x => Number(x.day) === parse(dk).getDay()).map(x => [x.s, x.e].filter(Boolean).join(' – ')).join(', ');
-  const missRow = dk => `<div class="item tap" data-act="sess-form" data-d="${dk}" role="button" tabindex="0"><span class="ico">📝</span><div class="txt"><div class="t">${esc(dateTxt(dk))} · chưa ghi buổi học</div><div class="s">${esc(['lịch học ' + slotTxt(dk), 'bấm để ghi'].filter(x => x !== 'lịch học ').join(' · '))}</div></div>
+  const missRow = dk => `<div class="item tap" data-act="sess-form" data-d="${dk}" role="button" tabindex="0"><span class="ico">📝</span><div class="txt"><div class="t">${esc(dateTxt(dk))} · chưa ghi buổi học</div><div class="s">${esc(slotTxt(dk) ? 'lịch học ' + slotTxt(dk) : '')}</div><div class="s need-txt">Cần ghi: nội dung học, nhận xét học sinh, bài tập về nhà. Hôm đó nghỉ thì bấm Nghỉ.</div></div>
     <div class="acts"><button class="btn quiet sm" data-act="so-off" data-d="${dk}">Nghỉ</button><span class="badge owe">Cần điền</span></div></div>`;
   const need = edit && (mi.miss.length || mi.stale.length) ? `<section class="slot so-need">${secHead('⚠️', 'Cần điền', { cnt: mi.miss.length + mi.stale.length })}<div class="slot-list list">${[...mi.miss.map(dk => ({ dk, h: missRow(dk) })), ...mi.stale.map(s => ({ dk: s.date, h: sessRow(code, s, hws.filter(t => t.session === s.id), mode, true) }))].sort((a, b) => b.dk.localeCompare(a.dk)).map(x => x.h).join('')}</div>
-    <p class="foot-note">Ngày có lịch học đã qua mà chưa ghi buổi, hoặc buổi đã học chưa có nhận xét. Cô bấm vào để ghi, hôm đó nghỉ thì bấm Nghỉ.</p></section>` : '';
+    <p class="foot-note">Buổi đã qua mà cô chưa ghi đủ. Bấm vào dòng để mở form ghi buổi đó.</p></section>` : '';
   plan.splice(0, plan.length, ...plan.filter(s => !staleIds.has(s.id)));
   // Sắp tới: chỉ hiện các buổi trong tháng này (tháng này hết buổi thì hiện 2 buổi kế tiếp), bấm Xem thêm để hiện hết.
   const mk = key(today()).slice(0, 7), soon = plan.filter(s => s.date && s.date.slice(0, 7) === mk), first = soon.length ? soon : plan.slice(0, 2), showAll = !!UI.secOpen['so-plan-all'];
@@ -1869,7 +1872,7 @@ let suAutoBusy = false;
 async function suAutoImport(code) {
   if (suAutoBusy || TEACH || !loaded || stale || deviceRole() !== 'parent') return;
   const c = classesList().find(x => x.code === code), k = CLS[code];
-  if (!c || (c.xlAuto && c.paidFix && c.fix1711) || !isSuTV(kidName(c.kid), c.name) || !k || !k.loaded || k.stale || k.err || !k.st) return;
+  if (!c || (c.xlAuto && c.paidFix && c.fix1711 && c.fill1) || !isSuTV(kidName(c.kid), c.name) || !k || !k.loaded || k.stale || k.err || !k.st) return;
   if (c.xlAuto) return suFixes(code, c, k);
   suAutoBusy = true;
   try {
@@ -1916,6 +1919,12 @@ function suFixes(code, c, k) {
       used.add(dk); day = addDays(day, 1);
     }
     flags.fix1711 = 1;
+  }
+  // fill1: chỉ buổi 11 (T3 17/11, cô chưa ghi) là buổi cô cần ghi; các buổi khác trong file coi như đã ghi xong, không cần bổ sung nhận xét.
+  if (!c.fill1) {
+    const raw = k.data.sessions || {};
+    for (const id of ['xl-11']) if (raw[id] && raw[id].state === 'done' && !raw[id].fill) clsPut(code, 'sessions', id, { ...raw[id], fill: 1 });
+    flags.fill1 = 1;
   }
   if (Object.keys(flags).length) { const { id, ...o } = classesList().find(x => x.code === code) || c; put('paid', id, { ...o, ...flags }); }
 }
@@ -3614,7 +3623,7 @@ document.addEventListener('click', e => {
     const kid = radioVal('clkid') || document.querySelector('#modal input[name=clkid]')?.value; if (!S.kids[kid]) return;
     const old = id ? S.paid[id] : null, cid = id || 'lop-' + uid();
     const book = $('#clbook').value.trim();
-    const data = { lop: 1, kid, name, ...(book ? { book } : {}), ...(old?.dur ? { dur: old.dur } : {}), ...(old?.hwPen ? { hwPen: old.hwPen } : {}), ...(old?.hwFrom ? { hwFrom: old.hwFrom } : {}), ...(old?.xlAuto ? { xlAuto: old.xlAuto } : {}), ...(old?.paidFix ? { paidFix: old.paidFix } : {}), ...(old?.fix1711 ? { fix1711: old.fix1711 } : {}), teacher: $('#clteacher').value.trim(), code: old?.code || newFamilyCode(), at: old?.at || new Date().toISOString(),
+    const data = { lop: 1, kid, name, ...(book ? { book } : {}), ...(old?.dur ? { dur: old.dur } : {}), ...(old?.hwPen ? { hwPen: old.hwPen } : {}), ...(old?.hwFrom ? { hwFrom: old.hwFrom } : {}), ...(old?.xlAuto ? { xlAuto: old.xlAuto } : {}), ...(old?.paidFix ? { paidFix: old.paidFix } : {}), ...(old?.fix1711 ? { fix1711: old.fix1711 } : {}), ...(old?.fill1 ? { fill1: old.fill1 } : {}), teacher: $('#clteacher').value.trim(), code: old?.code || newFamilyCode(), at: old?.at || new Date().toISOString(),
       fee: Math.max(0, Math.round(Number($('#clfee').value) || 0)), feeOn: Math.max(0, Math.round(Number($('#clfeeon').value) || 0)), feeBy: $('#clfeeby').value === 'gio' ? 'gio' : 'buoi', feeOff: !$('#clfeeshow').checked };
     closeModal(); put('paid', cid, data);
     if (old) return toast('Đã lưu sổ học.');

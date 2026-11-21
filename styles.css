@@ -326,6 +326,7 @@ textarea.hw-in{resize:none;overflow:hidden;min-height:44px}
 .linkbtn.hw-add .gl{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.6;stroke-linecap:round}
 .hw-chk .seg,.hw-lv{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .item.tap{cursor:pointer}
+.item .s.need-txt{color:var(--bad);font-weight:500}
 .sess-body{margin-top:6px;cursor:auto}
 .sess-body .row{margin-top:8px}
 .sess-chev .chev{width:18px;height:18px;stroke:var(--muted);fill:none;stroke-width:2.2;transition:transform .15s}
