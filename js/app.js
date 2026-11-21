@@ -82,7 +82,7 @@ const SAMPLE_CHORES = [
   { name: 'Tập thể dục ít nhất 15 phút', also: ['Nhảy dây mỗi ngày', 'Nhảy dây'], icon: '🏃', money: 15000, days: DAILY, slot: 'chieu', minutes: 15 },
   { name: 'Đọc sách 30 phút', also: ['Đọc sách'], icon: '📚', money: 10000, days: DAILY, minutes: 30 },
   { name: 'Checklist trước khi đi ngủ', also: ['Chuẩn bị trước khi ngủ'], icon: '🌙', money: 5000, days: DAILY, slot: 'toi',
-    steps: ['Cặp sách đã chuẩn bị', 'Quần áo ngày mai đã chuẩn bị', 'Bàn học đã gọn', 'Sách đã cất đúng chỗ', 'Việc ngày hôm nay đã hoàn thành', 'Đã đánh răng, rửa mặt', 'Đã tráng bình nước'] },
+    steps: ['Cặp sách đã chuẩn bị', 'Quần áo ngày mai đã chuẩn bị', 'Bàn học đã gọn', 'Sách đã cất đúng chỗ', 'Việc ngày hôm nay đã hoàn thành', 'Đã đánh răng, rửa mặt', 'Đã tráng bình nước (mai đi học)'] },
   // Việc nhà cần làm mỗi ngày: nằm trong lịch từng buổi, làm thì được tiền, không tính vào thưởng làm đủ việc.
   { name: 'Thu quần áo', icon: '👕', money: 5000, days: DAILY, slot: 'chieu', claim: true },
   { name: 'Sắp xếp giày dép', icon: '👟', money: 3000, days: DAILY, slot: 'chieu' },
@@ -276,6 +276,12 @@ function weekCount(kid, c, d, beforeOnly = false) {
 // (theo thời khoá biểu, trừ ngày nghỉ trong Mốc năm học; chưa nhập thời khoá biểu thì tính Thứ Hai đến Thứ Sáu).
 const schoolTomorrow = (kidId, d) => { const x = addDays(d, 1); return tkbOf(kidId) ? !!schoolOn(kidId, x) : !holidayOn(kidId, x) && x.getDay() >= 1 && x.getDay() <= 5; };
 const prepFor = (c, kidId, d) => !c.prep || (c.prep === 'school' ? schoolTomorrow(kidId, d) : lessonsOn(kidId, addDays(d, 1).getDay()).length > 0);
+// Mục con chỉ áp dụng khi hôm sau đi học: dòng kết thúc bằng "(mai đi học)". Hôm sau không đi học thì mục đó không hiện và không phải tick.
+const STEP_SCHOOL = /\s*\((?:khi\s+)?(?:mai|hôm sau)\s+đi học\)\s*$/i;
+const stepText = x => String(x).replace(STEP_SCHOOL, '').trim();
+// Các mục con của việc c mà con phải tick trong ngày d. t: chữ hiện ra, i: vị trí trong c.steps (cũng là bit trong mặt nạ đã tick, nên không đổi khi có mục bị ẩn).
+const stepsOf = (c, kidId, d) => (c.steps || []).filter(Boolean).map((x, i) => ({ t: stepText(x), i, school: STEP_SCHOOL.test(x) })).filter(x => x.t && (!x.school || schoolTomorrow(kidId, d)));
+const stepsAll = list => list.reduce((m, x) => m | (1 << x.i), 0);
 // Phạt tăng nặng (r.again): lần đầu trong tuần trừ r.price, từ lần thứ hai trong cùng tuần (Thứ Hai đến Chủ nhật) trừ r.again.
 // Mỗi lần phạt ghi mã mục (ledger.rid) để đếm.
 const penaltyTimes = (rid, kidId, d = today()) => { const a = key(weekStart(d)), b = key(addDays(weekStart(d), 6)); return Object.values(S.ledger).filter(l => l.kid === kidId && l.rid === rid && l.at && key(new Date(l.at)) >= a && key(new Date(l.at)) <= b).length; };
@@ -984,11 +990,11 @@ function viewToday() {
       h += `<div class="slot-list list">`;
       for (const x of g.items) {
         if (x.type !== 'chore') { h += markRow(x); continue; }
-        const c = x.c, on = isDone(d, k.id, c.id), steps = (c.steps || []).filter(Boolean), mask = stepMask(d, k.id, c.id);
+        const c = x.c, on = isDone(d, k.id, c.id), steps = stepsOf(c, k.id, d), mask = stepMask(d, k.id, c.id);
         const right = isFun(c) ? `<span class="fun-badge ${x.locked ? '' : 'open'}">${x.locked ? '🔒 Chưa mở' : 'Được làm'}</span>`
           : `<button class="stamp ${on ? 'on' : ''}" data-act="tick" data-kid="${k.id}" data-chore="${c.id}" ${future ? 'disabled' : ''} aria-pressed="${on}" aria-label="${on ? 'Bỏ dấu' : 'Đóng dấu'}: ${esc(c.name)}">${STAR}</button>`;
         h += `<div class="item ${on ? 'done' : takenBy(c, k.id, d).length ? 'taken' : ''} ${isFun(c) ? 'fun' + (x.locked ? ' locked' : '') : ''}"><span class="ico">${esc(c.icon || '✅')}</span><div class="txt"><div class="t">${esc(c.name)}</div><div class="s">${choreMeta(c, k.id, d, isT)}</div>
-          ${steps.length && !isFun(c) ? `<div class="steps">${steps.map((st, i) => { const ok = on || (mask >> i) & 1; return `<button class="step ${ok ? 'on' : ''}" data-act="step" data-kid="${k.id}" data-chore="${c.id}" data-i="${i}" ${future ? 'disabled' : ''} aria-pressed="${!!ok}">${esc(st)}</button>`; }).join('')}</div>` : ''}</div>${right}</div>`;
+          ${steps.length && !isFun(c) ? `<div class="steps">${steps.map(st => { const ok = on || (mask >> st.i) & 1; return `<button class="step ${ok ? 'on' : ''}" data-act="step" data-kid="${k.id}" data-chore="${c.id}" data-i="${st.i}" ${future ? 'disabled' : ''} aria-pressed="${!!ok}">${esc(st.t)}</button>`; }).join('')}</div>` : ''}</div>${right}</div>`;
       }
       h += `</div>`;
     }
@@ -1539,6 +1545,7 @@ function autoFill() {
 // Những thứ app tự thêm một lần cho mỗi nhà, từ máy của bố mẹ (đánh dấu ở cài đặt của gia đình để không thêm lại sau khi bố mẹ sửa, xoá).
 // Mã mục cố định nên hai máy cùng thêm cũng không bị trùng. Cờ ghi chung một lần để lần ghi sau không đè mất cờ trước.
 //   merit: 5 mục thành tích ở trường trong Bảng giá.
+//   bottle: mục con "Đã tráng bình nước" trong các checklist đang có được gắn "(mai đi học)", để tối trước ngày nghỉ không phải tick.
 //   hw: hai việc quan trọng về bài tập về nhà (hôm sau có học thêm, hôm sau đi học) và mục phạt Thiếu BTVN (lần 2 trong tuần phạt nặng hơn).
 const HW_CHORES = [
   ['hw-lesson', { name: 'Nộp BTVN cho buổi học thêm hôm sau', icon: '📝', prep: true }],
@@ -1563,6 +1570,13 @@ function autoAdds() {
     flags.hw = 1;
     if (n || pen) toast(`Đã thêm ${[n ? `${n} việc quan trọng về BTVN` : '', pen ? 'mục phạt Thiếu BTVN' : ''].filter(Boolean).join(' và ')}. Sửa ở Bảng giá.`);
   }
+  if (!set.bottle) {
+    for (const c of choresList()) {
+      const steps = (c.steps || []).map(x => norm(x) === 'đã tráng bình nước' || norm(x) === 'tráng bình nước' ? `${String(x).trim()} (mai đi học)` : x);
+      if (steps.some((x, i) => x !== c.steps[i])) put('chores', c.id, { ...S.chores[c.id], steps });
+    }
+    flags.bottle = 1;
+  }
   if (Object.keys(flags).length) put('paid', SETTINGS_ID, { ...set, ...flags });
 }
 // Cập nhật bảng giá một lần theo bảng mẫu bản mới: những gì sẽ đổi trong dữ liệu đang dùng.
@@ -1585,7 +1599,7 @@ function tableUpdate() {
     if (m.kind === 'must' && m.money > 0 && isExtra(c)) { Object.assign(next, { kind: 'must', days: m.days, slot: m.slot, since: key(today()) }); notes.push(`đưa vào danh sách mỗi ngày, ${SL[m.slot]}`); }
     else if (m.kind === 'must' && isMust(c) && toMin(c.time) === null && (c.slot || '') !== m.slot) { next.slot = m.slot; notes.push(`chuyển sang ${SL[m.slot]}`); }
     if (m.claim && !c.claim && !c.shared) { next.claim = true; notes.push('ai làm trước thì tính, cùng làm thì chia đều tiền'); }
-    const more = (m.steps || []).filter(x => (c.steps || []).length && !(c.steps || []).some(y => norm(y) === norm(x)));
+    const more = (m.steps || []).filter(x => (c.steps || []).length && !(c.steps || []).some(y => norm(stepText(y)) === norm(stepText(x))));
     if (more.length) { next.steps = [...c.steps, ...more]; notes.push(`thêm bước “${more.join('”, “')}”`); }
     if (notes.length) ops.push({ col: 'chores', id: c.id, ico: next.icon || c.icon || '✅', next, t: c.name, s: notes.join(' · ') });
   }
@@ -1873,13 +1887,13 @@ function drawKidMode() {
   const after = eventLines(k, 'km-event') + goal;
   const merit = meritSection(k);
   const bigChore = (x, g) => {
-    const c = x.c, on = isDone(t, k.id, c.id), steps = (c.steps || []).filter(Boolean), mask = stepMask(t, k.id, c.id);
+    const c = x.c, on = isDone(t, k.id, c.id), steps = stepsOf(c, k.id, t), mask = stepMask(t, k.id, c.id);
     const sub = `<span class="s">${choreMeta(c, k.id, t, true)}</span>`;
     if (isFun(c)) return `<div class="big-item fun ${x.locked ? 'locked' : 'open'}"><span class="ico">${esc(c.icon || '🎈')}</span><span><span class="t">${esc(c.name)}</span><br>${x.locked ? `<span class="s">Xong ${g.left} việc phải làm${g.id ? ' của ' + g.label.toLowerCase() : ''} là được làm việc này!</span>` : '<span class="s">Mở khoá rồi, con được làm việc này!</span>'}</span><span class="lockic">${x.locked ? '🔒' : ''}</span></div>`;
     if (!steps.length) return `<button class="big-item ${on ? 'done' : ''}" data-act="tick" data-kid="${k.id}" data-chore="${c.id}" data-km="1" aria-pressed="${on}"><span class="ico">${esc(c.icon || '✅')}</span><span><span class="t">${esc(c.name)}</span><br>${sub}</span><span class="stamp ${on ? 'on' : ''}">${STAR}</span></button>`;
     return `<div class="big-item has-steps ${on ? 'done' : ''}"><div class="big-top"><span class="ico">${esc(c.icon || '✅')}</span><span><span class="t">${esc(c.name)}</span><br>${sub}</span>
       <button class="stamp ${on ? 'on' : ''}" data-act="tick" data-kid="${k.id}" data-chore="${c.id}" data-km="1" aria-pressed="${on}" aria-label="${on ? 'Bỏ dấu' : 'Xong hết'}: ${esc(c.name)}">${STAR}</button></div>
-      <div class="big-steps">${steps.map((st, i) => { const ok = on || (mask >> i) & 1; return `<button class="step ${ok ? 'on' : ''}" data-act="step" data-kid="${k.id}" data-chore="${c.id}" data-i="${i}" data-km="1" aria-pressed="${!!ok}">${esc(st)}</button>`; }).join('')}</div></div>`;
+      <div class="big-steps">${steps.map(st => { const ok = on || (mask >> st.i) & 1; return `<button class="step ${ok ? 'on' : ''}" data-act="step" data-kid="${k.id}" data-chore="${c.id}" data-i="${st.i}" data-km="1" aria-pressed="${!!ok}">${esc(st.t)}</button>`; }).join('')}</div></div>`;
   };
   // Mỗi buổi một nhãn màu như màn Hôm nay, chữ và nút to hơn. Chỉ buổi đang diễn ra mở sẵn (xem slotOpenDefault); bấm nhãn để mở buổi khác.
   const timeline = plan.map(g => {
@@ -2078,7 +2092,7 @@ function choreForm(id, kindPre, pre) {
       <div class="seg days7">${WEEK_ORDER.map(d => `<label><input type="checkbox" name="cday" value="${d}" ${days.includes(d) ? 'checked' : ''}><span>${WDS[d]}</span></label>`).join('')}</div></div>
     ${kidRow('Giao cho', 'ckid', 'checkbox', ck)}
   </div>
-  <div class="fg"><div class="fr col"><div class="fl"><label for="csteps">Danh sách con</label><span class="fs">Mỗi dòng một mục. Con tick đủ các mục thì việc được tính là xong.</span></div>
+  <div class="fg"><div class="fr col"><div class="fl"><label for="csteps">Danh sách con</label><span class="fs">Mỗi dòng một mục. Con tick đủ các mục thì việc được tính là xong. Mục nào chỉ cần khi hôm sau đi học thì ghi thêm “(mai đi học)” ở cuối dòng: tối trước ngày nghỉ mục đó tự ẩn.</span></div>
     <textarea id="csteps" class="input f-area" rows="3" placeholder="Cặp sách đã soạn&#10;Quần áo ngày mai&#10;Bàn học đã gọn">${esc((c?.steps || []).join('\n'))}</textarea></div></div>
   <details class="fg f-adv" ${adv ? 'open' : ''}><summary class="fr"><div class="fl"><span class="lbl">Thêm tuỳ chọn</span><span class="fs">Giờ, số phút, số lần mỗi tuần, việc chung</span></div>${DOWN}</summary>
     ${frow('Giờ', `<input id="ctime" class="pillin num" type="time" value="${esc(c?.time || '')}">`, { id: 'ctime', sub: 'Có giờ thì việc tự xếp vào buổi theo giờ đó' })}
@@ -2339,13 +2353,12 @@ function markChore(d, kid, cid, on) {
       msg = n >= st.possible ? `${kidName(kid)} đủ việc cả tuần rồi! Thưởng ${money(weekBonusAt(S.kids[kid], key(weekStart(d))))} 🏆` : `${kidName(kid)}: tuần này ${n}/${st.possible} việc, đủ tuần thưởng ${money(weekBonusOf(S.kids[kid]))} 🏆`;
     }
   }
-  const steps = (ch.steps || []).filter(Boolean);
   // Việc ai làm trước thì tính: chia lại tiền cho những con đã làm (kể cả khi một con bỏ dấu).
   const doers = ch.claim ? [...claimers({ id: cid, ...ch }, d).filter(x => x !== kid), ...(on ? [kid] : [])] : [];
   for (const x of doers) if (x !== kid) setDone(key(d), x, cid, claimVal(ch, doers.length));
   for (const x of who) {
     setDone(key(d), x, cid, on ? (ch.claim ? claimVal(ch, doers.length) : doneVal(ch)) : 0);
-    if (steps.length) setDone(key(d), x, cid + '~s', on ? (1 << steps.length) - 1 : 0);
+    if ((ch.steps || []).length) setDone(key(d), x, cid + '~s', on ? stepsAll(stepsOf(ch, x, d)) : 0);
   }
   if (msg) toast(msg);
 }
@@ -2439,9 +2452,9 @@ document.addEventListener('click', e => {
   }
   if (a === 'step') {
     const d = b.dataset.km ? today() : UI.date, kid = b.dataset.kid, cid = b.dataset.chore, ch = S.chores[cid]; if (!ch) return;
-    const steps = (ch.steps || []).filter(Boolean), all = (1 << steps.length) - 1;
+    const all = stepsAll(stepsOf(ch, kid, d));
     const sl = b.closest('.slot[data-slot]'); if (sl) UI.slotOpen[sl.dataset.slot] = true;
-    let mask = isDone(d, kid, cid) ? all : stepMask(d, kid, cid);
+    let mask = isDone(d, kid, cid) ? all : stepMask(d, kid, cid) & all;
     mask ^= 1 << Number(b.dataset.i);
     b.classList.toggle('on', !!((mask >> Number(b.dataset.i)) & 1));
     if (mask === all) return markChore(d, kid, cid, true);

@@ -13,7 +13,7 @@
 //   ledger   sổ tài khoản   { kid, amount (đồng), kind: bonus|penalty|fee|spend|reward, note, icon, at, skip: ngày được miễn việc, wipe: thứ Hai của tuần bị phạt mất tiền thưởng,
 //                             pending: true = thành tích con báo đang chờ bố mẹ duyệt (amount = 0, số tiền sẽ cộng ở ask); duyệt xong thì amount = ask, có okAt }
 //   paid     (cũ, không dùng nữa) tiền tiêu vặt đã trả theo tuần
-//            Riêng id "caidat" là cài đặt của gia đình: { pin: mã PIN bố mẹ đã băm, merit: 1 = đã thêm sẵn các mục thành tích, hw: 1 = đã thêm sẵn hai việc BTVN và mục phạt Thiếu BTVN }. Có PIN thì mỗi máy phải chọn là máy của bố mẹ hay của một con.
+//            Riêng id "caidat" là cài đặt của gia đình: { pin: mã PIN bố mẹ đã băm, merit: 1 = đã thêm sẵn các mục thành tích, hw: 1 = đã thêm sẵn hai việc BTVN và mục phạt Thiếu BTVN, bottle: 1 = đã gắn "(mai đi học)" cho mục con tráng bình nước }. Có PIN thì mỗi máy phải chọn là máy của bố mẹ hay của một con.
 //   Dữ liệu cũ tính bằng sao (chores.stars, rewards.cost, ledger.delta, done < 100) được quy đổi 1 sao = 5.000đ.
 //   timetables thời khoá biểu  id = kidId, { cls, year, days: [1..6], lunch, rows: [{ s, e, d: { [thứ]: môn } }] }
 //   lessons  học thêm       { kid, day: 0..6, s: "HH:MM", e: "HH:MM", name, at, home, go, back }
