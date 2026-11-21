@@ -1384,6 +1384,8 @@ const SU_TV_BOOK = 'Nhật ký học Tiếng Việt';
 // Thời lượng mỗi buổi theo thứ (dur: 7 số, CN = 0 … T7 = 6; 0 = theo lịch học thêm). Cô Thảo: thứ 3 học 60 phút, chủ nhật 120 phút.
 const SU_TV_DUR = [120, 0, 60, 0, 0, 0, 0];
 const SU_TV_HW_FROM = '2026-11-22';
+// Hình thức theo thứ của sổ Tiếng Việt của Su: chủ nhật học Offline (2 tiếng), thứ 3 học Online (1 tiếng).
+const SU_TV_MODE = ['off', '', 'on', '', '', '', ''];
 const isSuTV = (kidNm, subj) => ['su', 'misu'].includes(norm(kidNm)) && norm(subj) === 'tiếng việt';
 // Màn của cô đọc thông tin lớp (có student): sổ Tiếng Việt của Su chưa được máy bố mẹ ghi dur thì vẫn dùng thời lượng của cô Thảo.
 const durOf = x => Array.isArray(x?.dur) ? [0, 1, 2, 3, 4, 5, 6].map(i => Math.max(0, Math.round(Number(x.dur[i]) || 0)))
@@ -1641,12 +1643,14 @@ function hwLine(code, t, mode) {
 }
 // Một buổi trong danh sách: gọn một dòng (tên buổi, ngày, hình thức, thời lượng, tóm tắt), bấm vào thì xổ ra chi tiết ngay tại chỗ
 // (nội dung, nhận xét, sách, mục tiêu buổi sau, bài tập, tài liệu); màn của cô có thêm nút Sửa. Máy nhớ buổi nào đang mở (UI.secOpen).
-function sessRow(code, s, hws, mode) {
+function sessRow(code, s, hws, mode, inNeed) {
   const edit = mode === 'edit', k = `ss-${code}-${s.id}`, open = !!UI.secOpen[k], att = attView(code, s.files, s.links);
   const body = [s.content ? `<div class="s so-p">${esc(s.content)}</div>` : '', s.src ? `<div class="s"><b>Sách, nguồn:</b> ${esc(s.src)}</div>` : '',
     s.note ? `<div class="s so-p cmt"><b>Nhận xét:</b> ${esc(s.note)}</div>` : '', s.next ? `<div class="s"><b>Buổi sau:</b> ${esc(s.next)}</div>` : ''].join('');
   const sum = [hws.length ? `${hws.length} bài tập` : '', s.note ? 'có nhận xét' : '', att ? 'có tài liệu' : ''].filter(Boolean).join(' · ');
-  const badge = s.state === 'plan' ? (s.date && s.date < key(today()) ? '<span class="badge owe">Cần điền</span>' : '<span class="badge wait">Chưa học</span>') : '';
+  // Nhãn Thiếu nhận xét chỉ hiện trong mục Cần điền, danh sách theo tháng giữ gọn.
+  const blank = inNeed && s.state !== 'plan' && !String(s.note || '').trim();
+  const badge = s.state === 'plan' ? (s.date && s.date < key(today()) ? '<span class="badge owe">Cần điền</span>' : '<span class="badge wait">Chưa học</span>') : blank ? '<span class="badge owe">Thiếu nhận xét</span>' : '';
   return `<div class="item sess tap ${s.state === 'plan' ? 'plan' : ''} ${open ? 'open' : ''}" data-act="sess-toggle" data-key="${k}" role="button" tabindex="0" aria-expanded="${open}"><span class="ico">${s.state === 'plan' ? '🗓️' : '📖'}</span><div class="txt"><div class="t">Buổi ${s.no} · ${esc(sessName(s))}</div><div class="s">${esc([sessMeta(s), sum].filter(Boolean).join(' · '))}</div>
     <div class="sess-body" data-act="none" ${open ? '' : 'hidden'}>${body}${hws.map(t => hwLine(code, t, mode)).join('')}${att}${edit ? `<div class="row"><button class="btn quiet sm" data-act="sess-form" data-id="${s.id}">Sửa buổi này</button></div>` : ''}</div></div>
     <div class="acts">${badge}<span class="sess-chev">${DOWN}</span></div></div>`;
@@ -1723,6 +1727,9 @@ const offOf = d => Object.fromEntries(Object.entries(d.info?.off || {}).filter((
 function soMissing(d) {
   const info = d.info?.lop || {}, slots = info.days || [], wds = [...new Set(slots.map(x => Number(x.day)))], ss = sessList(d), tk = key(today());
   const stale = ss.filter(s => s.state === 'plan' && s.date && s.date < tk);
+  // Buổi đã học trong 14 ngày gần đây mà cô chưa ghi nhận xét học sinh.
+  const blank = ss.filter(s => s.state !== 'plan' && s.date && s.date <= tk && s.date >= key(addDays(today(), -14)) && !String(s.note || '').trim());
+  stale.push(...blank);
   const first = ss.find(s => s.state !== 'plan' && s.date)?.date;
   if (!wds.length || !first) return { miss: [], stale, n: stale.length };
   const now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes(), off = offOf(d), have = new Set(ss.map(s => s.date).filter(Boolean));
@@ -1748,8 +1755,8 @@ function soMonths(code, d, mode) {
   const slotTxt = dk => (d.info?.lop?.days || []).filter(x => Number(x.day) === parse(dk).getDay()).map(x => [x.s, x.e].filter(Boolean).join(' – ')).join(', ');
   const missRow = dk => `<div class="item tap" data-act="sess-form" data-d="${dk}" role="button" tabindex="0"><span class="ico">📝</span><div class="txt"><div class="t">${esc(dateTxt(dk))} · chưa ghi buổi học</div><div class="s">${esc(['lịch học ' + slotTxt(dk), 'bấm để ghi'].filter(x => x !== 'lịch học ').join(' · '))}</div></div>
     <div class="acts"><button class="btn quiet sm" data-act="so-off" data-d="${dk}">Nghỉ</button><span class="badge owe">Cần điền</span></div></div>`;
-  const need = edit && (mi.miss.length || mi.stale.length) ? `<section class="slot so-need">${secHead('⚠️', 'Cần điền', { cnt: mi.miss.length + mi.stale.length })}<div class="slot-list list">${[...mi.miss.map(dk => ({ dk, h: missRow(dk) })), ...mi.stale.map(s => ({ dk: s.date, h: row(s) }))].sort((a, b) => b.dk.localeCompare(a.dk)).map(x => x.h).join('')}</div>
-    <p class="foot-note">Ngày có lịch học đã qua mà chưa ghi buổi. Cô bấm vào để ghi, hôm đó nghỉ thì bấm Nghỉ.</p></section>` : '';
+  const need = edit && (mi.miss.length || mi.stale.length) ? `<section class="slot so-need">${secHead('⚠️', 'Cần điền', { cnt: mi.miss.length + mi.stale.length })}<div class="slot-list list">${[...mi.miss.map(dk => ({ dk, h: missRow(dk) })), ...mi.stale.map(s => ({ dk: s.date, h: sessRow(code, s, hws.filter(t => t.session === s.id), mode, true) }))].sort((a, b) => b.dk.localeCompare(a.dk)).map(x => x.h).join('')}</div>
+    <p class="foot-note">Ngày có lịch học đã qua mà chưa ghi buổi, hoặc buổi đã học chưa có nhận xét. Cô bấm vào để ghi, hôm đó nghỉ thì bấm Nghỉ.</p></section>` : '';
   plan.splice(0, plan.length, ...plan.filter(s => !staleIds.has(s.id)));
   return need + (plan.length ? `<section class="slot tn0">${secHead('🗓️', 'Sắp tới', { cnt: plan.length, key: 'so-plan', closed: plan.length > 5 })}${secIsOpen('so-plan', plan.length > 5) ? `<div class="slot-list list">${plan.map(row).join('')}</div>` : ''}</section>` : '')
     + months.map((mk, i) => { const l = ss.filter(s => (s.date || '').slice(0, 7) === mk).reverse(), key = edit ? 'so-m-' + (mk || 'none') : '';
@@ -1858,15 +1865,8 @@ let suAutoBusy = false;
 async function suAutoImport(code) {
   if (suAutoBusy || TEACH || !loaded || stale || deviceRole() !== 'parent') return;
   const c = classesList().find(x => x.code === code), k = CLS[code];
-  if (!c || (c.xlAuto && c.paidFix) || !isSuTV(kidName(c.kid), c.name) || !k || !k.loaded || k.stale || k.err || !k.st) return;
-  // Sửa một lần cho sổ đã nhập trước: tháng 10 đóng ngày 1/11 (không phải ngày nhập), tháng 11 chưa đóng (hết tháng mới đóng).
-  if (c.xlAuto) {
-    const p0 = paidOf(k.data), next = { ...p0 };
-    if (next['2026-10']) next['2026-10'] = { ...next['2026-10'], at: '2026-11-01' };
-    delete next['2026-11'];
-    if (JSON.stringify(next) !== JSON.stringify(p0)) clsPut(code, 'info', 'paid', next);
-    const { id, ...o } = c; put('paid', id, { ...o, paidFix: 1 }); return;
-  }
+  if (!c || (c.xlAuto && c.paidFix && c.fix1711) || !isSuTV(kidName(c.kid), c.name) || !k || !k.loaded || k.stale || k.err || !k.st) return;
+  if (c.xlAuto) return suFixes(code, c, k);
   suAutoBusy = true;
   try {
     const r = await fetch('data/so-tieng-viet-su.json', { cache: 'no-cache' }); if (!r.ok) return;
@@ -1876,8 +1876,44 @@ async function suAutoImport(code) {
     plan.months = plan.months.filter(m => m < '2026-11');
     if (!soImportApply(plan, plan.months.length > 0)) return;
     const { id, ...o } = classesList().find(x => x.code === code) || cur; put('paid', id, { ...o, xlAuto: 1, paidFix: 1 });
+    suFixes(code, { id, ...o, xlAuto: 1, paidFix: 1 }, k);
     if (plan.sessions.length) toast(`Đã nhập sổ ${classTitle(cur)}: ${plan.sessions.length} buổi, ${plan.tasks.length} bài tập${plan.months.length ? `, học phí ${plan.months.map(m => 'tháng ' + Number(m.slice(5))).join(', ')} đã đóng` : ''}.`);
   } catch (e) { console.error(e); } finally { suAutoBusy = false; }
+}
+// Các lần sửa một lần cho sổ Tiếng Việt của Su sau khi đã nhập file (mỗi lần một cờ trong sổ):
+//  paidFix: tháng 10 đóng ngày 1/11 (không phải ngày nhập), tháng 11 chưa đóng (hết tháng mới đóng).
+//  fix1711: buổi 10 (CN 15/11) đã học; T3 17/11 là buổi 11 (cô chưa ghi); các buổi kế hoạch sau đó xếp lần lượt vào các ngày có lịch
+//           từ CN 22/11; mọi buổi vào chủ nhật là Offline 2 tiếng, thứ 3 là Online 1 tiếng (sửa cả buổi cũ ghi lệch).
+function suFixes(code, c, k) {
+  const flags = {};
+  if (!c.paidFix) {
+    const p0 = paidOf(k.data), next = { ...p0 };
+    if (next['2026-10']) next['2026-10'] = { ...next['2026-10'], at: '2026-11-01' };
+    delete next['2026-11'];
+    if (JSON.stringify(next) !== JSON.stringify(p0)) clsPut(code, 'info', 'paid', next);
+    flags.paidFix = 1;
+  }
+  if (!c.fix1711) {
+    const raw = k.data.sessions || {}, all = sessList(k.data), used = new Set(all.map(x => x.date).filter(Boolean));
+    const setS = (id, patch) => { if (raw[id]) clsPut(code, 'sessions', id, { ...raw[id], ...patch }); };
+    if (raw['xl-10']?.state === 'plan' && raw['xl-10'].date === '2026-11-15') setS('xl-10', { state: 'done' });
+    // Buổi nhập từ file vào chủ nhật hay thứ 3 mà ghi lệch hình thức, thời lượng (ví dụ buổi 7, buổi 9): sửa theo lịch cố định.
+    for (const [id, x] of Object.entries(raw)) if (/^xl-\d+$/.test(id) && x && okDate(x.date)) {
+      const wd = parse(x.date).getDay(); if (!SU_TV_MODE[wd]) continue;
+      if (x.mode !== SU_TV_MODE[wd] || Number(x.mins) !== SU_TV_DUR[wd]) setS(id, { mode: SU_TV_MODE[wd], mins: SU_TV_DUR[wd], ...(id === 'xl-10' && x.state === 'plan' ? { state: 'done' } : {}) });
+    }
+    // Buổi kế hoạch chưa có ngày, theo thứ tự trong file: buổi đầu vào T3 17/11 (nếu ngày đó chưa có buổi nào), các buổi sau vào các ngày có lịch tiếp theo.
+    const todo = Object.entries(raw).filter(([id, x]) => /^xl-\d+$/.test(id) && x && x.state === 'plan' && !x.date).map(([id]) => id).sort((a, b) => Number(a.slice(3)) - Number(b.slice(3)));
+    let day = parse('2026-11-17');
+    for (const id of todo) {
+      while (used.has(key(day)) || ![0, 2].includes(day.getDay())) day = addDays(day, 1);
+      const dk = key(day), wd = day.getDay();
+      setS(id, { date: dk, mode: SU_TV_MODE[wd], mins: SU_TV_DUR[wd], ...(dk < key(today()) ? { state: 'done' } : {}) });
+      used.add(dk); day = addDays(day, 1);
+    }
+    flags.fix1711 = 1;
+  }
+  if (Object.keys(flags).length) { const { id, ...o } = classesList().find(x => x.code === code) || c; put('paid', id, { ...o, ...flags }); }
 }
 // Chi tiết một buổi (màn của cô, chỉ xem): mọi thứ cô đã ghi, bài giao trong buổi và kết quả bài tập buổi trước cô đã tick. Có nút Sửa.
 function sessView(id) {
@@ -1978,7 +2014,8 @@ function sessDefaults(d, dk) {
   const info = d.info.lop || {}, wd = parse(dk || key(today())).getDay(), ss = sessList(d).filter(x => x.state !== 'plan' && x.date), last = ss[ss.length - 1];
   const same = ss.filter(x => parse(x.date).getDay() === wd), slot = (info.days || []).find(x => Number(x.day) === wd);
   const slotMin = slot && slot.s && slot.e ? Math.max(0, toMin(slot.e) - toMin(slot.s)) : 0;
-  return { mins: durOf(info)[wd] || slotMin || Number(same[same.length - 1]?.mins) || Number(last?.mins) || 90, mode: (same.filter(x => x.mode).pop() || last)?.mode || 'off', sure: same.some(x => x.mode) };
+  const fixed = info.student && isSuTV(info.student, info.name) ? SU_TV_MODE[wd] : '';
+  return { mins: durOf(info)[wd] || slotMin || Number(same[same.length - 1]?.mins) || Number(last?.mins) || 90, mode: fixed || (same.filter(x => x.mode).pop() || last)?.mode || 'off', sure: !!fixed || same.some(x => x.mode) };
 }
 function sessForm(id, preDate) {
   if (id && !okId(id)) return;
@@ -3572,7 +3609,7 @@ document.addEventListener('click', e => {
     const kid = radioVal('clkid') || document.querySelector('#modal input[name=clkid]')?.value; if (!S.kids[kid]) return;
     const old = id ? S.paid[id] : null, cid = id || 'lop-' + uid();
     const book = $('#clbook').value.trim();
-    const data = { lop: 1, kid, name, ...(book ? { book } : {}), ...(old?.dur ? { dur: old.dur } : {}), ...(old?.hwPen ? { hwPen: old.hwPen } : {}), ...(old?.hwFrom ? { hwFrom: old.hwFrom } : {}), ...(old?.xlAuto ? { xlAuto: old.xlAuto } : {}), ...(old?.paidFix ? { paidFix: old.paidFix } : {}), teacher: $('#clteacher').value.trim(), code: old?.code || newFamilyCode(), at: old?.at || new Date().toISOString(),
+    const data = { lop: 1, kid, name, ...(book ? { book } : {}), ...(old?.dur ? { dur: old.dur } : {}), ...(old?.hwPen ? { hwPen: old.hwPen } : {}), ...(old?.hwFrom ? { hwFrom: old.hwFrom } : {}), ...(old?.xlAuto ? { xlAuto: old.xlAuto } : {}), ...(old?.paidFix ? { paidFix: old.paidFix } : {}), ...(old?.fix1711 ? { fix1711: old.fix1711 } : {}), teacher: $('#clteacher').value.trim(), code: old?.code || newFamilyCode(), at: old?.at || new Date().toISOString(),
       fee: Math.max(0, Math.round(Number($('#clfee').value) || 0)), feeOn: Math.max(0, Math.round(Number($('#clfeeon').value) || 0)), feeBy: $('#clfeeby').value === 'gio' ? 'gio' : 'buoi', feeOff: !$('#clfeeshow').checked };
     closeModal(); put('paid', cid, data);
     if (old) return toast('Đã lưu sổ học.');
