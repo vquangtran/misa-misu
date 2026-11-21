@@ -1114,11 +1114,13 @@ function taskRow(t, showKid, mode = '') {
   const big = mode === 'big', bare = big || mode === 'mini';
   const nd = t.steps.filter(x => x.done).length, over = !t.done && t.due && daysTo(t.due) < 0, kind = TASK_KINDS.find(x => x[0] === t.kind) || TASK_KINDS[0];
   const meta = [t.subj ? `${subjDot(t.subj)}${esc(t.subj)}` : '', t.done ? `xong ${t.doneAt ? dm(parse(t.doneAt)) : ''}` : t.due ? `<span class="${over ? 'late' : ''}">${over ? '' : 'hạn '}${esc(dueLabel(t.due))}</span>` : 'chưa có hạn',
-    t.steps.length ? `${nd}/${t.steps.length} bước` : '', showKid ? esc(kidName(t.kid)) : ''].filter(Boolean).join(' · ');
+    t.steps.length ? `${nd}/${t.steps.length} bước` : '', showKid ? esc(kidName(t.kid)) : '', t.by ? 'con tự thêm' : ''].filter(Boolean).join(' · ');
+  // Máy của con (RO): chỉ bài do chính con thêm (t.by) mới có nút sửa.
+  const acts = bare ? '' : RO ? (t.by && t.by === t.kid ? `<div class="acts"><button class="edit" data-act="task-form" data-id="${t.id}" data-lock="1" aria-label="Sửa: ${esc(t.title)}">${CHEV}</button></div>` : '') : `<div class="acts">${editBtn('task-form', t.id, t.title)}</div>`;
   const steps = !t.done && t.steps.length ? `<div class="steps">${t.steps.map((x, i) => `<button class="step ${x.done ? 'on' : ''}" data-act="task-step" data-id="${t.id}" data-i="${i}" aria-pressed="${!!x.done}">${esc(x.t)}</button>`).join('')}</div>` : '';
   return `<div class="${big ? 'big-item task' : 'item task'} ${t.done ? 'done' : ''}"><button class="check ${t.done ? 'on' : ''}" data-act="task-done" data-id="${t.id}" aria-pressed="${!!t.done}" aria-label="${t.done ? 'Chưa xong' : 'Xong'}: ${esc(t.title)}">✓</button>
     <div class="txt"><div class="t">${kind[2]} ${esc(t.title)}</div><div class="s">${meta}</div>${t.notes && !bare ? `<div class="s snip">${esc(String(t.notes).slice(0, 120))}</div>` : ''}${steps}</div>
-    ${bare || RO ? '' : `<div class="acts">${editBtn('task-form', t.id, t.title)}</div>`}</div>`;
+    ${acts}</div>`;
 }
 function tasksView(ks) {
   const ids = ks.map(k => k.id), multi = ks.length > 1, tk = key(today()), kidAttr = `data-kid="${multi ? '' : ids[0]}"`;
@@ -1129,6 +1131,8 @@ function tasksView(ks) {
     const list = done.sort((a, b) => String(b.doneAt || '').localeCompare(String(a.doneAt || ''))).slice(0, UI.histAll ? 500 : 40);
     return h + `<div class="slot-list list">${list.map(t => taskRow(t, multi)).join('')}</div>${done.length > list.length ? `<div class="row"><button class="btn quiet sm" data-act="hist-all">Xem thêm ${done.length - list.length} bài</button></div>` : ''}`;
   }
+  // Máy của con: con tự thêm bài cần làm cho mình (bài cô giao, việc cần hoàn thành).
+  if (RO && !multi) h += `<button class="slot-blank" data-act="task-form" data-kid="${ids[0]}" data-lock="1"><span>Cô giao bài gì? Bấm để tự thêm bài cần làm</span>${PLUS}</button>`;
   if (!open.length) return h + (RO ? `<p class="foot-note">Con không còn bài nào phải làm 🎉</p>` : blankAdd('Ghi bài cô giao: môn gì, hạn nộp ngày nào', 'task-form', kidAttr) + `<p class="foot-note">Không còn bài nào phải làm. App xếp bài theo hạn nộp và nhắc ở màn Hôm nay.</p>`);
   const groups = [['Quá hạn', t => t.due && t.due < tk, 's-late'], ['Hôm nay', t => t.due === tk, 'tn3'], ['Ngày mai', t => t.due && daysTo(t.due) === 1, 'tn0'],
     ['Tuần này', t => t.due && daysTo(t.due) > 1 && t.due <= key(addDays(weekStart(today()), 6)), 'tn4'], ['Sau đó', t => t.due && t.due > key(addDays(weekStart(today()), 6)), ''], ['Chưa có hạn', t => !t.due, '']];
@@ -1142,15 +1146,16 @@ function tasksView(ks) {
   }
   return h + `</div>`;
 }
-function taskForm(id, kidPre) {
+// lock: mở từ màn của con. Bài luôn là của con đó (không chọn con khác), bài mới được ghi là con tự thêm (by).
+function taskForm(id, kidPre, lock) {
   const t = id ? S.tasks[id] : null, kids = kidsList();
   const kid = t?.kid || (S.kids[kidPre] ? kidPre : S.kids[UI.tkbKid] ? UI.tkbKid : kids[0]?.id); if (!kid) return;
   const subs = [...new Set(kids.flatMap(k => tkbOf(k.id) ? tkbStats(tkbOf(k.id)).subjects.map(x => x[0]) : []))];
   const kind = t?.kind || 'bt';
-  openModal(`<h2>${t ? 'Sửa bài tập' : 'Thêm bài tập'}</h2>
+  openModal(`<h2>${t ? 'Sửa bài tập' : lock ? 'Thêm bài cần làm' : 'Thêm bài tập'}</h2>
   ${titleCard('ttitle', t?.title, 'Bài gì?', { max: 80 })}
   <div class="fg">
-    ${kids.length > 1 ? kidRow('Con', 'tkid', 'radio', [kid]) : `<input type="hidden" name="tkid" value="${kid}">`}
+    ${kids.length > 1 && !lock ? kidRow('Con', 'tkid', 'radio', [kid]) : `<input type="hidden" name="tkid" value="${kid}">`}${lock && !t ? `<input type="hidden" id="tby" value="${kid}">` : ''}
     ${frow('Loại', pillSel('tkind', TASK_KINDS.map(([v, l]) => [v, l]), kind), { id: 'tkind' })}
     <div class="fr col">${frow('Môn', `<input id="tsubj" class="pillin txt" list="tsubj-list" maxlength="24" value="${esc(t?.subj || '')}" placeholder="Toán">`, { id: 'tsubj', cls: 'in' })}
       <datalist id="tsubj-list">${[...new Set([...subs, ...SUBJECTS])].map(x => `<option value="${esc(x)}">`).join('')}</datalist>
@@ -1782,12 +1787,17 @@ const kidLink = id => inviteLink() + '&con=' + encodeURIComponent(id);
 // Việc máy của con được làm: đánh dấu việc, bài tập của chính mình, gập mở các buổi, và xin vào phần bố mẹ.
 // Thêm các nút chỉ để xem ở mục Học tập: đổi tab, chọn ngày, chọn thứ, mở nhóm đã qua.
 const KID_ACTS = new Set(['close', 'tick', 'step', 'slot-toggle', 'task-done', 'task-step', 'role-kid', 'role-kid-ok', 'role-parent', 'pin-ok',
-  'tkb-go', 'learn-tab', 'tkb-day', 'ag-day', 'ag-week', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel', 'km-acct']);
+  'tkb-go', 'learn-tab', 'tkb-day', 'ag-day', 'ag-week', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel', 'km-acct', 'task-form', 'task-save', 'task-del', 'task-subj', 'task-due']);
 function kidMay(a, b) {
   const r = deviceRole(); if (r === 'parent') return true;
   if (!KID_ACTS.has(a)) return false;
   if (a === 'tick' || a === 'step') return b.dataset.kid === r;
   if (a === 'task-done' || a === 'task-step') return S.tasks[b.dataset.id]?.kid === r;
+  // Bài tập: con tự thêm bài cho chính mình; chỉ sửa, xoá được bài do chính con thêm (bài bố mẹ ghi thì chỉ tick).
+  if (a === 'task-form' || a === 'task-save' || a === 'task-del') {
+    const t = S.tasks[b.dataset.id];
+    return b.dataset.id ? !!t && t.kid === r && t.by === r : a === 'task-save' || (a === 'task-form' && b.dataset.kid === r);
+  }
   if (a === 'role-kid' || a === 'role-kid-ok') return r === 'ask';
   // Thành tích: con chỉ báo cho chính mình và chỉ huỷ mục của mình đang chờ duyệt. Duyệt là việc của bố mẹ.
   if (a === 'merit-open' || a === 'merit-pick' || a === 'merit-ask') return b.dataset.kid === r;
@@ -2490,7 +2500,7 @@ document.addEventListener('click', e => {
   }
   if (a === 'ag-day') { UI.agDate = b.dataset.d ? parse(b.dataset.d) : null; return render(); }
   if (a === 'ag-week') { UI.agDate = addDays(UI.agDate || today(), Number(b.dataset.n)); return render(); }
-  if (a === 'task-form') return taskForm(id, b.dataset.kid);
+  if (a === 'task-form') return taskForm(id, b.dataset.kid, !!b.dataset.lock);
   if (a === 'task-subj') {
     $('#tsubj').value = b.dataset.v;
     const nx = nextSubjectDay(radioVal('tkid') || document.querySelector('#modal input[name=tkid]')?.value, b.dataset.v);
@@ -2507,11 +2517,14 @@ document.addEventListener('click', e => {
   }
   if (a === 'task-save') {
     const title = $('#ttitle').value.trim(); if (!title) { $('#ttitle').focus(); return toast('Nhập tên bài nhé.'); }
-    const kid = radioVal('tkid') || document.querySelector('#modal input[name=tkid]')?.value; if (!S.kids[kid]) return;
+    // Máy của con: bài luôn là của chính con, dù form gửi lên gì.
+    const role = deviceRole(), kid = role !== 'parent' ? role : radioVal('tkid') || document.querySelector('#modal input[name=tkid]')?.value; if (!S.kids[kid]) return;
     const old = id ? S.tasks[id] : null, prev = old?.steps || [];
+    const by = old ? old.by : role !== 'parent' ? role : $('#tby')?.value;
     const steps = $('#tsteps').value.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 15).map(x => ({ t: x, done: !!prev.find(p => p.t === x)?.done }));
     const data = { kid, title, kind: $('#tkind').value || 'bt', subj: $('#tsubj').value.trim(), due: $('#tdue').value || '', notes: $('#tnotes').value.trim(), steps,
       done: !!old?.done, doneAt: old?.doneAt || '' };
+    if (by && S.kids[by]) data.by = by;
     closeModal(); put('tasks', id || uid(), data); UI.learn = UI.view === 'lich-hoc' ? 'bai-tap' : UI.learn;
     return toast(data.due ? `Đã lưu. Hạn nộp: ${dueLabel(data.due)}.` : 'Đã lưu bài tập.');
   }

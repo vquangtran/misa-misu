@@ -19,7 +19,7 @@
 //   timetables thời khoá biểu  id = kidId, { cls, year, days: [1..6], lunch, rows: [{ s, e, d: { [thứ]: môn } }] }
 //   lessons  học thêm       { kid, day: 0..6, s: "HH:MM", e: "HH:MM", name, at, home, go, back }
 //   stays    các con ở đâu  id = thứ "0".."6", { day, night }
-//   tasks    bài tập        { kid, title, kind: bt|on|da, subj, due, notes, steps: [{ t, done }], done, doneAt }
+//   tasks    bài tập        { kid, title, kind: bt|on|da, subj, due, notes, steps: [{ t, done }], done, doneAt, by: mã của con nếu con tự thêm từ màn của con }
 //   goals    mục tiêu tiết kiệm { kid, name, icon, price (đồng), order, done, doneAt }
 //   events   mốc năm học    { name, icon, kind: exam|holiday|meeting|event, from, to, kids: [] = cả nhà }
 
