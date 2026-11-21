@@ -1421,7 +1421,7 @@ const classInfo = c => ({ name: c.name, book: String(c.book || '').trim(), teach
 function openClass(code) {
   if (CLS[code]) return CLS[code];
   const c = CLS[code] = { st: null, data: emptySo(), loaded: false, stale: false, err: null };
-  const onData = (d, meta) => { if (CLS[code] !== c) return; c.data = d; c.loaded = true; c.stale = !!meta.fromCache; render(); classHeal(code); hwPenSync(code); };
+  const onData = (d, meta) => { if (CLS[code] !== c) return; c.data = d; c.loaded = true; c.stale = !!meta.fromCache; render(); classHeal(code); hwPenSync(code); suAutoImport(code); };
   const fail = err => { if (CLS[code] !== c) return; console.error(err); c.err = err; c.loaded = true; render(); };
   (firebaseConfig ? firebaseClass(firebaseConfig, 'lop-' + code, onData, fail) : Promise.resolve(localClass('lop-' + code, onData)))
     .then(st => { if (CLS[code] !== c) return; c.st = st; st.start(); }).catch(fail);
@@ -1432,7 +1432,7 @@ function openClass(code) {
 function syncClasses() {
   if (TEACH) return;
   const want = new Set(classesList().map(c => c.code));
-  for (const code of want) { openClass(code); classHeal(code); hwPenSync(code); }
+  for (const code of want) { openClass(code); classHeal(code); hwPenSync(code); suAutoImport(code); }
   for (const code of Object.keys(CLS)) if (!want.has(code)) { CLS[code].st?.stop(); delete CLS[code]; }
 }
 // Tên môn, tên cô, tên con và lịch học trong sổ là do nhà ghi. Máy của bố mẹ thấy lệch (đổi tên con, đổi lịch học thêm) thì ghi lại.
@@ -1803,12 +1803,8 @@ function soImportPick(clsId) {
     let parsed = null;
     try { parsed = parseSoRows(await readXlsx(f)); } catch (e) { console.error(e); }
     if (!parsed || !parsed.sessions.length) return toast('Không đọc được buổi học nào trong file này. File cần có hàng tiêu đề với cột Buổi và Ngày học.');
-    const d = soOf(code), have = sessList(d), dates = new Set(have.map(x => x.date).filter(Boolean));
-    const fresh = parsed.sessions.filter(x => !d.sessions[x.id] && !(x.date && dates.has(x.date))), keep = new Set(fresh.map(x => x.id));
-    const tasks = parsed.tasks.filter(t => !d.tasks[t.id] && keep.has(t.data.session));
-    const c = clsId ? classesList().find(x => x.id === clsId) : null, mk = key(today()).slice(0, 7);
-    const months = c && !feeOf(c).off ? [...new Set(fresh.filter(x => x.data.state === 'done' && x.date.slice(0, 7) < mk).map(x => x.date.slice(0, 7)))].sort() : [];
-    SO_IMPORT = { code, clsId, sessions: fresh, tasks, months };
+    SO_IMPORT = soImportPlan(code, clsId, parsed);
+    const { sessions: fresh, tasks, months } = SO_IMPORT;
     const done = fresh.filter(x => x.data.state === 'done').length;
     openModal(`<h2>Nhập từ file Excel</h2>
     <p class="muted small lead">${esc(f.name)}</p>
@@ -1820,10 +1816,25 @@ function soImportPick(clsId) {
   };
   inp.click();
 }
+// Những gì sẽ nhập: bỏ buổi đã có trong sổ (cùng mã hoặc cùng ngày) và bài của các buổi đó; các tháng trước tháng này có buổi đã học (để đánh dấu đã đóng học phí).
+function soImportPlan(code, clsId, parsed) {
+  const d = soOf(code), dates = new Set(sessList(d).map(x => x.date).filter(Boolean));
+  const fresh = parsed.sessions.filter(x => !d.sessions[x.id] && !(x.date && dates.has(x.date))), keep = new Set(fresh.map(x => x.id));
+  const tasks = parsed.tasks.filter(t => !d.tasks[t.id] && keep.has(t.data.session));
+  const c = clsId ? classesList().find(x => x.id === clsId) : null, mk = key(today()).slice(0, 7);
+  const months = c && !feeOf(c).off ? [...new Set(fresh.filter(x => x.data.state === 'done' && x.date.slice(0, 7) < mk).map(x => x.date.slice(0, 7)))].sort() : [];
+  return { code, clsId, sessions: fresh, tasks, months };
+}
 function soImportGo() {
   const x = SO_IMPORT; if (!x) return; SO_IMPORT = null;
   const paid = x.months.length && $('#so-imp-paid')?.checked;
-  for (const s of x.sessions) if (!clsPut(x.code, 'sessions', s.id, s.data)) return;
+  if (!soImportApply(x, paid)) return;
+  closeModal();
+  if (x.clsId) classSheet(x.clsId);
+  toast(`Đã nhập ${x.sessions.length} buổi và ${x.tasks.length} bài tập vào sổ.${paid ? ` Đã đánh dấu đóng học phí ${x.months.map(m => 'tháng ' + Number(m.slice(5))).join(', ')}.` : ''}`);
+}
+function soImportApply(x, paid) {
+  for (const s of x.sessions) if (!clsPut(x.code, 'sessions', s.id, s.data)) return false;
   for (const t of x.tasks) clsPut(x.code, 'tasks', t.id, t.data);
   // Bài cũ trong file đã qua hạn: chỉ hiện ở phần của con các bài có hạn từ hôm nay trở đi.
   const cx = x.clsId && classesList().find(y => y.id === x.clsId);
@@ -1833,9 +1844,26 @@ function soImportGo() {
     for (const mk of x.months) if (!next[mk]) next[mk] = { at: key(today()), amount: fees.find(r => r.mk === mk)?.amount || 0 };
     clsPut(x.code, 'info', 'paid', next);
   }
-  closeModal();
-  if (x.clsId) classSheet(x.clsId);
-  toast(`Đã nhập ${x.sessions.length} buổi và ${x.tasks.length} bài tập vào sổ.${paid ? ` Đã đánh dấu đóng học phí ${x.months.map(m => 'tháng ' + Number(m.slice(5))).join(', ')}.` : ''}`);
+  return true;
+}
+// Sổ Tiếng Việt của Su: tự nhập một lần file theo dõi tiến độ cô Thảo gửi (data/so-tieng-viet-su.json, chép từ file Excel) trên máy của bố mẹ,
+// khi sổ đã mở xong từ máy chủ. Học phí các tháng trước tháng 11/2026 đã đóng, tháng 11 chưa. Nhập xong ghi xlAuto vào sổ để không nhập lại.
+let suAutoBusy = false;
+async function suAutoImport(code) {
+  if (suAutoBusy || TEACH || !loaded || stale || deviceRole() !== 'parent') return;
+  const c = classesList().find(x => x.code === code), k = CLS[code];
+  if (!c || c.xlAuto || !isSuTV(kidName(c.kid), c.name) || !k || !k.loaded || k.stale || k.err || !k.st) return;
+  suAutoBusy = true;
+  try {
+    const r = await fetch('data/so-tieng-viet-su.json', { cache: 'no-cache' }); if (!r.ok) return;
+    const parsed = parseSoRows((await r.json()).rows || []); if (!parsed) return;
+    const cur = classesList().find(x => x.code === code); if (!cur || cur.xlAuto || CLS[code] !== k) return;
+    const plan = soImportPlan(code, cur.id, parsed);
+    plan.months = plan.months.filter(m => m < '2026-11');
+    if (!soImportApply(plan, plan.months.length > 0)) return;
+    const { id, ...o } = classesList().find(x => x.code === code) || cur; put('paid', id, { ...o, xlAuto: 1 });
+    if (plan.sessions.length) toast(`Đã nhập sổ ${classTitle(cur)}: ${plan.sessions.length} buổi, ${plan.tasks.length} bài tập${plan.months.length ? `, học phí ${plan.months.map(m => 'tháng ' + Number(m.slice(5))).join(', ')} đã đóng` : ''}.`);
+  } catch (e) { console.error(e); } finally { suAutoBusy = false; }
 }
 // Chi tiết một buổi (màn của cô, chỉ xem): mọi thứ cô đã ghi, bài giao trong buổi và kết quả bài tập buổi trước cô đã tick. Có nút Sửa.
 function sessView(id) {
@@ -3524,7 +3552,7 @@ document.addEventListener('click', e => {
     const kid = radioVal('clkid') || document.querySelector('#modal input[name=clkid]')?.value; if (!S.kids[kid]) return;
     const old = id ? S.paid[id] : null, cid = id || 'lop-' + uid();
     const book = $('#clbook').value.trim();
-    const data = { lop: 1, kid, name, ...(book ? { book } : {}), ...(old?.dur ? { dur: old.dur } : {}), ...(old?.hwPen ? { hwPen: old.hwPen } : {}), ...(old?.hwFrom ? { hwFrom: old.hwFrom } : {}), teacher: $('#clteacher').value.trim(), code: old?.code || newFamilyCode(), at: old?.at || new Date().toISOString(),
+    const data = { lop: 1, kid, name, ...(book ? { book } : {}), ...(old?.dur ? { dur: old.dur } : {}), ...(old?.hwPen ? { hwPen: old.hwPen } : {}), ...(old?.hwFrom ? { hwFrom: old.hwFrom } : {}), ...(old?.xlAuto ? { xlAuto: old.xlAuto } : {}), teacher: $('#clteacher').value.trim(), code: old?.code || newFamilyCode(), at: old?.at || new Date().toISOString(),
       fee: Math.max(0, Math.round(Number($('#clfee').value) || 0)), feeOn: Math.max(0, Math.round(Number($('#clfeeon').value) || 0)), feeBy: $('#clfeeby').value === 'gio' ? 'gio' : 'buoi', feeOff: !$('#clfeeshow').checked };
     closeModal(); put('paid', cid, data);
     if (old) return toast('Đã lưu sổ học.');
