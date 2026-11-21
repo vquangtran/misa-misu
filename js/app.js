@@ -1884,7 +1884,10 @@ function drawTeacher() {
   const km = $('#km'); km.hidden = true; km.innerHTML = '';
   $('#shell').hidden = false;
   const c = CLS[TEACH], d = soOf(TEACH), info = d.info.lop;
-  const sync = c?.loaded && (c.stale || !navigator.onLine) && c.st?.kind !== 'local' ? '<div class="topbar"><span class="sync wait"><i></i>Đang offline, sẽ đồng bộ sau</span></div>' : '';
+  // Lỗi từ máy chủ (ví dụ bị từ chối quyền) thì nói rõ, khác với mất mạng thật: dễ biết vì sao sổ trống.
+  const errTxt = c?.err ? (String(c.err.code || '').includes('permission') ? 'Máy chủ không cho đọc sổ này. Nhờ phụ huynh gửi lại link.' : `Chưa kết nối được máy chủ${c.err.code ? ` (${c.err.code})` : ''}. Tải lại trang thử nhé.`) : '';
+  const sync = errTxt ? `<div class="topbar"><span class="sync wait"><i></i>${esc(errTxt)}</span></div>`
+    : c?.loaded && (c.stale || !navigator.onLine) && c.st?.kind !== 'local' ? `<div class="topbar"><span class="sync wait"><i></i>${navigator.onLine ? 'Đang kết nối máy chủ, chưa có dữ liệu mới nhất' : 'Đang offline, sẽ đồng bộ sau'}</span></div>` : '';
   const shell = (nav, body) => { $('#rail').innerHTML = brand() + nav(''); $('#tabs').innerHTML = nav('tab'); $('#tabs').hidden = !info; $('#app').innerHTML = sync + body; };
   const head = (h1, add) => `<div class="tbar"><div class="kid-tabs"><span class="kid-tab on">${icon('📒')}<b>${esc(info?.student || 'Sổ học')}</b></span></div>${add ? pillBar(add) : ''}</div><div class="day-head"><h1>${h1}</h1></div>`;
   if (!c || !c.loaded) return shell(() => '', `${head('Đang mở sổ học…')}<div class="card empty"><div class="big">⏳</div><h2>Đang mở sổ học…</h2></div>`);
