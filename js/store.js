@@ -7,13 +7,14 @@
 //                             dayBonus (đồng, thưởng mỗi ngày đủ việc), dayFrom: thứ Hai của tuần bắt đầu thưởng theo ngày, dbLog: như wbLog, tableVer: bản bảng mẫu đã xem }
 //   chores   việc nhà       { name, icon, money (đồng; kind must có money = 0 là việc bắt buộc mỗi ngày, quyết định thưởng đủ tuần), kind: must|extra|fun, kids: [kidId], days: [0..6], order,
 //                             since: ngày thêm việc, weeklyFrom: thứ Hai của tuần việc bắt đầu là việc bắt buộc, claim: ai làm trước thì tính, cùng làm thì chia đều tiền }
-//   rewards  bảng giá       { name, icon, kind: merit|penalty|fee|gift (merit: thành tích ở trường, con tự báo, bố mẹ duyệt), price (đồng; fee là đồng/giờ), all: mất hết tiền, week: mất hết tiền được thưởng trong tuần,
+//   rewards  bảng giá       { name, icon, kind: merit|penalty|fee|gift (merit: thành tích học tập ở trường và ở lớp học thêm, con tự báo, bố mẹ duyệt), price (đồng; fee là đồng/giờ), all: mất hết tiền, week: mất hết tiền được thưởng trong tuần,
 //                             again (đồng): mức phạt từ lần thứ hai trong cùng tuần; mỗi lần phạt ghi ledger.rid = mã mục để đếm }
 //   done     việc đã xong   id = "YYYY-MM-DD", { [kidId]: { [choreId]: số tiền nhận được (0 = chưa) } }
 //   ledger   sổ tài khoản   { kid, amount (đồng), kind: bonus|penalty|fee|spend|reward, note, icon, at, skip: ngày được miễn việc, wipe: thứ Hai của tuần bị phạt mất tiền thưởng,
 //                             pending: true = thành tích con báo đang chờ bố mẹ duyệt (amount = 0, số tiền sẽ cộng ở ask); duyệt xong thì amount = ask, có okAt }
 //   paid     (cũ, không dùng nữa) tiền tiêu vặt đã trả theo tuần
-//            Riêng id "caidat" là cài đặt của gia đình: { pin: mã PIN bố mẹ đã băm, merit: 1 = đã thêm sẵn các mục thành tích, hw: 1 = đã thêm sẵn hai việc BTVN và mục phạt Thiếu BTVN, bottle: 1 = đã gắn "(mai đi học)" cho mục con tráng bình nước }. Có PIN thì mỗi máy phải chọn là máy của bố mẹ hay của một con.
+//            Riêng id "caidat" là cài đặt của gia đình: { pin: mã PIN bố mẹ đã băm, merit: 1 = đã thêm sẵn các mục thành tích, hw: 1 = đã thêm sẵn hai việc BTVN và mục phạt Thiếu BTVN, bottle: 1 = đã gắn "(mai đi học)" cho mục con tráng bình nước,
+//                             nodone: 1 = đã bỏ mục con "Việc ngày hôm nay đã hoàn thành" }. Có PIN thì mỗi máy phải chọn là máy của bố mẹ hay của một con.
 //   Dữ liệu cũ tính bằng sao (chores.stars, rewards.cost, ledger.delta, done < 100) được quy đổi 1 sao = 5.000đ.
 //   timetables thời khoá biểu  id = kidId, { cls, year, days: [1..6], lunch, rows: [{ s, e, d: { [thứ]: môn } }] }
 //   lessons  học thêm       { kid, day: 0..6, s: "HH:MM", e: "HH:MM", name, at, home, go, back }
