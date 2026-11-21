@@ -1449,7 +1449,7 @@ const cleanFiles = l => (Array.isArray(l) ? l : []).filter(f => f && okId(f.id))
 const cleanSteps = l => (Array.isArray(l) ? l : []).filter(x => x && typeof x.t === 'string' && x.t).slice(0, 15).map(x => ({ t: x.t.slice(0, 200), done: !!x.done }));
 // Buổi học xếp theo ngày, buổi chưa có ngày (kế hoạch) nằm cuối; số buổi đếm theo thứ tự đó.
 function sessList(d) {
-  return Object.entries(d.sessions || {}).filter(([id, s]) => okId(id) && s).map(([id, s]) => ({ id, ...s, topic: String(s.topic || ''), date: okDate(s.date), files: cleanFiles(s.files) })).filter(s => s.topic || s.date)
+  return Object.entries(d.sessions || {}).filter(([id, s]) => okId(id) && s).map(([id, s]) => ({ id, ...s, topic: String(s.topic || ''), date: okDate(s.date), files: cleanFiles(s.files) })).filter(s => s.topic || s.date || s.content)
     .sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999') || String(a.at || '').localeCompare(String(b.at || ''))).map((s, i) => ({ ...s, no: i + 1 }));
 }
 const hwList = d => Object.entries(d.tasks || {}).filter(([id, t]) => okId(id) && t).map(([id, t]) => ({ id, ...t, title: String(t.title || ''), due: okDate(t.due), doneAt: okDate(t.doneAt), gotAt: okDate(t.gotAt),
@@ -1458,7 +1458,10 @@ const hwList = d => Object.entries(d.tasks || {}).filter(([id, t]) => okId(id) &
 const SESS_MODES = [['', 'Chưa ghi'], ['off', 'Offline'], ['on', 'Online']];
 const dateTxt = dk => { const d = parse(dk); return `${WDN(d.getDay())} ${dm(d)}`; };
 const monthTxt = mk => mk ? `Tháng ${Number(mk.slice(5, 7))}, ${mk.slice(0, 4)}` : 'Chưa có ngày';
-const sessMeta = s => [s.date ? dateTxt(s.date) : 'chưa có ngày', (SESS_MODES.find(x => x[0] === s.mode && x[0]) || [])[1], Number(s.mins) ? durTxt(Number(s.mins)) : ''].filter(Boolean).join(' · ');
+// Tên buổi học lấy theo ngày học, cô không phải gõ tên. Buổi ghi từ bản trước có tên riêng (topic) thì vẫn giữ tên đó.
+const sessDayTitle = dk => dk ? `Buổi học ngày ${dm(parse(dk))}/${dk.slice(0, 4)}` : 'Buổi học chưa có ngày';
+const sessName = s => s.topic || (s.date ? dateTxt(s.date) : 'Chưa có ngày');
+const sessMeta = s => [s.topic ? (s.date ? dateTxt(s.date) : 'chưa có ngày') : '', (SESS_MODES.find(x => x[0] === s.mode && x[0]) || [])[1], Number(s.mins) ? durTxt(Number(s.mins)) : ''].filter(Boolean).join(' · ');
 // Bài cô giao đang ở bước nào: cô đã nhận (kèm điểm), con báo đã làm xong, quá hạn, hay mới giao.
 function hwState(t) {
   if (t.got) return { k: 'got', txt: `cô đã nhận${t.score ? ' · ' + t.score : ''}` };
@@ -1580,7 +1583,7 @@ function sessRow(code, s, hws, mode) {
   const edit = mode === 'edit';
   const body = [s.content ? `<div class="s so-p">${esc(s.content)}</div>` : '', s.src ? `<div class="s"><b>Sách, nguồn:</b> ${esc(s.src)}</div>` : '',
     s.note ? `<div class="s so-p cmt"><b>Nhận xét:</b> ${esc(s.note)}</div>` : '', s.next ? `<div class="s"><b>Buổi sau:</b> ${esc(s.next)}</div>` : ''].join('');
-  return `<div class="item sess ${s.state === 'plan' ? 'plan' : ''}"><span class="ico">${s.state === 'plan' ? '🗓️' : '📖'}</span><div class="txt"><div class="t">Buổi ${s.no} · ${esc(s.topic || 'Chưa ghi nội dung')}</div><div class="s">${esc(sessMeta(s))}</div>
+  return `<div class="item sess ${s.state === 'plan' ? 'plan' : ''}"><span class="ico">${s.state === 'plan' ? '🗓️' : '📖'}</span><div class="txt"><div class="t">Buổi ${s.no} · ${esc(sessName(s))}</div><div class="s">${esc(sessMeta(s))}</div>
     ${body}${hws.map(t => hwLine(code, t, mode)).join('')}${attView(code, s.files, s.links)}</div>
     ${edit || s.state === 'plan' ? `<div class="acts">${s.state === 'plan' ? '<span class="badge wait">Chưa học</span>' : ''}${edit ? `<button class="edit" data-act="sess-form" data-id="${s.id}" aria-label="Sửa buổi ${s.no}">${CHEV}</button>` : ''}</div>` : ''}</div>`;
 }
@@ -1719,7 +1722,7 @@ function sessForm(id) {
   const sameDay = ss.filter(x => x.state !== 'plan' && x.date && x.mode && parse(x.date).getDay() === today().getDay()).pop();
   attStart(TEACH, s?.files);
   openModal(`<h2>${s ? `Buổi ${ss.find(x => x.id === id)?.no || ''}` : 'Ghi buổi học'}</h2>
-  ${longTitle('stopic', s?.topic, 'Hôm nay học gì?')}
+  <div class="fg f-title"><div class="ft"><div class="hw-title" id="stitle">${esc(s?.topic || sessDayTitle(s ? okDate(s.date) : key(today())))}</div></div></div>
   <div class="fg">
     ${frow('Ngày học', `<input id="sdate" class="pillin num" type="date" value="${esc(s ? okDate(s.date) : key(today()))}">`, { id: 'sdate' })}
     ${frow('Trạng thái', pillSel('sstate', [['done', 'Đã học'], ['plan', 'Chưa học (kế hoạch)']], s?.state || 'done'), { id: 'sstate' })}
@@ -1736,7 +1739,7 @@ function sessForm(id) {
     <div class="list menu">${hws.map(t => `<button class="item nav" data-act="sess-save" data-id="${id}" data-hw="${t.id}"><span class="ico">📝</span><span class="txt"><span class="t">${esc(t.title)}</span><span class="s">${esc(hwState(t).txt)}</span></span>${CHEV}</button>`).join('')}
       <button class="item nav" data-act="sess-save" data-id="${id || ''}" data-hw="new"><span class="ico">📝</span><span class="txt"><span class="t">${hws.length ? 'Giao thêm bài cho buổi này' : 'Giao bài tập cho buổi này'}</span></span>${CHEV}</button></div></div></div>
   ${formFoot(s ? 'sess-del' : '', id, 'sess-save')}`);
-  teachFocus('stopic', !s);
+  $('#modal .dialog')?.focus();
 }
 function hwForm(id, sessPre) {
   if (id && !okId(id)) return;
@@ -3175,11 +3178,11 @@ document.addEventListener('click', e => {
   if (a === 'att-del') { if (ATT) { ATT.files = ATT.files.filter(f => f.id !== b.dataset.fid); attDraw(); } return; }
   if (a === 'file-open') return okId(b.dataset.fid) && fileOpen(b.dataset.code, { id: b.dataset.fid, n: Math.min(20, Number(b.dataset.n) || 1), name: b.dataset.name || 'file', type: b.dataset.type || '', size: Number(b.dataset.size) || 0 });
   if (a === 'sess-save') {
-    const topic = $('#stopic').value.replace(/\s+/g, ' ').trim(), state = $('#sstate').value === 'plan' ? 'plan' : 'done', date = $('#sdate').value || '';
-    if (!topic) { $('#stopic').focus(); return toast('Ghi buổi này học gì nhé.'); }
+    const state = $('#sstate').value === 'plan' ? 'plan' : 'done', date = $('#sdate').value || '';
+    if (!date && !$('#scontent').value.trim()) return toast('Chọn ngày học nhé.');
     if (state === 'done' && !date) return toast('Chọn ngày học nhé. Buổi chưa có ngày thì để Chưa học (kế hoạch).');
     if (ATT?.busy) return toast('Đợi file tải lên xong đã.');
-    const old = id ? soOf(TEACH).sessions[id] : null, sid = id || uid();
+    const old = id ? soOf(TEACH).sessions[id] : null, sid = id || uid(), topic = String(old?.topic || '');
     const data = { date, state, mode: $('#smode').value, mins: Math.max(0, Math.round(Number($('#smins').value) || 0)), topic, content: $('#scontent').value.trim(), src: $('#ssrc').value.trim(),
       note: $('#snote').value.trim(), next: $('#snext').value.trim(), links: linkList($('#slinks').value), files: attTake(old?.files), at: old?.at || new Date().toISOString() };
     if (!clsPut(TEACH, 'sessions', sid, data)) return;
@@ -3693,6 +3696,8 @@ document.addEventListener('change', e => {
 document.addEventListener('input', e => {
   if (e.target.classList?.contains('ft-long')) growTitle(e.target);
   if (['pzoom', 'px', 'py'].includes(e.target.id)) photoRender();
+  // Form buổi học: tên buổi đổi theo ngày học đang chọn.
+  if (e.target.id === 'sdate' && $('#stitle') && !soOf(TEACH).sessions[$('#modal [data-act="sess-save"]')?.dataset.id || '']?.topic) $('#stitle').textContent = sessDayTitle(e.target.value);
   // Việc mới: biểu tượng tự đổi theo tên đang gõ, cho tới khi bố mẹ tự chọn một hình.
   if (e.target.id === 'cname' && e.target.dataset.new) {
     const g = guessIcon(e.target.value), r = g !== '✅' && [...document.querySelectorAll('#modal input[name=cico]')].find(x => x.value === g);
