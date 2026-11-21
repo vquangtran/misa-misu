@@ -125,17 +125,17 @@ const SUBJECTS = ['Toán', 'Tiếng Việt', 'Ngữ văn', 'Tiếng Anh', 'Khoa 
   'Tin học', 'Công nghệ', 'Giáo dục thể chất', 'Bơi', 'Hoạt động trải nghiệm', 'Sinh hoạt dưới cờ', 'Sinh hoạt lớp', 'Tự học'];
 // Thời khoá biểu mẫu: 7 tiết, nghỉ trưa sau tiết 4, Thứ Hai đến Thứ Sáu.
 const SAMPLE_PERIODS = [['08:00', '08:35'], ['08:45', '09:20'], ['09:40', '10:15'], ['10:25', '11:00'], ['14:10', '14:45'], ['14:55', '15:30'], ['15:40', '16:15']];
-// Thời khoá biểu có sẵn của từng con, năm học 2026 – 2027. Mỗi dòng của `subj` là một tiết, các cột từ Thứ Hai đến Thứ Sáu.
+// Thời khoá biểu có sẵn của từng con, năm học 2026 – 2027. Bản lớp 4A của Su là bản học kì I. Mỗi dòng của `subj` là một tiết, các cột từ Thứ Hai đến Thứ Sáu.
 // Chỉ gợi ý cho con có tên trong `kids`.
 const SAMPLE_TKBS = [
   { kids: ['su', 'misu'], cls: 'Lớp 4A', year: '2026 – 2027', days: [1, 2, 3, 4, 5], lunch: 4, times: SAMPLE_PERIODS, subj: [
-    ['SHĐT', 'Khoa học', 'Âm nhạc', 'HSTN', 'Khoa học'],
-    ['Toán', 'Tiếng Anh', 'Tiếng Anh', 'Tiếng Anh', 'Tiếng Anh'],
-    ['Bơi', 'LS-ĐL', 'Toán', 'Tiếng Việt', 'LS-ĐL'],
-    ['Bơi', 'Toán', 'Mĩ thuật', 'Công nghệ', 'Toán'],
-    ['Tiếng Anh', 'Tiếng Việt', 'Tiếng Việt', 'Toán', 'HSTN'],
-    ['Tiếng Việt', 'Tiếng Việt', 'Tiếng Việt', 'Toán', 'Tiếng Việt'],
-    ['Đạo đức', 'HĐTN', 'Tin học', 'Tiếng Việt', 'SHS'],
+    ['SHĐT', 'Toán', 'Mĩ thuật', 'GDTC', 'GDTC'],
+    ['HĐTN', 'Âm nhạc', 'Toán', 'LS-ĐL', 'Tiếng Anh'],
+    ['Toán', 'Tiếng Anh', 'Tiếng Việt', 'Tiếng Anh', 'Toán'],
+    ['LS-ĐL', 'Khoa học', 'HSTN', 'Toán', 'Tiếng Anh TC'],
+    ['Tiếng Việt', 'Tiếng Việt', 'Tin học', 'Tiếng Việt', 'Tiếng Việt TC'],
+    ['Toán TC', 'Tiếng Việt', 'Tiếng Việt', 'Tiếng Việt', 'HSTN'],
+    ['Tiếng Anh', 'Đạo đức', 'Công nghệ', 'Khoa học', 'SHS'],
   ] },
   { kids: ['sa', 'misa'], cls: 'Lớp 7A', year: '2026 – 2027', days: [1, 2, 3, 4, 5], lunch: 4,
     times: [['07:30', '08:15'], ['08:20', '09:05'], ['09:25', '10:10'], ['10:15', '11:00'], ['13:45', '14:30'], ['14:35', '15:20'], ['15:25', '16:10']], subj: [
