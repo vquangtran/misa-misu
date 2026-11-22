@@ -348,6 +348,12 @@ textarea.hw-in{resize:none;overflow:hidden;min-height:44px}
 .item.tap:active{opacity:.6}
 .print-ask{gap:8px;flex-wrap:wrap}
 .print-ask .btn{flex:1 1 140px;justify-content:center}
+.fg .btn.sm.sub-btn,.btn.sub-btn{align-self:flex-start;margin-top:4px;display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:var(--on-accent);border:0;font-weight:600}
+.s.sub-l{margin-top:6px}
+.so-new{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border-radius:var(--r);border:1px solid var(--accent);background:var(--accent-soft);color:var(--ink);text-align:left}
+.so-new .txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.so-new .txt span{font-size:13px;color:var(--muted)}
+.so-new .ico{font-size:22px}
 .fg-cap{margin:4px 6px -6px;font-size:13px;font-weight:600;color:var(--muted)}
 @media (min-width:600px){.overlay{align-items:center;padding:24px}.dialog{border-radius:26px;box-shadow:var(--shadow-float)}.sheet-bar::before{display:none}.sheet-bar{padding-top:6px}}
 

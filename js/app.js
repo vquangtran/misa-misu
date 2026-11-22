@@ -1551,7 +1551,7 @@ function sessList(d) {
     .sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999') || String(a.at || '').localeCompare(String(b.at || ''))).map((s, i) => ({ ...s, no: i + 1 }));
 }
 const hwList = d => Object.entries(d.tasks || {}).filter(([id, t]) => okId(id) && t).map(([id, t]) => ({ id, ...t, title: String(t.title || ''), due: okDate(t.due), doneAt: okDate(t.doneAt), gotAt: okDate(t.gotAt),
-  session: okId(t.session) ? t.session : '', chk: CHK[t.chk] ? t.chk : '', chkBy: okId(t.chkBy) ? t.chkBy : '', score: String(t.score || '').slice(0, 30), steps: cleanSteps(t.steps), files: cleanFiles(t.files) })).filter(t => t.title)
+  session: okId(t.session) ? t.session : '', sub: cleanFiles(t.sub), subAt: okDate(t.subAt), chk: CHK[t.chk] ? t.chk : '', chkBy: okId(t.chkBy) ? t.chkBy : '', score: String(t.score || '').slice(0, 30), steps: cleanSteps(t.steps), files: cleanFiles(t.files) })).filter(t => t.title)
   .sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999') || String(a.at || '').localeCompare(String(b.at || '')));
 const SESS_MODES = [['', 'Chưa ghi'], ['off', 'Offline'], ['on', 'Online']];
 const dateTxt = dk => { const d = parse(dk); return `${WDN(d.getDay())} ${dm(d)}`; };
@@ -1706,13 +1706,13 @@ function sessRow(code, s, hws, mode, inNeed) {
     <div class="sess-body" data-act="none" ${open && !inNeed ? '' : 'hidden'}>${body || '<div class="sb-v muted">Buổi này chưa ghi nội dung.</div>'}${edit ? `<button class="btn sm so-edit" data-act="sess-form" data-id="${s.id}">✏️ Sửa buổi này</button>` : ''}</div></div>`;
 }
 const HW_BADGE = { got: 'ok', done: 'wait', late: 'owe', open: '' };
-const hwBadgeHtml = t => { const st = hwState(t); return `<span class="badge ${st.k === 'got' && t.chk ? chkKind(t.chk) : HW_BADGE[st.k]}">${esc(st.k === 'got' ? (t.chk ? CHK[t.chk] : 'Cô đã nhận') + (t.score ? ' · ' + t.score : '') : st.k === 'done' ? 'Chờ cô nhận' : st.k === 'late' ? st.txt : 'Đang làm')}</span>`; };
+const hwBadgeHtml = t => { const st = hwState(t); if (!t.got && cleanFiles(t.sub).length) return `<span class="badge wait">Đã nộp ${cleanFiles(t.sub).length} file</span>`; return `<span class="badge ${st.k === 'got' && t.chk ? chkKind(t.chk) : HW_BADGE[st.k]}">${esc(st.k === 'got' ? (t.chk ? CHK[t.chk] : 'Cô đã nhận') + (t.score ? ' · ' + t.score : '') : st.k === 'done' ? 'Chờ cô nhận' : st.k === 'late' ? st.txt : 'Đang làm')}</span>`; };
 function hwRow(code, t, d, mode) {
   const st = hwState(t), s = t.session ? sessList(d).find(x => x.id === t.session) : null, nd = t.steps.filter(x => x.done).length;
   const meta = [t.due ? `hạn ${dm(parse(t.due))}` : 'chưa có hạn', s ? `buổi ${s.no}` : '', t.steps.length ? `${nd}/${t.steps.length} bước` : ''].filter(Boolean).join(' · ');
   const act = mode === 'edit' ? `data-act="hw-form" data-id="${t.id}"` : `data-act="hw-view" data-id="L~${code}~${t.id}"`;
   return `<div class="item sess"><span class="ico">📝</span><div class="txt"><div class="t">${esc(t.title)}</div><div class="s">${meta}</div>${t.notes ? `<div class="s snip">${esc(String(t.notes).slice(0, 160))}</div>` : ''}
-    ${t.review ? `<div class="s cmt"><b>Nhận xét bài làm:</b> ${esc(t.review)}</div>` : ''}${attView(code, t.files, t.links)}</div>
+    ${t.review ? `<div class="s cmt"><b>Nhận xét bài làm:</b> ${esc(t.review)}</div>` : ''}${attView(code, t.files, t.links)}${t.sub.length ? `<div class="s sub-l"><b>Bài con nộp${t.subAt ? ' ' + dm(parse(t.subAt)) : ''}:</b></div>${attView(code, t.sub)}` : ''}</div>
     <div class="acts">${hwBadgeHtml(t)}<button class="edit" ${act} aria-label="${mode === 'edit' ? 'Sửa' : 'Xem'}: ${esc(t.title)}">${CHEV}</button></div></div>`;
 }
 const sessMonths = ss => [...new Set(ss.map(s => (s.date || '').slice(0, 7)))].sort().reverse();
@@ -2096,7 +2096,10 @@ function drawTeacher() {
   const nav = cls => T_TABS.map(([v, l, ic]) => `<a href="#${v}" class="${cls} ${v === tab ? 'on' : ''}" data-act="t-tab" data-v="${v}" ${v === tab ? 'aria-current="page"' : ''}>${iconSvg(ic)}<span>${l}${v === 'bai' && st.wait ? ` <i class="cnt num">${st.wait}</i>` : v === 'buoi' && need ? ` <i class="cnt num late">${need}</i>` : ''}</span></a>`).join('');
   const add = tab === 'buoi' ? `<button class="add" data-act="sess-form" aria-label="Ghi buổi học">${PLUS}</button>` : tab === 'bai' ? `<button class="add" data-act="sess-form" aria-label="Ghi buổi học và giao bài tập">${PLUS}</button>`
     : st.done.length ? `<button data-act="so-print" aria-label="In báo cáo" title="In báo cáo">🖨️</button>` : '';
-  let h = `${head(esc(bookName(info)), add)}
+  // Bài con mới nộp (có ảnh, file) mà cô chưa nhận: thẻ báo ở đầu mọi tab, bấm sang tab Bài tập.
+  const fresh = st.hw.filter(t => !t.got && t.sub.length);
+  const newCard = fresh.length && tab !== 'bai' ? `<button class="so-new" data-act="t-tab" data-v="bai"><span class="ico">📥</span><span class="txt"><b>Có ${fresh.length} bài mới nộp</b><span>${esc(fresh.slice(0, 3).map(t => `${t.title} (${t.sub.length} file)`).join(', '))}${fresh.length > 3 ? '…' : ''}</span></span>${CHEV}</button>` : '';
+  let h = `${head(esc(bookName(info)), add)}${newCard}
     <p class="so-sub">Học sinh: <b>${esc(info.student)}</b>${info.teacher ? ` · ${esc(info.teacher)}` : ''}${days ? ` · lịch học ${esc(days)}` : ''}</p>${soTiles(st, feeOf(info), d)}`;
   if (tab === 'buoi') {
     h += `<section class="slot">${secHead('📒', 'Buổi học', { cnt: st.ss.length || '', add: `<button class="mini-add has-txt" data-act="sess-form">${PLUS}<span>Thêm buổi</span></button>` })}${st.ss.length ? '' : blankAdd('Ghi buổi học: hôm nay học gì, nhận xét, bài tập về nhà', 'sess-form')}</section>`;
@@ -2188,7 +2191,8 @@ function hwForm(id, sessPre) {
     ${frow('Các bước', `<textarea id="hsteps" class="input" rows="2" placeholder="Ôn lại lý thuyết&#10;Làm phiếu bài tập">${esc(cleanSteps(t?.steps).map(x => x.t).join('\n'))}</textarea>`, { id: 'hsteps', cls: 'col', sub: 'Không bắt buộc. Mỗi dòng một bước, con tick từng bước.' })}</div>
   <div class="fg">${frow('Đính kèm', attBox(), { cls: 'col', sub: 'Phiếu bài tập, ảnh chụp đề… con mở được ngay trong bài. Mỗi file tối đa 8 MB.' })}
     ${frow('Link', `<textarea id="hlinks" class="input" rows="2" maxlength="2000" placeholder="https://…">${esc(linkList(t?.links).join('\n'))}</textarea>`, { id: 'hlinks', cls: 'col', sub: 'Canva, Google Drive… mỗi dòng một link' })}</div>
-  ${t ? `<div class="fg"><div class="fr">${toggle('hgot', `Đã nhận bài <span class="fs">${t.done ? `Con báo đã làm xong${okDate(t.doneAt) ? ' ngày ' + dm(parse(t.doneAt)) : ''}` : 'Con chưa báo làm xong'}</span>`, t.got)}</div>
+  ${t && cleanFiles(t.sub).length ? `<div class="fg">${frow('Bài con nộp', attView(TEACH, t.sub) + `<div class="row"><button class="btn quiet sm" data-act="sub-dl" data-id="${esc(id)}">⬇️ Tải tất cả ${cleanFiles(t.sub).length} file về máy</button></div>`, { cls: 'col', sub: `${cleanFiles(t.sub).length} file${okDate(t.subAt) ? ' · nộp ngày ' + dm(parse(t.subAt)) : ''} · bấm vào file để xem` })}</div>` : ''}
+  ${t ? `<div class="fg">${frow('Nhận bài', segPick('hgot', [['0', 'Chưa nhận'], ['1', 'Đã nhận bài']], t.got ? '1' : '0'), { sub: cleanFiles(t.sub).length ? `Con đã nộp ${cleanFiles(t.sub).length} file${okDate(t.subAt) ? ' ngày ' + dm(parse(t.subAt)) : ''}. Xem xong thì chọn Đã nhận bài` : t.done ? `Con báo đã làm xong${okDate(t.doneAt) ? ' ngày ' + dm(parse(t.doneAt)) : ''}` : 'Con chưa báo làm xong. Ghi điểm thì bài tự tính là đã nhận' })}
     ${frow('Điểm', `<input id="hscore" class="pillin txt" maxlength="30" value="${esc(t.score || '')}" placeholder="9/10">`, { id: 'hscore' })}
     ${frow('Nhận xét bài làm', `<textarea id="hreview" class="input" rows="3" maxlength="2000" placeholder="Con làm tốt phần nào, cần sửa gì…">${esc(t.review || '')}</textarea>`, { id: 'hreview', cls: 'col', sub: 'Con và phụ huynh đều đọc được' })}</div>` : ''}
   ${formFoot(t ? 'hw-del' : '', id, 'hw-save', t ? 'Lưu' : 'Giao bài')}`);
@@ -2300,6 +2304,40 @@ function printFallback(files, text, who) {
   const done = () => toast(`Đã tải file về máy và chép lời nhắn. Mở Zalo, gửi file và dán lời nhắn cho ${who} nhé.`);
   if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, () => toast(`Đã tải file về máy. Mở Zalo gửi file cho ${who} nhé.`)); else done();
 }
+// Nộp bài: con (hoặc bố mẹ nộp hộ) chụp ảnh bài làm hay chọn file ảnh, PDF. Ảnh tự thu nhỏ, lưu vào sổ của cô (task.sub),
+// nộp xong thì bài coi như con đã làm xong; cô xem ngay ở tab Bài tập. Cô chưa nhận bài thì xoá được file nộp nhầm.
+const SUB_BUSY = {};   // mã bài → số file đang tải lên
+function subSection(tid, code, w) {
+  const files = cleanFiles(w.sub), busy = SUB_BUSY[tid] || 0;
+  if (w.got && !files.length) return '';
+  return `<div class="fg"><div class="fr col"><div class="fl"><span class="lbl">Nộp bài</span><span class="fs">${files.length ? `Đã nộp ${files.length} file${okDate(w.subAt) ? ' ngày ' + dm(parse(w.subAt)) : ''}. Cô xem được ngay.` : 'Chụp ảnh bài làm hoặc chọn ảnh, file PDF. Nộp xong cô xem được ngay.'}</span></div>
+    ${files.length ? `<div class="atts">${files.map(f => `<div class="att-row"><button class="att" data-act="file-open" ${fileAttr(code, f)}>${fileIcon(f)}<span>${esc(f.name)}</span><i class="num">${fileSize(f.size)}</i></button>${w.got ? '' : `<button class="att-x" data-act="sub-del" data-id="${esc(tid)}" data-fid="${esc(f.id)}" aria-label="Bỏ file: ${esc(f.name)}">×</button>`}</div>`).join('')}</div>` : ''}
+    ${busy ? `<div class="att-busy" role="status">Đang nộp ${busy} file…</div>` : ''}
+    ${w.got ? '' : `<label class="btn primary sm file-btn sub-btn">📷 ${files.length ? 'Nộp thêm ảnh hoặc file' : 'Chụp ảnh hoặc chọn file'}<input type="file" id="sub-file" data-tid="${esc(tid)}" accept="image/*,application/pdf" multiple></label>`}</div></div>`;
+}
+const subMay = t => !!t && (deviceRole() === 'parent' || t.kid === deviceRole());
+async function subAdd(tid, list) {
+  const t = tasksList().find(x => x.id === tid); if (!t || !t.cls || !subMay(t)) return;
+  const code = t.cls.code, st = CLS[code]?.st; if (!st) return toast('Sổ học đang mở, thử lại sau giây lát.');
+  if (t.hw.got) return toast('Cô đã nhận bài này rồi.');
+  if (!navigator.onLine && st.kind !== 'local') return toast('Cần có mạng để nộp bài.');
+  const added = [];
+  for (const raw of [...list].slice(0, 10)) {
+    SUB_BUSY[tid] = (SUB_BUSY[tid] || 0) + 1; if (!$('#modal').hidden) hwView(tid);
+    try {
+      const file = await shrinkImage(raw);
+      if (file.size > FILE_MAX) { toast(`“${raw.name}” nặng ${fileSize(file.size)}, quá ${fileSize(FILE_MAX)}.`); continue; }
+      const id = uid(), u8 = new Uint8Array(await file.arrayBuffer());
+      added.push({ id, n: await st.putFile(id, u8), name: String(file.name || 'anh.jpg').slice(0, 120), type: file.type || '', size: u8.length });
+    } catch (e) { console.error(e); toast(`Chưa nộp được “${raw.name}”. Kiểm tra mạng rồi thử lại.`); }
+    finally { SUB_BUSY[tid]--; }
+  }
+  if (!added.length) { if (!$('#modal').hidden) hwView(tid); return; }
+  const cur = soOf(code).tasks[t.hw.id] || {}, sub = [...cleanFiles(cur.sub), ...added].slice(0, 20);
+  if (!clsPatch(code, 'tasks', t.hw.id, { sub, subAt: key(today()), done: true, doneAt: cur.doneAt || key(today()) })) return;
+  if (!$('#modal').hidden) hwView(tid);
+  toast(`Đã nộp ${added.length} file. Cô xem được ngay.`);
+}
 function hwView(tid) {
   const t = tasksList().find(x => x.id === tid); if (!t || !t.cls) return;
   const w = t.hw, c = t.cls, st = hwState(w);
@@ -2317,6 +2355,7 @@ function hwView(tid) {
       <div class="row print-ask"><button class="btn quiet sm" data-act="print-ask" data-id="${esc(tid)}">🖨️ Nhờ bố mẹ in</button></div></div>`
       : `<div class="fr col"><div class="fl"><span class="lbl">In bài</span><span class="fs">Bấm nút, chọn Zalo (hoặc ứng dụng khác) rồi chọn người nhận</span></div>
       <div class="row print-ask"><button class="btn quiet sm" data-act="print-ask" data-id="${esc(tid)}" data-who="send">📤 Gửi file in</button></div></div>`) : ''}</div>` : ''}
+  ${subSection(tid, c.code, w)}
   <div class="foot"><button class="btn quiet" data-act="close">Đóng</button>${w.got ? '' : `<button class="btn primary" data-act="task-done" data-id="${esc(tid)}" data-close="1">${t.done ? 'Chưa xong' : 'Đã làm xong'}</button>`}</div>`);
 }
 
@@ -2960,14 +2999,14 @@ const kidLink = id => inviteLink() + '&con=' + encodeURIComponent(id);
 // Việc máy của con được làm: đánh dấu việc, bài tập của chính mình, gập mở các buổi, xin thêm hoặc xin sửa việc thích làm (bố mẹ duyệt), và xin vào phần bố mẹ.
 // Thêm các nút chỉ để xem ở mục Học tập: đổi tab, chọn ngày, chọn thứ, mở nhóm đã qua.
 const KID_ACTS = new Set(['close', 'tick', 'step', 'slot-toggle', 'task-done', 'task-step', 'role-kid', 'role-kid-ok', 'role-parent', 'pin-ok',
-  'tkb-go', 'learn-tab', 'tkb-day', 'ag-day', 'ag-week', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel', 'fun-form', 'fun-ask', 'fun-cancel', 'fun-need', 'num-step', 'km-acct', 'task-form', 'task-save', 'task-del', 'task-subj', 'task-due', 'hw-view', 'file-open', 'print-ask']);
+  'tkb-go', 'learn-tab', 'tkb-day', 'ag-day', 'ag-week', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel', 'fun-form', 'fun-ask', 'fun-cancel', 'fun-need', 'num-step', 'km-acct', 'task-form', 'task-save', 'task-del', 'task-subj', 'task-due', 'hw-view', 'file-open', 'print-ask', 'sub-del']);
 // Việc màn của cô được làm: chỉ những gì thuộc sổ học.
-const TEACH_ACTS = new Set(['close', 't-tab', 'sess-form', 'sess-view', 'sess-toggle', 'none', 'so-plan-more', 'so-off', 'sess-save', 'hw-row-add', 'so-import', 'so-import-go', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'att-del', 'so-print', 'sec-toggle', 'num-step', 'bank-form', 'bank-save']);
+const TEACH_ACTS = new Set(['close', 't-tab', 'sess-form', 'sess-view', 'sess-toggle', 'none', 'so-plan-more', 'so-off', 'sess-save', 'hw-row-add', 'so-import', 'so-import-go', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'sub-dl', 'att-del', 'so-print', 'sec-toggle', 'num-step', 'bank-form', 'bank-save']);
 function kidMay(a, b) {
   const r = deviceRole(); if (r === 'parent') return true;
   if (!KID_ACTS.has(a)) return false;
   if (a === 'tick' || a === 'step') return b.dataset.kid === r;
-  if (a === 'task-done' || a === 'task-step' || a === 'hw-view' || a === 'print-ask') return taskOf(b.dataset.id)?.kid === r;
+  if (a === 'task-done' || a === 'task-step' || a === 'hw-view' || a === 'print-ask' || a === 'sub-del') return taskOf(b.dataset.id)?.kid === r;
   if (a === 'file-open') return classesList().some(c => c.code === b.dataset.code && c.kid === r);
   // Bài tập: con tự thêm bài cho chính mình; chỉ sửa, xoá được bài do chính con thêm (bài bố mẹ ghi thì chỉ tick).
   if (a === 'task-form' || a === 'task-save' || a === 'task-del') {
@@ -3750,6 +3789,25 @@ document.addEventListener('click', e => {
     $('#hdue').value = d ? key(d) : ''; return;
   }
   if (a === 'att-del') { if (ATT) { ATT.files = ATT.files.filter(f => f.id !== b.dataset.fid); attDraw(); } return; }
+  if (a === 'sub-dl') {
+    const code = TEACH, t = code && soOf(code).tasks[id], st = CLS[code]?.st; if (!t || !st) return;
+    const files = cleanFiles(t.sub); toast(`Đang tải ${files.length} file…`);
+    (async () => {
+      for (const f of files) {
+        try { const u = URL.createObjectURL(new Blob(await st.getFile(f.id, f.n), { type: f.type || 'application/octet-stream' })), el = Object.assign(document.createElement('a'), { href: u, download: f.name }); document.body.appendChild(el); el.click(); el.remove(); setTimeout(() => URL.revokeObjectURL(u), 60000); }
+        catch (e) { console.error(e); toast(`Chưa tải được “${f.name}”.`); }
+      }
+      toast(`Đã tải ${files.length} file về máy.`);
+    })();
+    return;
+  }
+  if (a === 'sub-del') {
+    const t = tasksList().find(x => x.id === id); if (!t || !t.cls || !subMay(t) || t.hw.got) return;
+    const code = t.cls.code, cur = soOf(code).tasks[t.hw.id] || {}, f = cleanFiles(cur.sub).find(x => x.id === b.dataset.fid); if (!f) return;
+    if (!armed(b, '×?')) return toast('Bấm lần nữa để bỏ file này.');
+    delFiles(code, [f]); clsPatch(code, 'tasks', t.hw.id, { sub: cleanFiles(cur.sub).filter(x => x.id !== f.id) });
+    return hwView(id);
+  }
   if (a === 'print-ask') return printAsk(id, b.dataset.who === 'send' && deviceRole() === 'parent' ? 'send' : 'bố mẹ');
   if (a === 'file-open') return okId(b.dataset.fid) && fileOpen(b.dataset.code, { id: b.dataset.fid, n: Math.min(20, Number(b.dataset.n) || 1), name: b.dataset.name || 'file', type: b.dataset.type || '', size: Number(b.dataset.size) || 0 });
   if (a === 'sess-save') {
@@ -3812,7 +3870,7 @@ document.addEventListener('click', e => {
     const steps = $('#hsteps').value.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 15).map(x => ({ t: x, done: !!prev.find(p => p.t === x)?.done }));
     const data = { title, notes: $('#hnotes').value.trim(), due: $('#hdue').value || '', session: $('#hsess')?.value || '', steps, links: linkList($('#hlinks').value), files: attTake(old?.files), at: old?.at || new Date().toISOString() };
     // Có điểm thì coi như cô đã nhận bài.
-    if (old) { const score = $('#hscore').value.trim(), got = $('#hgot').checked || !!score; Object.assign(data, { got, gotAt: got ? old.gotAt || key(today()) : '', score, review: $('#hreview').value.trim() }); }
+    if (old) { const score = $('#hscore').value.trim(), got = radioVal('hgot') === '1' || !!score; Object.assign(data, { got, gotAt: got ? old.gotAt || key(today()) : '', score, review: $('#hreview').value.trim() }); }
     // Chỉ ghi phần của cô, giữ nguyên phần con đã báo làm xong.
     if (!clsPatch(TEACH, 'tasks', id || uid(), data)) return;
     closeModal(); if (!old) UI.tTab = 'bai';
@@ -4305,6 +4363,7 @@ document.addEventListener('change', e => {
   if ((e.target.id === 'tsat' || e.target.id === 'tlunch' || e.target.name === 'tday') && tkbDraft && !$('#modal').hidden) tkbForm(tkbDraft.kid, { ...readTkbForm(), keep: true });
   if (e.target.id === 'import-file' && e.target.files[0]) importBackup(e.target.files[0]);
   if (e.target.id === 'att-file' && e.target.files.length) attAdd(e.target.files);
+  if (e.target.id === 'sub-file' && e.target.files.length) subAdd(e.target.dataset.tid, e.target.files);
   if (e.target.id === 'kphoto' && e.target.files[0]) photoLoad(e.target.files[0]);
   if (e.target.name === 'kava' && !photoEdit.img && !(photoEdit.out ?? photoOf(S.kids[$('#modal [data-act=kid-save]')?.dataset.id]))) { const pv = $('#modal .photo-prev'); if (pv) pv.innerHTML = avInner(e.target.value); }
 });
