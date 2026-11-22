@@ -1499,10 +1499,13 @@ const sessFee = (f, s) => { const rate = s.mode === 'on' && f.on ? f.on : f.fee;
 const feeTxt = f => { const u = f.by === 'gio' ? 'giờ' : 'buổi'; return !f.off && (f.fee || f.on) ? (f.on ? `${money(f.fee)} mỗi ${u} Offline, ${money(f.on)} mỗi ${u} Online` : `${money(f.fee)} mỗi ${u}`) : ''; };
 const classInfo = c => ({ name: c.name, book: String(c.book || '').trim(), teacher: c.teacher || '', student: kidName(c.kid), fee: feeOf(c).fee, feeOn: feeOf(c).on, feeBy: feeOf(c).by, feeOff: feeOf(c).off, days: classLessons(c).map(l => ({ day: Number(l.day) || 0, s: l.s || '', e: l.e || '' })).sort((a, b) => a.day - b.day || String(a.s).localeCompare(String(b.s))), dur: durOf(c) });
 
+// Việc làm thêm mỗi khi một sổ có dữ liệu (sửa dữ liệu một lần trong js/mot-lan.js), thêm vào bằng onSoData.
+const soHooks = [];
+const onSoData = f => { soHooks.push(f); };
 function openClass(code) {
   if (CLS[code]) return CLS[code];
   const c = CLS[code] = { st: null, data: emptySo(), loaded: false, stale: false, err: null };
-  const onData = (d, meta) => { if (CLS[code] !== c) return; c.data = d; c.loaded = true; c.stale = !!meta.fromCache; render(); classHeal(code); hwPenSync(code); suAutoImport(code); suTeachFix(code); planAuto(code); };
+  const onData = (d, meta) => { if (CLS[code] !== c) return; c.data = d; c.loaded = true; c.stale = !!meta.fromCache; render(); classHeal(code); hwPenSync(code); for (const f of soHooks) f(code); };
   const fail = err => { if (CLS[code] !== c) return; console.error(err); c.err = err; c.loaded = true; render(); };
   (firebaseConfig ? firebaseClass(firebaseConfig, 'lop-' + code, onData, fail) : Promise.resolve(localClass('lop-' + code, onData)))
     .then(st => { if (CLS[code] !== c) return; c.st = st; st.start(); }).catch(fail);
@@ -1513,7 +1516,7 @@ function openClass(code) {
 function syncClasses() {
   if (TEACH) return;
   const want = new Set(classesList().map(c => c.code));
-  for (const code of want) { openClass(code); classHeal(code); hwPenSync(code); suAutoImport(code); planAuto(code); }
+  for (const code of want) { openClass(code); classHeal(code); hwPenSync(code); for (const f of soHooks) f(code); }
   for (const code of Object.keys(CLS)) if (!want.has(code)) { CLS[code].st?.stop(); delete CLS[code]; }
 }
 // Tên môn, tên cô, tên con và lịch học trong sổ là do nhà ghi. Máy của bố mẹ thấy lệch (đổi tên con, đổi lịch học thêm) thì ghi lại.
@@ -2072,6 +2075,7 @@ function suTeachFix(code) {
   if (!TEACH || code !== TEACH || !k || !k.loaded || k.stale || k.err || !k.st || !info || !isSuTV(info.student, info.name) || !k.data.sessions?.['xl-1']) return;
   suFixes(code, null, k);
 }
+onSoData(suAutoImport); onSoData(suTeachFix); onSoData(planAuto);
 // Chi tiết một buổi (màn của cô, chỉ xem): mọi thứ cô đã ghi, bài giao trong buổi và kết quả bài tập buổi trước cô đã tick. Có nút Sửa.
 function sessView(id) {
   const d = soOf(TEACH), s = sessList(d).find(x => x.id === id); if (!s) return;
@@ -2339,7 +2343,7 @@ async function printPrefetch(tid, code, files) {
   } catch (e) { console.error(e); delete PRINT_FILES[tid]; }
 }
 function printAsk(tid, who = 'bố mẹ') {
-  const t = tasksList().find(x => x.id === tid); if (!t || !t.cls) return;
+  const t = classTasks().find(x => x.id === tid); if (!t || !t.cls) return;
   const w = t.hw, c = t.cls, got = PRINT_FILES[tid]?.files;
   const Who = who.charAt(0).toUpperCase() + who.slice(1), links = linkList(w.links);
   // Máy của bố mẹ (Gửi file in): lời nhắn chỉ ghi bài gì, bố mẹ tự chọn người nhận.
@@ -2376,7 +2380,7 @@ function subSection(tid, code, w) {
 }
 const subMay = t => !!t && (deviceRole() === 'parent' || t.kid === deviceRole());
 async function subAdd(tid, list) {
-  const t = tasksList().find(x => x.id === tid); if (!t || !t.cls || !subMay(t)) return;
+  const t = classTasks().find(x => x.id === tid); if (!t || !t.cls || !subMay(t)) return;
   const code = t.cls.code, st = CLS[code]?.st; if (!st) return toast('Sổ học đang mở, thử lại sau giây lát.');
   if (t.hw.got) return toast('Cô đã nhận bài này rồi.');
   if (!navigator.onLine && st.kind !== 'local') return toast('Cần có mạng để nộp bài.');
@@ -2398,7 +2402,7 @@ async function subAdd(tid, list) {
   toast(`Đã nộp ${added.length} file. Cô xem được ngay.`);
 }
 function hwView(tid) {
-  const t = tasksList().find(x => x.id === tid); if (!t || !t.cls) return;
+  const t = classTasks().find(x => x.id === tid); if (!t || !t.cls) return;
   const w = t.hw, c = t.cls, st = hwState(w);
   if (cleanFiles(w.files).length) printPrefetch(tid, c.code, w.files);
   openModal(`<h2>Bài cô giao</h2>
