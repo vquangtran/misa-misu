@@ -1465,7 +1465,7 @@ const classInfo = c => ({ name: c.name, book: String(c.book || '').trim(), teach
 function openClass(code) {
   if (CLS[code]) return CLS[code];
   const c = CLS[code] = { st: null, data: emptySo(), loaded: false, stale: false, err: null };
-  const onData = (d, meta) => { if (CLS[code] !== c) return; c.data = d; c.loaded = true; c.stale = !!meta.fromCache; render(); classHeal(code); hwPenSync(code); suAutoImport(code); suTeachFix(code); };
+  const onData = (d, meta) => { if (CLS[code] !== c) return; c.data = d; c.loaded = true; c.stale = !!meta.fromCache; render(); classHeal(code); hwPenSync(code); suAutoImport(code); suTeachFix(code); planAuto(code); };
   const fail = err => { if (CLS[code] !== c) return; console.error(err); c.err = err; c.loaded = true; render(); };
   (firebaseConfig ? firebaseClass(firebaseConfig, 'lop-' + code, onData, fail) : Promise.resolve(localClass('lop-' + code, onData)))
     .then(st => { if (CLS[code] !== c) return; c.st = st; st.start(); }).catch(fail);
@@ -1476,7 +1476,7 @@ function openClass(code) {
 function syncClasses() {
   if (TEACH) return;
   const want = new Set(classesList().map(c => c.code));
-  for (const code of want) { openClass(code); classHeal(code); hwPenSync(code); suAutoImport(code); }
+  for (const code of want) { openClass(code); classHeal(code); hwPenSync(code); suAutoImport(code); planAuto(code); }
   for (const code of Object.keys(CLS)) if (!want.has(code)) { CLS[code].st?.stop(); delete CLS[code]; }
 }
 // Tên môn, tên cô, tên con và lịch học trong sổ là do nhà ghi. Máy của bố mẹ thấy lệch (đổi tên con, đổi lịch học thêm) thì ghi lại.
@@ -1984,6 +1984,32 @@ function suFixesRun(code, c, k) {
   if (!Object.keys(flags).length) return;
   clsPut(code, 'info', 'fixes', { ...(k.data.info?.fixes || {}), ...flags });
   if (c && !TEACH) { const { id, ...o } = classesList().find(x => x.code === code) || c; put('paid', id, { ...o, ...flags }); }
+}
+// Kế hoạch dạy Toán học kì 1 của cô Trang (data/ke-hoach-toan-su.json, chép từ file Word cô gửi): nhập một lần vào sổ Toán của Su,
+// trên máy của bố mẹ hoặc máy của cô (máy nào mở trước). Ngày đã có buổi trong sổ thì giữ nguyên buổi cô đã ghi. Cờ planToan1 lưu trong sổ.
+let planBusy = false;
+async function planAuto(code) {
+  const k = CLS[code]; if (planBusy || !k || !k.loaded || k.stale || k.err || !k.st || k.data.info?.fixes?.planToan1) return;
+  let kidNm, subj;
+  if (TEACH) { if (code !== TEACH) return; kidNm = k.data.info?.lop?.student; subj = k.data.info?.lop?.name; }
+  else { if (!loaded || stale || deviceRole() !== 'parent') return; const c = classesList().find(x => x.code === code); if (!c) return; kidNm = kidName(c.kid); subj = c.name; }
+  if (!['su', 'misu'].includes(norm(kidNm)) || norm(subj) !== 'toán') return;
+  planBusy = true;
+  try {
+    const r = await fetch('data/ke-hoach-toan-su.json', { cache: 'no-cache' }); if (!r.ok) return;
+    const list = (await r.json()).sessions || [];
+    if (CLS[code] !== k || k.data.info?.fixes?.planToan1) return;
+    const have = new Set(sessList(k.data).map(x => x.date).filter(Boolean)), t0 = Date.now(); let n = 0;
+    list.forEach((x, i) => {
+      const date = okDate(x.date); if (!date || have.has(date)) return;
+      const wd = parse(date).getDay(), f = fixedFor(kidNm, subj);
+      if (!clsPut(code, 'sessions', 'kh-' + date, { date, state: x.state === 'done' ? 'done' : 'plan', mode: f?.mode[wd] || 'off', mins: f?.dur[wd] || 120, topic: String(x.topic || '').slice(0, 300),
+        content: String(x.content || '').slice(0, 2000), src: '', note: '', next: '', links: [], files: [], at: new Date(t0 + i).toISOString(), xl: 1 })) return;
+      n++;
+    });
+    clsPut(code, 'info', 'fixes', { ...(k.data.info?.fixes || {}), planToan1: 1 });
+    if (n) toast(`Đã nhập kế hoạch Toán của cô Trang: ${n} buổi.`);
+  } catch (e) { console.error(e); } finally { planBusy = false; }
 }
 // Máy của cô: sổ Tiếng Việt của Su đã có dữ liệu nhập từ file (xl-…) thì tự sửa luôn, không phải chờ máy của bố mẹ mở app.
 function suTeachFix(code) {
