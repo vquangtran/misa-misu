@@ -2655,6 +2655,17 @@ function autoAdds() {
     if (c) for (const l of classLessons(c)) if (l.home !== true || l.go || l.back || l.at) { const { go, back, at, ...o } = S.lessons[l.id] || {}; put('lessons', l.id, { ...o, home: true }); }
     flags.trangHome = 1;
   }
+  // Đi lại của các buổi học thêm (một lần): chỉ Toán của Sa thứ 5 (cô Hải) phải đến nhà cô, còn lại đều học tại nhà.
+  if (!set.homeAll) {
+    const saMath = classesList().find(x => ['sa', 'misa'].includes(norm(kidName(x.kid))) && norm(x.name) === 'toán');
+    const outIds = new Set(saMath ? classLessons(saMath).filter(l => l.day === 4).map(l => l.id) : []);
+    for (const l of lessonsList()) {
+      const cur = S.lessons[l.id] || {};
+      if (outIds.has(l.id)) { if (cur.home !== false) put('lessons', l.id, { ...cur, home: false }); }
+      else if (cur.home !== true || cur.go || cur.back || cur.at) { const { go, back, at, ...o } = cur; put('lessons', l.id, { ...o, home: true }); }
+    }
+    flags.homeAll = 1;
+  }
   // Sổ Tiếng Việt của Su: thứ 3 học 60 phút, chủ nhật 120 phút (một lần; sổ đã có thời lượng riêng thì giữ nguyên).
   if (!set.dur) {
     for (const c of classesList()) if (isSuTV(kidName(c.kid), c.name) && !Array.isArray(c.dur)) { const { id, ...o } = c; put('paid', id, { ...o, dur: SU_TV_DUR.slice() }); }
