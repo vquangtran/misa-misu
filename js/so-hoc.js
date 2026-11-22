@@ -778,7 +778,7 @@ async function printPrefetch(tid, code, files) {
 export function printAsk(tid, who = 'bố mẹ') {
   const t = classTasks().find(x => x.id === tid); if (!t || !t.cls) return;
   const w = t.hw, c = t.cls, got = PRINT_FILES[tid]?.files;
-  const Who = who.charAt(0).toUpperCase() + who.slice(1), links = linkList(w.links);
+  const links = linkList(w.links);
   // Máy của bố mẹ (Gửi file in): lời nhắn chỉ ghi bài gì, bố mẹ tự chọn người nhận.
   if (who === 'send') {
     const txt = `In giúp bài “${w.title}” của ${kidName(t.kid)} (${c.name}${c.teacher ? ' · ' + c.teacher : ''}${w.due ? `, hạn ${dateTxt(w.due)}` : ''}).${links.length ? '\n' + links.join('\n') : ''}`;
@@ -786,7 +786,8 @@ export function printAsk(tid, who = 'bố mẹ') {
     if (navigator.canShare && navigator.canShare({ files: got })) { navigator.share({ files: got, title: w.title, text: txt }).then(() => toast('Đã gửi file.'), e => { if (e?.name !== 'AbortError') printFallback(got, txt, 'người nhận'); }); return; }
     return printFallback(got, txt, 'người nhận');
   }
-  const text = `${Who} ơi, in giúp con ${cleanFiles(w.files).length > 1 ? `${cleanFiles(w.files).length} file` : 'file'} bài “${w.title}” (${c.name}${c.teacher ? ' · ' + c.teacher : ''}${w.due ? `, hạn ${dateTxt(w.due)}` : ''}) nhé! Con cảm ơn ${who} ạ.${links.length ? '\n' + links.join('\n') : ''}\n— ${kidName(t.kid)}`;
+  // Máy của con (Nhờ bố mẹ in): lời nhắn ngắn, file gửi kèm. Bài có link thì ghi link ở dòng dưới để mẹ mở được.
+  const text = `Mẹ in hộ con với ạ${links.length ? '\n' + links.join('\n') : ''}`;
   if (!got) { printPrefetch(tid, c.code, w.files); return toast('Đang tải file, bấm lại sau vài giây nhé.'); }
   if (navigator.canShare && navigator.canShare({ files: got })) {
     navigator.share({ files: got, title: w.title, text }).then(() => toast(`Đã gửi cho ${who}.`), e => { if (e?.name !== 'AbortError') printFallback(got, text, who); });

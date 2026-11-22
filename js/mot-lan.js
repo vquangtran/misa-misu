@@ -8,16 +8,16 @@
 // giữ nguyên. Bước nào dùng hằng số riêng ở nha-minh.js (SAMPLE_CLASSES, SU_TV_HW_FROM, SA_TV_HW_FROM…) thì xem còn chỗ nào dùng không.
 //   - Giữ: merit, hw (nhà mới cũng được thêm sẵn 5 mục thành tích, hai việc BTVN và mục phạt Thiếu BTVN).
 //   - Bỏ được: autoFill; các cờ bottle, nodone, read, screen, vac, game, so, book, hwfromSa, hwfrom, dur2, trang1745, trangHome,
-//     homeAll, sportOut, dur, water, readlog (chỉ sửa dữ liệu của nhà mình; nhà mới có việc uống nước trong bảng mẫu).
+//     homeAll, sportOut, dur, water, water5k, readlog (chỉ sửa dữ liệu của nhà mình; nhà mới có việc uống nước trong bảng mẫu).
 //   - Đổi tên nơi ở cũ (Nhà mẹ, Nhà bố) không có cờ, chạy mỗi lần mở app: bỏ được khi không còn nạp bản sao lưu cũ (lúc hiện,
 //     placeName vẫn đổi tên cũ sang tên mới).
 //   - Sổ học: suAutoImport, suFixes, suTeachFix (sổ Tiếng Việt của Su) và planAuto (kế hoạch Toán của Su, sổ Tiếng Việt của Sa)
 //     bỏ được khi các sổ đã có cờ trong info/fixes (máy bố mẹ hoặc máy của cô đã mở sổ); khi đó data/so-tieng-viet-su.json,
 //     data/ke-hoach-toan-su.json, data/so-tieng-viet-sa.json không còn được dùng.
 // Bỏ hay thêm bước thì chạy lại `node tools/kiem-tra/chay.mjs tao-diem-xuat-phat` (dữ liệu sau lần mở đầu sẽ khác).
-import { addDays, DAILY, key, newFamilyCode, norm, parse, slug, toast, today } from './chung.js';
+import { addDays, DAILY, key, money, newFamilyCode, norm, parse, slug, toast, today } from './chung.js';
 import { isSa, isSu, isSuTV, SA, SA_TV_HW_FROM, SAMPLE_CLASSES, SU, SU_TV_BOOK, SU_TV_DUR, SU_TV_HW_FROM, SU_TV_MODE } from './nha-minh.js';
-import { choresList, del, deviceRole, isDaily, isDone, isFun, kidName, kidsList, lessonsList, loaded, placeName, pricesList, put, S, setDone,
+import { choresList, del, deviceRole, isDaily, isDone, isFun, isWeekly, kidName, kidsList, lessonsList, loaded, placeName, pricesList, put, S, setDone,
   SETTINGS_ID, stale, stepMask, stepText, TEACH } from './du-lieu.js';
 import { classesList, classesOf, classLessons, classTitle, CLS, clsPut, fixedFor, okDate, onSoData, paidOf, parseSoRows, sessList, soImportApply,
   soImportPlan } from './so-hoc.js';
@@ -52,8 +52,9 @@ const classSamples = () => kidsList().flatMap(k => SAMPLE_CLASSES.map((sp, i) =>
 //   bottle: mục con "Đã tráng bình nước" trong các checklist đang có được gắn "(mai đi học)", để tối trước ngày nghỉ không phải tick.
 //   nodone: bỏ mục con "Việc ngày hôm nay đã hoàn thành" khỏi các checklist đang có (dòng tự soát, app không kiểm tra được).
 //   hw: hai việc quan trọng về bài tập về nhà (hôm sau có học thêm, hôm sau đi học) và mục phạt Thiếu BTVN (lần 2 trong tuần phạt nặng hơn).
-//   water: việc phải làm Uống đủ 1200ml nước lọc mỗi ngày cho mọi con (hai mục con, mỗi chai 600ml), nếu nhà đã có việc nhà và chưa có việc
+//   water: việc được thưởng Uống đủ 1200ml nước lọc mỗi ngày, 5.000đ cho mọi con (hai mục con, mỗi chai 600ml), nếu nhà đã có việc nhà và chưa có việc
 //     cùng tên. Nhà mới chưa có việc nào thì không thêm: bảng mẫu đã có việc này.
+//   water5k: việc uống nước đã thêm là việc phải làm thì đổi sang việc được thưởng 5.000đ.
 //   readlog: việc đọc sách, đọc báo hỏi con đã đọc gì, bao nhiêu trang khi bấm xong.
 //   Các cờ còn lại ghi ngay ở từng đoạn bên dưới.
 let addsChecked = false;
@@ -78,10 +79,10 @@ export function autoAdds() {
     // Mã giống việc của bảng mẫu (sampleAdds) để không ra hai việc. Xếp ngay sau "Không kén ăn" nếu nhà có việc đó.
     const list = choresList(), have = new Set(list.map(c => norm(c.name))), { also, ...w } = WATER_CHORE, nid = 'mau-' + slug(w.name);
     const add = hadChores && !S.chores[nid] && ![w.name, ...also].some(n => have.has(norm(n))), after = list.find(c => norm(c.name) === 'không kén ăn');
-    if (add) put('chores', nid, { ...w, steps: w.steps.slice(), money: 0, kind: 'must', kids: kidsList().map(k => k.id), days: DAILY.slice(), slot: '',
+    if (add) put('chores', nid, { ...w, steps: w.steps.slice(), kind: 'must', kids: kidsList().map(k => k.id), days: DAILY.slice(), slot: '',
       since: key(today()), order: after ? (Number(after.order) || 0) + 0.5 : list.length });
     flags.water = 1;
-    if (add) toast(`Đã thêm việc phải làm “${w.name}” (2 chai). Sửa ở trang Quy định.`);
+    if (add) toast(`Đã thêm việc được thưởng “${w.name}” (2 chai, ${money(w.money)}). Sửa ở trang Quy định.`);
   }
   // Sửa mục con của các checklist đang có. Gom mọi thay đổi của một việc vào một lần ghi: với Firestore, dữ liệu trong máy chưa đổi ngay sau khi ghi,
   // nên ghi hai lần liên tiếp thì lần sau sẽ đè mất thay đổi của lần trước.
@@ -115,6 +116,15 @@ export function autoAdds() {
     flags.read = 1;
   }
   // Việc đọc sách, đọc báo: bấm xong thì con ghi đã đọc gì, bao nhiêu trang (một lần; bố mẹ tắt được ở form việc).
+  // Uống đủ 1200ml nước lọc đã thêm là việc phải làm: đổi sang việc được thưởng 5.000đ (một lần). Hôm nay con đã tick thì tính luôn tiền của hôm nay.
+  if (!set.water5k) {
+    const names = [WATER_CHORE.name, ...WATER_CHORE.also].map(norm), tk = key(today());
+    for (const c of choresList()) if (isWeekly(c) && names.includes(norm(c.name))) {
+      edit(c.id, { money: WATER_CHORE.money });
+      for (const kid of c.kids || []) if (isDone(today(), kid, c.id)) setDone(tk, kid, c.id, WATER_CHORE.money);
+    }
+    flags.water5k = 1;
+  }
   if (!set.readlog) {
     for (const c of choresList()) if (!isFun(c) && /^đọc (sách|báo|truyện)/.test(norm(c.name)) && !c.readLog) edit(c.id, { readLog: true });
     flags.readlog = 1;

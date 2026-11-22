@@ -8,7 +8,7 @@ const mau = name => 'mau-' + slug(name);
 
 // Việc phải làm của bảng mẫu (tiền 0) và hai việc BTVN app tự thêm: dùng để đánh dấu đủ việc cho vài ngày đã qua.
 const MUST = ['Gấp chăn, dọn giường', 'Không kén ăn', 'Tự giác hoàn thành bài tập', 'Hoàn thành bài tập ở lớp', 'Tự chuẩn bị, cất cặp', 'Dọn bàn học',
-  'Chuẩn bị sách vở cho buổi học thêm hôm sau', 'Đánh răng, rửa mặt', 'Uống đủ 1200ml nước lọc'].map(mau).concat(['hw-lesson', 'hw-school']);
+  'Chuẩn bị sách vở cho buổi học thêm hôm sau', 'Đánh răng, rửa mặt'].map(mau).concat(['hw-lesson', 'hw-school']);
 const PAID = { [mau('Tập thể dục ít nhất 15 phút')]: 15000, [mau('Đọc sách 30 phút')]: 10000, [mau('Thu quần áo')]: 5000, [mau('Xếp bát vào máy')]: 10000 };
 
 const tkb = (cls, times, subj) => ({ cls, year: '2026 – 2027', days: [1, 2, 3, 4, 5], lunch: 4,

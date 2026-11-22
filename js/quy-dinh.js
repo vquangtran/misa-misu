@@ -26,16 +26,15 @@ export const PRICE_KINDS = [['merit', 'Thành tích', '🏅'], ['penalty', 'Ph�
 // Việc được thưởng (việc mỗi ngày có money > 0): làm lần nào cộng tiền lần đó, không tính vào thưởng làm đủ việc.
 // Việc thích làm mặc định của mỗi con.
 export const FUN_DEFAULT = 'Chơi game hoặc dùng iPad/điện thoại 15 phút';
-// Việc phải làm uống đủ nước mỗi ngày (cả ngày, không theo buổi). Nhà đang dùng được thêm một lần (cờ water, xem autoAdds trong mot-lan.js).
-export const WATER_CHORE = { name: 'Uống đủ 1200ml nước lọc', also: ['Uống đủ nước', 'Uống nước', 'Uống đủ 1200ml nước'], icon: '💧',
+// Việc được thưởng uống đủ nước mỗi ngày (cả ngày, không theo buổi), 5.000đ mỗi ngày. Nhà đang dùng được thêm một lần
+// (cờ water; cờ water5k đổi việc đã thêm từ việc phải làm sang việc được thưởng, xem autoAdds trong mot-lan.js).
+export const WATER_CHORE = { name: 'Uống đủ 1200ml nước lọc', also: ['Uống đủ nước', 'Uống nước', 'Uống đủ 1200ml nước'], icon: '💧', money: 5000,
   steps: ['Hết chai thứ nhất (600ml)', 'Hết chai thứ hai (600ml)'] };
 export const SAMPLE_CHORES = [
   // claim: việc ai làm trước thì tính, hai con cùng làm thì chia đôi tiền.
   // also: tên cũ của cùng việc, nhà nào đã có thì không thêm lại; bấm "Cập nhật theo bảng mẫu" thì được đổi sang tên mới.
   { name: 'Gấp chăn, dọn giường', also: ['Dọn giường', 'Gấp chăn'], icon: '🛏️', money: 0, days: DAILY, slot: 'sang', claim: true },
   { name: 'Không kén ăn', icon: '🍚', money: 0, days: DAILY },
-  // Hai mục con: mỗi chai con mang đi học 600ml, uống hết hai chai là đủ.
-  { ...WATER_CHORE, steps: WATER_CHORE.steps.slice(), money: 0, days: DAILY },
   { name: 'Tự giác hoàn thành bài tập', icon: '✏️', money: 0, days: [1, 2, 3, 4, 5], slot: 'toi' },
   { name: 'Hoàn thành bài tập ở lớp', icon: '🏫', money: 0, days: [1, 2, 3, 4, 5], slot: 'toi' },
   { name: 'Tự chuẩn bị, cất cặp', icon: '🎒', money: 0, days: [1, 2, 3, 4, 5], slot: 'toi' },
@@ -47,6 +46,8 @@ export const SAMPLE_CHORES = [
   // unlock: đọc sách xong thì việc thích làm mới mở khoá.
   // readLog: bấm xong thì con ghi đã đọc gì, bao nhiêu trang.
   { name: 'Đọc sách 30 phút', also: ['Đọc sách'], icon: '📚', money: 10000, days: DAILY, minutes: 30, unlock: true, readLog: true },
+  // Hai mục con: mỗi chai con mang đi học 600ml, uống hết hai chai là đủ.
+  { ...WATER_CHORE, steps: WATER_CHORE.steps.slice(), days: DAILY },
   { name: 'Checklist trước khi đi ngủ', also: ['Chuẩn bị trước khi ngủ'], icon: '🌙', money: 5000, days: DAILY, slot: 'toi',
     steps: ['Cặp sách đã chuẩn bị', 'Quần áo ngày mai đã chuẩn bị', 'Bàn học đã gọn', 'Sách đã cất đúng chỗ', 'Đã đánh răng, rửa mặt', 'Đã tráng bình nước (mai đi học)'] },
   // Việc nhà cần làm mỗi ngày: nằm trong lịch từng buổi, làm thì được tiền, không tính vào thưởng làm đủ việc.
