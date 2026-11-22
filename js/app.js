@@ -1234,8 +1234,10 @@ function tasksView(ks) {
   const ws = key(weekStart(today())), we = key(addDays(weekStart(today()), 6)), wk = mine.filter(t => t.due && t.due >= ws && t.due <= we), wd = wk.filter(t => t.done).length;
   if (wk.length) h += `<section class="kid-sum"><div class="kid-sum-row"><b class="kid-sum-t">Tuần này xong ${wd}/${wk.length} bài</b></div>${barCount(wd, wk.length)}</section>`;
   h += `<div class="slots">`;
+  // Mỗi bài chỉ nằm ở nhóm đầu tiên khớp (chủ nhật thì "Ngày mai" là thứ 2 của tuần sau, cũng khớp "Sau đó").
+  const placed = new Set();
   for (const [label, f, tint] of groups) {
-    const list = open.filter(f); if (!list.length) continue;
+    const list = open.filter(t => !placed.has(t) && f(t)); list.forEach(t => placed.add(t)); if (!list.length) continue;
     h += `<section class="slot ${tint}">${secHead('', label, { cnt: list.length })}<div class="slot-list list">${list.map(t => taskRow(t, multi)).join('')}</div></section>`;
   }
   return h + `</div>`;
