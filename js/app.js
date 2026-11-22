@@ -1389,11 +1389,13 @@ const SU_TV_MODE = ['off', '', 'on', '', '', '', ''];
 const isSuTV = (kidNm, subj) => ['su', 'misu'].includes(norm(kidNm)) && norm(subj) === 'tiếng việt';
 // Lịch cố định theo thứ của các cô nhà mình (CN = 0 … T7 = 6): thời lượng (phút) và hình thức. Cô Thảo (Tiếng Việt của Su): CN Offline 2 tiếng,
 // T3 Online 1 tiếng. Cô Trang (Toán của Su): T2 và T5 Offline 2 tiếng. Cô Ngân (Tiếng Việt của Sa): T4 Online 18:30–19:30, CN Offline 9:00–11:00.
+// Cô Hải (Toán của Sa): T3 Online 17:30–19:30, T5 Offline 18:00–20:00.
 // Dùng để điền sẵn form ghi buổi, tính ngày cần điền và hạn nộp bài. time: giờ học theo thứ (nếu biết).
 const FIXED_SCHED = [
   { kids: ['su', 'misu'], subj: 'tiếng việt', dur: SU_TV_DUR, mode: SU_TV_MODE },
   { kids: ['su', 'misu'], subj: 'toán', dur: [0, 120, 0, 0, 120, 0, 0], mode: ['', 'off', '', '', 'off', '', ''] },
   { kids: ['sa', 'misa'], subj: 'tiếng việt', dur: [120, 0, 0, 60, 0, 0, 0], mode: ['off', '', '', 'on', '', '', ''], time: { 0: ['09:00', '11:00'], 3: ['18:30', '19:30'] } },
+  { kids: ['sa', 'misa'], subj: 'toán', dur: [0, 0, 120, 0, 120, 0, 0], mode: ['', '', 'on', '', 'off', '', ''], time: { 2: ['17:30', '19:30'], 4: ['18:00', '20:00'] } },
 ];
 const fixedFor = (kidNm, subj) => FIXED_SCHED.find(f => f.kids.includes(norm(kidNm)) && norm(subj) === f.subj) || null;
 // Thứ có lịch học của sổ: theo lịch học thêm nhà đã ghi, chưa có thì theo lịch cố định.
@@ -1404,7 +1406,7 @@ const durOf = x => Array.isArray(x?.dur) ? [0, 1, 2, 3, 4, 5, 6].map(i => Math.m
   : x?.student && fixedFor(x.student, x.name) ? fixedFor(x.student, x.name).dur.slice() : [0, 0, 0, 0, 0, 0, 0];
 const SAMPLE_CLASSES = [
   { kids: ['su', 'misu'], name: 'Tiếng Việt', book: SU_TV_BOOK, dur: SU_TV_DUR, teacher: 'Cô Thảo', fee: 200000 }, { kids: ['su', 'misu'], name: 'Toán', dur: [0, 120, 0, 0, 120, 0, 0], teacher: 'Cô Trang', fee: 220000 },
-  { kids: ['sa', 'misa'], name: 'Tiếng Việt', dur: [120, 0, 0, 60, 0, 0, 0], teacher: 'Cô Ngân', fee: 140000, feeOn: 65000 }, { kids: ['sa', 'misa'], name: 'Toán', teacher: 'Cô Hải', feeOff: true },
+  { kids: ['sa', 'misa'], name: 'Tiếng Việt', dur: [120, 0, 0, 60, 0, 0, 0], teacher: 'Cô Ngân', fee: 140000, feeOn: 65000 }, { kids: ['sa', 'misa'], name: 'Toán', dur: [0, 0, 120, 0, 120, 0, 0], teacher: 'Cô Hải', feeOff: true },
 ];
 // Những sổ mẫu nhà chưa có (so theo con và môn). id cố định theo con và thứ tự mẫu: hai máy cùng tạo thì vẫn chỉ ra một sổ.
 const classSamples = () => kidsList().flatMap(k => SAMPLE_CLASSES.map((sp, i) => ({ sp, i })).filter(({ sp }) => sp.kids.includes(norm(k.name)) && !classesOf(k.id).some(c => norm(c.name) === norm(sp.name)))
@@ -2568,7 +2570,7 @@ function autoAdds() {
     for (const c of classesList()) if (isSuTV(kidName(c.kid), c.name) && !c.hwFrom) { const { id, ...o } = c; put('paid', id, { ...o, hwFrom: SU_TV_HW_FROM }); }
     flags.hwfrom = 1;
   }
-  // Sổ có lịch cố định (Toán của Su: T2, T5 120 phút; Tiếng Việt của Sa: CN 120 phút, T4 60 phút): ghi thời lượng theo thứ (một lần; sổ đã có thì giữ nguyên).
+  // Sổ có lịch cố định (Toán của Su: T2, T5 120 phút; Tiếng Việt của Sa: CN 120 phút, T4 60 phút; Toán của Sa: T3, T5 120 phút): ghi thời lượng theo thứ (một lần; sổ đã có thì giữ nguyên).
   if (!set.dur2) {
     for (const c of classesList()) { const f = fixedFor(kidName(c.kid), c.name); if (f && !isSuTV(kidName(c.kid), c.name) && !Array.isArray(c.dur)) { const { id, ...o } = c; put('paid', id, { ...o, dur: f.dur.slice() }); } }
     flags.dur2 = 1;
