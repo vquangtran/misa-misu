@@ -11,6 +11,8 @@ const data = ls => JSON.parse(ls[MAIN]);
 const lopCode = (diem, id) => data(diem.ls).paid[id].code;
 const sua = f => ls => { const d = JSON.parse(ls[MAIN]); f(d, ls); ls[MAIN] = JSON.stringify(d); return ls; };
 const X = '#modal [data-act="close"]';
+// Mã gia đình của Firestore giả (các cảnh firebase-…).
+const FAM = 'gia01-gia01-gia01-gia01';
 const act = (a, attrs = {}) => `[data-act="${a}"]` + Object.entries(attrs).map(([k, v]) => `[data-${k}="${v}"]`).join('');
 
 export const CANH = [
@@ -454,6 +456,110 @@ export const CANH = [
       await c.go('/#hom-nay', 'máy bố mẹ mở app: tự trừ tiền Thiếu BTVN');
       await c.click(act('today-kid', { kid: 'k-sa' }));
       await c.hash('#tai-khoan');
+    },
+  },
+
+  // ----- Đường chạy bằng Firebase, với Firestore giả trong trang (firebase-gia.mjs), không có gì gửi ra ngoài -----
+  // Nhà mở bằng ?gd=: các tab, đóng dấu, duyệt, học phí, phạt, sửa việc, đặt PIN, link cho máy của con.
+  {
+    ten: 'firebase-bo-me',
+    fb: ({ diem, firestoreFromLs }) => firestoreFromLs(diem.ls, FAM),
+    async chay(c) {
+      await c.go(`/?gd=${FAM}#hom-nay`);
+      await c.click(act('tick', { kid: 'k-su', chore: 'mau-don-ban-hoc' }));
+      await c.click(act('step', { kid: 'k-su', chore: 'mau-checklist-truoc-khi-di-ngu', i: 0 }));
+      await c.click(act('merit-ok', { id: 'l4' }));
+      await c.click(act('fun-ok', { id: 'xin-a1' }));
+      await c.click(act('today-kid', { kid: 'k-sa' }));
+      await c.click(act('tick', { kid: 'k-sa', chore: 'mau-xep-bat-vao-may' }));
+      await c.hash('#lich-hoc');
+      for (const v of ['bai-tap', 'truong', 'hoc-them']) await c.click(act('learn-tab', { v }));
+      await c.hash('#lich-hoc/so/lop-k-su-0');
+      await c.click(act('fee-paid'), { nth: 0, label: 'xác nhận học phí' });
+      await c.click(act('so-back'));
+      await c.hash('#tai-khoan');
+      await c.click(act('acct-preset', { id: 'gia-noi-nong' }), { label: 'ghi phạt Nổi nóng' });
+      await c.hash('#quy-dinh');
+      await c.click(act('chore-form', { id: 'mau-lau-ban' }));
+      await c.fill({ '#cmoney': '3000' });
+      await c.click('#modal ' + act('chore-save'));
+      await c.hash('#gia-dinh');
+      await c.click(act('pin-set'));
+      await c.fill({ '#pin': '1234' });
+      await c.click('#modal ' + act('pin-ok'));
+      await c.click(act('copy-kid-link', { kid: 'k-sa' }));
+      await c.click(act('copy-invite'), { optional: true });
+      await c.reload();
+    },
+  },
+
+  // Máy của con mở bằng link riêng (?gd=…&con=…), nhà có mã PIN; nhập PIN để thành máy bố mẹ.
+  {
+    ten: 'firebase-may-con',
+    fb: ({ diem, firestoreFromLs, pinHash, PIN }) => { const d = firestoreFromLs(diem.ls, FAM), k = `families/${FAM}/paid/caidat`; d[k] = { ...d[k], pin: pinHash(PIN) }; return d; },
+    async chay(c) {
+      await c.go(`/?gd=${FAM}&con=k-su`);
+      await c.click('#km ' + act('tick', { kid: 'k-su', chore: 'mau-don-ban-hoc' }));
+      await c.check('#km input[name="kmtab"][value="learn"]');
+      await c.check('#km input[name="kmtab"][value="acct"]');
+      await c.click('#km ' + act('role-parent'));
+      await c.fill({ '#pin': '1234' });
+      await c.click('#modal ' + act('pin-ok'));
+      await c.reload();
+    },
+  },
+
+  // Lần mở đầu trên Firebase từ dữ liệu thử: dán link riêng của Sa ở màn mở đầu, app tự thêm, tạo và tự nhập sổ trên Firestore giả.
+  {
+    ten: 'firebase-mo-dau',
+    gio: 'mo-dau',
+    fb: ({ seed, firestoreFromData }) => firestoreFromData(seed, FAM),
+    async chay(c) {
+      await c.go('/');
+      await c.fill({ '#famcode': `http://may-thu/?gd=${FAM}&con=k-sa` });
+      await c.click('[data-setup="join"]');
+      await c.cho(15000, 'sau khi app tự thêm, tự nhập sổ');
+      await c.reload('tải lại lần 1');
+      await c.reload('tải lại lần 2');
+    },
+  },
+
+  // Nhà mới trên Firebase: tạo gia đình, thêm con, dùng bảng mẫu, rồi rời gia đình.
+  {
+    ten: 'firebase-nha-moi',
+    fb: () => ({}),
+    async chay(c) {
+      await c.go('/');
+      await c.click('[data-setup="new"]');
+      await c.click(act('kid-form'), { nth: 0 });
+      await c.fill({ '#kname': 'Bin' });
+      await c.click('#modal ' + act('kid-save'));
+      await c.click(act('seed'), { optional: true });
+      await c.hash('#quy-dinh');
+      await c.hash('#gia-dinh');
+      await c.click(act('leave'));
+      await c.click(act('leave'), { label: 'bấm lần nữa để rời gia đình' });
+    },
+  },
+
+  // Màn của cô trên Firebase, rồi máy bố mẹ mở sổ đó.
+  {
+    ten: 'firebase-co',
+    fb: ({ diem, firestoreFromLs }) => firestoreFromLs(diem.ls, FAM),
+    async chay(c, { diem }) {
+      const toan = lopCode(diem, 'lop-k-sa-3');
+      await c.go('/?lop=' + toan);
+      await c.click(act('sess-form'), { nth: 0 });
+      await c.fill({ '#sdate': '2026-11-19' });
+      await c.fill({ '#scontent': 'Phân số', '#snote': 'Làm bài tốt' });
+      await c.fill({ '#shw-list .hw-in': 'Bài tập phân số trang 12' });
+      await c.click('#modal ' + act('sess-save'));
+      await c.click(act('t-tab', { v: 'bai' }));
+      await c.click(act('t-tab', { v: 'bao-cao' }));
+      await c.click(act('bank-form'));
+      await c.fill({ '#bbank': 'ACB', '#bnumber': '123456', '#bholder': 'Co Hai' });
+      await c.click('#modal ' + act('bank-save'));
+      await c.go(`/?gd=${FAM}#lich-hoc/so/lop-k-sa-3`, 'máy bố mẹ mở sổ trên Firebase');
     },
   },
 

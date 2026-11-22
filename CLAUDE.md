@@ -87,7 +87,7 @@ Lớp dưới không import lớp trên: `chung`, `nha-minh` ← `du-lieu` ← `
 
 ## Kiểm tra
 
-`tools/kiem-tra/` mở app trong Chromium (Playwright có sẵn) với dữ liệu thử Su, Sa, đi qua mọi màn ở khổ 390×844 và 1280×860, ghi innerHTML của `#app`, `#km`, `#modal` và localStorage sau từng bước, rồi so hai lần chạy. Nó tự chặn `js/config.js` (trả về `null`) và mọi request ra ngoài, cố định giờ, múi giờ và số ngẫu nhiên. Trước khi sửa, chạy để làm mốc; sửa xong chạy lại và so:
+`tools/kiem-tra/` mở app trong Chromium (Playwright có sẵn) với dữ liệu thử Su, Sa, đi qua mọi màn ở khổ 390×844 và 1280×860, ghi innerHTML của `#app`, `#km`, `#modal` và localStorage sau từng bước, rồi so hai lần chạy. Nó tự chặn `js/config.js` (trả về `null`) và mọi request ra ngoài, cố định giờ, múi giờ và số ngẫu nhiên. Các cảnh `firebase-…` chạy đường Firebase của app với Firestore giả trong trang (`firebase-gia.mjs`), không gửi gì ra ngoài. Trước khi sửa, chạy để làm mốc; sửa xong chạy lại và so:
 
 ```bash
 node tools/kiem-tra/chay.mjs chay --ra /tmp/truoc.json

@@ -186,7 +186,7 @@ Rồi mở http://localhost:8000. Phải chạy qua server vì app dùng ES modu
 
 ## Bộ kiểm tra
 
-`tools/kiem-tra/` mở app trong Chromium (Playwright) với dữ liệu thử của hai con Su, Sa, đi qua mọi màn ở hai khổ 390×844 và 1280×860 (5 tab và các tab con, trang sổ học, menu ⋯ và +, các form chính, Chế độ cho bé, máy của con có mã PIN, màn của cô), chụp lại innerHTML của `#app`, `#km`, `#modal` và localStorage sau từng bước. Không bao giờ đụng Firebase thật: `js/config.js` bị chặn và trả về `null`, mọi request ra ngoài máy bị chặn. Giờ cố định (thứ Hai 23/11/2026, 18:30, múi giờ Asia/Ho_Chi_Minh) và số ngẫu nhiên cố định, nên hai lần chạy cùng một mã cho kết quả giống hệt.
+`tools/kiem-tra/` mở app trong Chromium (Playwright) với dữ liệu thử của hai con Su, Sa, đi qua mọi màn ở hai khổ 390×844 và 1280×860 (5 tab và các tab con, trang sổ học, menu ⋯ và +, các form chính, Chế độ cho bé, máy của con có mã PIN, màn của cô), chụp lại innerHTML của `#app`, `#km`, `#modal` và localStorage sau từng bước. Không bao giờ đụng Firebase thật: `js/config.js` bị chặn và trả về `null`, mọi request ra ngoài máy bị chặn. Vài cảnh chạy đường Firebase của app (mở bằng `?gd=`, `&con=`, màn mở đầu, nhà mới, màn của cô) với một Firestore giả chạy ngay trong trang (`tools/kiem-tra/firebase-gia.mjs`), vẫn không gửi gì ra ngoài. Giờ cố định (thứ Hai 23/11/2026, 18:30, múi giờ Asia/Ho_Chi_Minh) và số ngẫu nhiên cố định, nên hai lần chạy cùng một mã cho kết quả giống hệt.
 
 Chạy trước khi sửa để làm mốc, sửa xong chạy lại và so:
 

@@ -3,7 +3,8 @@
 // (ví dụ bản main và bản đang sửa) để biết giao diện và dữ liệu có giống hệt nhau không.
 //
 // Không bao giờ chạm vào Firebase thật: js/config.js bị chặn và trả về `export const firebaseConfig = null;`
-// nên app chỉ lưu trên trình duyệt. Mọi request ra ngoài máy đều bị chặn. Giờ cố định bằng page.clock,
+// nên app chỉ lưu trên trình duyệt. Mọi request ra ngoài máy đều bị chặn. Các cảnh firebase-… (canh.mjs) chạy đường Firebase
+// của app với Firestore giả chạy ngay trong trang (firebase-gia.mjs): config.js trả về cấu hình giả, SDK được thay bằng bản giả. Giờ cố định bằng page.clock,
 // múi giờ Asia/Ho_Chi_Minh, Math.random và crypto.getRandomValues là hàm cố định, nên mã ngẫu nhiên lần nào cũng như nhau.
 //
 // Cách dùng (chạy ở thư mục gốc của repo):
@@ -29,6 +30,7 @@ import { fileURLToPath } from 'node:url';
 import { duLieuThu } from './du-lieu-thu.mjs';
 import { CANH } from './canh.mjs';
 import { kiemTraModule } from './module.mjs';
+import { FAKE_APP, FAKE_AUTH, FAKE_CONFIG, FAKE_FIRESTORE, firestoreFromData, firestoreFromLs } from './firebase-gia.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '../..');
@@ -69,7 +71,7 @@ function initScript() {
   try { if (navigator.clipboard) navigator.clipboard.writeText = () => Promise.resolve(); } catch (e) {}
 }
 
-export async function newPage(browser, origin, { kho, ls, gio }) {
+export async function newPage(browser, origin, { kho, ls, gio, fb }) {
   const ctx = await browser.newContext({
     viewport: KHO[kho], timezoneId: 'Asia/Ho_Chi_Minh', locale: 'vi-VN', deviceScaleFactor: 1,
     storageState: { cookies: [], origins: [{ origin, localStorage: Object.entries(ls || {}).map(([name, value]) => ({ name, value })) }] },
@@ -91,6 +93,18 @@ export async function newPage(browser, origin, { kho, ls, gio }) {
     await prev;
     try { await route.fulfill({ response: await route.fetch() }); } finally { setTimeout(release, 400); }
   });
+  // fb: dữ liệu ban đầu của Firestore giả (firebase-gia.mjs). Khi đó config.js trả về một cấu hình giả và ba file SDK
+  // tải từ www.gstatic.com được thay bằng bản chạy trong trang; vẫn không có gì gửi ra ngoài.
+  if (fb) {
+    const js = { 'firebase-app.js': FAKE_APP, 'firebase-auth.js': FAKE_AUTH, 'firebase-firestore.js': FAKE_FIRESTORE };
+    await ctx.route('https://www.gstatic.com/firebasejs/**', route => {
+      const body = js[route.request().url().split('/').pop()];
+      if (!body) { st.errs.push('Firebase giả không có ' + route.request().url()); return route.abort(); }
+      return route.fulfill({ status: 200, contentType: 'text/javascript; charset=utf-8', headers: { 'Access-Control-Allow-Origin': '*' }, body });
+    });
+    await ctx.route('**/js/config.js', route => route.fulfill({ status: 200, contentType: 'text/javascript; charset=utf-8', body: FAKE_CONFIG }));
+    await ctx.addInitScript(d => { window.__FS_GIA__ = d; }, fb);
+  }
   await ctx.addInitScript(initScript);
   const page = await ctx.newPage();
   await page.clock.setFixedTime(new Date(gio));
@@ -106,15 +120,19 @@ export async function newPage(browser, origin, { kho, ls, gio }) {
 // Chờ app vẽ xong: không còn request đang chạy và trang không đổi qua vài khung hình liên tiếp.
 const SIG = () => {
   let h = 0; const add = s => { s = String(s ?? ''); for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; };
-  for (const id of ['app', 'km', 'modal', 'rail', 'tabs', 'toast', 'print-area']) add(document.getElementById(id)?.innerHTML);
+  for (const id of ['app', 'km', 'modal', 'rail', 'tabs', 'toast', 'print-area', 'setup']) add(document.getElementById(id)?.innerHTML);
+  if (window.__fsGiaDump) add(window.__fsGiaDump());
   for (const k of Object.keys(localStorage).sort()) { add(k); add(localStorage.getItem(k)); }
   return h + ':' + location.href;
 };
 export async function settle(page, st, max = 6000) {
   const t0 = Date.now(); let prev = null, same = 0;
   while (Date.now() - t0 < max) {
-    await page.evaluate(() => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0))));
-    const sig = await page.evaluate(SIG);
+    let sig;
+    try {
+      await page.evaluate(() => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0))));
+      sig = await page.evaluate(SIG);
+    } catch (e) { await sleep(100); continue; } // trang đang chuyển (ví dụ Rời gia đình)
     if (sig === prev && st.inflight <= 0) { if (++same >= 3) return; } else { same = 0; prev = sig; }
     await sleep(30);
   }
@@ -125,7 +143,8 @@ const CAPTURE = () => {
   const ls = {}; try { for (const k of Object.keys(localStorage).sort()) ls[k] = localStorage.getItem(k); } catch (e) {}
   return { app: g('app').innerHTML, km: g('km').innerHTML, modal: g('modal').innerHTML, nav: g('rail').innerHTML + '\n' + g('tabs').innerHTML,
     flags: JSON.stringify({ appCls: g('app').className, km: g('km').hidden, kmCls: g('km').className, modal: g('modal').hidden, setup: g('setup').hidden, setupHtml: g('setup').innerHTML }),
-    toast: g('toast').textContent, print: g('print-area').className + '\n' + g('print-area').innerHTML, url: location.pathname + location.search + location.hash, ls: JSON.stringify(ls) };
+    toast: g('toast').textContent, print: g('print-area').className + '\n' + g('print-area').innerHTML, url: location.pathname + location.search + location.hash, ls: JSON.stringify(ls),
+    fs: window.__fsGiaDump ? window.__fsGiaDump() : '' };
 };
 
 // ---------- một cảnh: chuỗi thao tác, chụp lại sau mỗi thao tác ----------
@@ -142,6 +161,8 @@ class Canh {
   }
   async go(path, label = 'mở ' + path) { await this.page.goto(this.origin + path); await settle(this.page, this.st); return this.snap(label); }
   async reload(label = 'tải lại') { await this.page.reload(); await settle(this.page, this.st); return this.snap(label); }
+  // Chờ lâu hơn (ví dụ app đang tự nhập sổ từ data/*.json) rồi chụp.
+  async cho(ms, label = 'chờ app làm xong') { await settle(this.page, this.st, ms); return this.snap(label); }
   async hash(h, label = 'đi tới ' + h) { await this.page.evaluate(x => { location.hash = x; }, h); await settle(this.page, this.st); return this.snap(label); }
   // Bấm bằng element.click() (đi qua bộ xử lý data-act như bấm tay), không phụ thuộc lớp phủ hay hiệu ứng.
   async click(sel, { text, nth = 0, label, optional = false } = {}) {
@@ -221,8 +242,9 @@ async function runAll() {
       for (const canh of CANH) {
         if (only && canh.ten !== only) continue;
         if (canh.ten === 'mo-dau' && kho !== khos[0] && !args.includes('--tu-dau')) continue;
-        const ls = canh.ten === 'mo-dau' ? seedLs() : canh.sua ? canh.sua(JSON.parse(JSON.stringify(diem.ls)), { pinHash, PIN }) : diem.ls;
-        const { ctx, page, st } = await newPage(browser, srv.origin, { kho, ls, gio: canh.ten === 'mo-dau' ? GIO_MO_DAU : GIO_CHAY });
+        const ls = canh.fb ? canh.ls || {} : canh.ten === 'mo-dau' ? seedLs() : canh.sua ? canh.sua(JSON.parse(JSON.stringify(diem.ls)), { pinHash, PIN }) : diem.ls;
+        const fb = canh.fb ? canh.fb({ diem, seed: duLieuThu(), firestoreFromLs, firestoreFromData, pinHash, PIN }) : null;
+        const { ctx, page, st } = await newPage(browser, srv.origin, { kho, ls, fb, gio: canh.ten === 'mo-dau' || canh.gio === 'mo-dau' ? GIO_MO_DAU : GIO_CHAY });
         const c = new Canh(run, canh.ten, page, st, kho, srv.origin);
         process.stdout.write(`${canh.ten} [${kho}] `);
         try { await canh.chay(c, { diem, moDau, pinHash, PIN }); } catch (e) { st.errs.push('cảnh bị dừng: ' + (e.stack || e.message)); await c.snap('cảnh bị dừng').catch(() => {}); }
@@ -246,18 +268,20 @@ function firstDiff(a, b) { let i = 0; while (i < a.length && i < b.length && a[i
 const around = (s, i) => JSON.stringify(s.slice(Math.max(0, i - 120), i + 180));
 function lsDiff(a, b) {
   const A = JSON.parse(a), B = JSON.parse(b), out = [];
+  const str = v => v == null ? v : typeof v === 'string' ? v : JSON.stringify(v);
   for (const k of new Set([...Object.keys(A), ...Object.keys(B)])) {
-    if (A[k] === B[k]) continue;
-    if (A[k] == null || B[k] == null) { out.push(`  localStorage["${k}"] ${A[k] == null ? 'chỉ có ở lần sau' : 'chỉ có ở lần trước'}`); continue; }
-    const i = firstDiff(A[k], B[k]);
-    out.push(`  localStorage["${k}"] khác từ ký tự ${i}:\n    trước: ${around(A[k], i)}\n    sau:   ${around(B[k], i)}`);
+    const a = str(A[k]), b = str(B[k]);
+    if (a === b) continue;
+    if (a == null || b == null) { out.push(`  ["${k}"] ${a == null ? 'chỉ có ở lần sau' : 'chỉ có ở lần trước'}`); continue; }
+    const i = firstDiff(a, b);
+    out.push(`  ["${k}"] khác từ ký tự ${i}:\n    trước: ${around(a, i)}\n    sau:   ${around(b, i)}`);
   }
   return out;
 }
 export function compare(A, B) {
   const key = s => `${s.canh} [${s.kho}] ${s.buoc}`;
   const mapB = new Map(B.steps.map(s => [key(s), s]));
-  const fields = ['app', 'km', 'modal', 'nav', 'flags', 'toast', 'print', 'url', 'ls'];
+  const fields = ['app', 'km', 'modal', 'nav', 'flags', 'toast', 'print', 'url', 'ls', 'fs'];
   let diff = 0, shown = 0;
   for (const a of A.steps) {
     const b = mapB.get(key(a));
@@ -268,7 +292,7 @@ export function compare(A, B) {
       diff++;
       if (shown++ >= 40) continue;
       const sa = A.blobs[a[f]], sb = B.blobs[b[f]];
-      if (f === 'ls') console.log(`KHÁC ${key(a)}: localStorage\n${lsDiff(sa, sb).join('\n')}`);
+      if (f === 'ls' || (f === 'fs' && sa && sb)) console.log(`KHÁC ${key(a)}: ${f === 'ls' ? 'localStorage' : 'Firestore giả'}\n${lsDiff(sa, sb).join('\n')}`);
       else { const i = firstDiff(sa, sb); console.log(`KHÁC ${key(a)}: ${f} từ ký tự ${i}\n  trước: ${around(sa, i)}\n  sau:   ${around(sb, i)}`); }
     }
   }
