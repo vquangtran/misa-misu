@@ -1,32 +1,16 @@
-import { firebaseConfig } from './config.js';
-import { COLS, localStore, firebaseStore, firebaseClass, localClass } from './store.js';
+// Điểm vào của app (index.html nạp file này): vẽ khung và các màn, điều hướng bằng #hash, mở dữ liệu của gia đình
+// (Firebase hoặc trên trình duyệt), màn mở đầu khi chưa có gia đình, màn của cô.
 import { AVATAR_SETS, avatarPick, isSvgAvatar } from './avatars.js';
+import { firebaseConfig } from './config.js';
 import { autoIcons, icon, iconify, iconSvg } from './icons.js';
-import { readXlsx, excelDate } from './xlsx.js';
+import { COLS, firebaseClass, firebaseStore, localClass, localStore } from './store.js';
+import { excelDate, readXlsx } from './xlsx.js';
+import { $, addDays, CHEV, confetti, DAILY, dateTxt, daysBetween, daysLabel, daysTo, dm, dmy, DOTS, DOWN, dueLabel, durTxt, esc, hm, key, money,
+  monthTxt, newFamilyCode, NEXT, norm, nowMin, pad, pad2, parse, PLUS, PREV, printHtml, signed, slug, STAR, toast, today, toMin, uid, WD, WDN, WDS,
+  WEEK_ORDER, weekStart } from './chung.js';
+import { AV_DEFAULT, FIXED_SCHED, isSuTV, PLACE_ALIAS, PLACE_NAMES, SAMPLE_CLASSES, SAMPLE_PERIODS, SAMPLE_TKBS, SAMPLE_YEAR, SU_TV_BOOK, SU_TV_DUR,
+  SU_TV_HW_FROM, SU_TV_MODE, TABLE_BAL_DATE, TABLE_BALANCES } from './nha-minh.js';
 
-// ---------- helpers ----------
-const $ = (s, r = document) => r.querySelector(s);
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const WD = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
-const WDS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
-// Mọi ngày trong tuần (CN = 0 … T7 = 6).
-const DAILY = [0, 1, 2, 3, 4, 5, 6];
-const pad = n => String(n).padStart(2, '0');
-const key = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
-const parse = k => { const [y, m, d] = String(k).split('-').map(Number); return new Date(y, (m || 1) - 1, d || 1); };
-const addDays = (d, n) => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() + n); return x; };
-const today = () => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); };
-const weekStart = d => addDays(d, -((d.getDay() + 6) % 7));
-const dm = d => d.getDate() + '/' + (d.getMonth() + 1);
-const money = n => (Number(n) < 0 ? '−' : '') + Math.abs(Math.round(Number(n) || 0)).toLocaleString('vi-VN') + 'đ';
-const signed = n => (Number(n) > 0 ? '+' : '') + money(n);
-const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
-// Chữ để so sánh: bỏ khoảng trắng hai đầu, viết thường. slug: viết liền không dấu, nối bằng gạch ngang (làm mã cố định theo tên).
-const norm = v => String(v || '').trim().toLowerCase();
-const slug = v => norm(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.85 5.9 6.5.85-4.75 4.5 1.2 6.45L12 17.2l-5.8 3.1 1.2-6.45L2.65 9.35l6.5-.85z"/></svg>';
-const CHEV = '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>';
 // Mũi tên ở cuối dòng: bấm vào bất kỳ chỗ nào trên dòng là mở form sửa (kiểu danh sách iOS).
 const editBtn = (act, id, name = '') => RO ? '' : `<button class="edit" data-act="${act}" data-id="${id}" aria-label="Sửa${name ? ': ' + esc(name) : ''}">${CHEV}</button>`;
 // Công tắc bật/tắt cho một lựa chọn đơn.
@@ -147,40 +131,12 @@ const WEEK_BONUS_OLD = 25000;
 // Bản của bảng mẫu. Con chưa ghi bản này (k.tableVer) thì trang Quy định gợi ý cập nhật một lần.
 // k.tableFull: nhà này đã được thêm đủ việc và mục giá của bản đó (xem autoFill).
 const TABLE_VER = 2;
-// Số dư thật của từng con lúc chốt bảng bản 2 (21/11/2026), theo tên. "Cập nhật theo bảng mẫu" điền sẵn để khớp số dư, sửa được trước khi áp dụng.
-const TABLE_BALANCES = { su: 875000, misu: 875000, sa: 703270, misa: 703270 };
-const TABLE_BAL_DATE = '21/11';
 // Trước đây app tính bằng sao. Dữ liệu cũ (sao) được quy đổi: 1 sao = 5.000đ.
 const STAR_VND = 5000;
 
 // Môn học gợi ý khi nhập thời khoá biểu (tiểu học và THCS).
 const SUBJECTS = ['Toán', 'Tiếng Việt', 'Ngữ văn', 'Tiếng Anh', 'Khoa học', 'KHTN', 'Lịch sử và Địa lí', 'Đạo đức', 'GDCD', 'Âm nhạc', 'Mĩ thuật',
   'Tin học', 'Công nghệ', 'Giáo dục thể chất', 'Bơi', 'Hoạt động trải nghiệm', 'Sinh hoạt dưới cờ', 'Sinh hoạt lớp', 'Tự học'];
-// Thời khoá biểu mẫu: 7 tiết, nghỉ trưa sau tiết 4, Thứ Hai đến Thứ Sáu.
-const SAMPLE_PERIODS = [['08:00', '08:35'], ['08:45', '09:20'], ['09:40', '10:15'], ['10:25', '11:00'], ['14:10', '14:45'], ['14:55', '15:30'], ['15:40', '16:15']];
-// Thời khoá biểu có sẵn của từng con, năm học 2026 – 2027. Bản lớp 4A của Su là bản học kì I. Mỗi dòng của `subj` là một tiết, các cột từ Thứ Hai đến Thứ Sáu.
-// Chỉ gợi ý cho con có tên trong `kids`.
-const SAMPLE_TKBS = [
-  { kids: ['su', 'misu'], cls: 'Lớp 4A', year: '2026 – 2027', days: [1, 2, 3, 4, 5], lunch: 4, times: SAMPLE_PERIODS, subj: [
-    ['SHĐT', 'Toán', 'Mĩ thuật', 'GDTC', 'GDTC'],
-    ['HĐTN', 'Âm nhạc', 'Toán', 'LS-ĐL', 'Tiếng Anh'],
-    ['Toán', 'Tiếng Anh', 'Tiếng Việt', 'Tiếng Anh', 'Toán'],
-    ['LS-ĐL', 'Khoa học', 'HSTN', 'Toán', 'Tiếng Anh TC'],
-    ['Tiếng Việt', 'Tiếng Việt', 'Tin học', 'Tiếng Việt', 'Tiếng Việt TC'],
-    ['Toán TC', 'Tiếng Việt', 'Tiếng Việt', 'Tiếng Việt', 'HSTN'],
-    ['Tiếng Anh', 'Đạo đức', 'Công nghệ', 'Khoa học', 'SHS'],
-  ] },
-  { kids: ['sa', 'misa'], cls: 'Lớp 7A', year: '2026 – 2027', days: [1, 2, 3, 4, 5], lunch: 4,
-    times: [['07:30', '08:15'], ['08:20', '09:05'], ['09:25', '10:10'], ['10:15', '11:00'], ['13:45', '14:30'], ['14:35', '15:20'], ['15:25', '16:10']], subj: [
-    ['Sinh hoạt Đội', 'Thể dục', 'Anh', 'Nhạc', 'Sử'],
-    ['HĐTN', 'Thể dục', 'Anh TC', 'GDĐP', 'Địa'],
-    ['Toán', 'Mĩ thuật', 'Công nghệ', 'KHTN Vật sống', 'Tự học'],
-    ['Toán', 'Sử', 'KHTN Chất', 'KHTN Vật sống', 'Tự học'],
-    ['Văn', 'Anh', 'Văn', 'Toán', 'Toán TC'],
-    ['KHTN Năng lượng', 'Anh', 'Văn', 'Văn', 'Kĩ năng sống'],
-    ['GDCD', 'Tin', 'Toán', 'Văn TC', 'Sinh hoạt lớp'],
-  ] },
-];
 
 // ---------- state ----------
 let S = Object.fromEntries(COLS.map(c => [c, {}]));
@@ -439,8 +395,6 @@ const kidName = id => S.kids[id]?.name || 'Bé';
 const tintOf = k => { const p = avatarPick(avatarOf(k)); return p ? `var(--tint-${p.set})` : 'var(--t' + ((Number(k.tint) || 0) % 6) + ')'; };
 // Ảnh của con (data URL nhỏ, lưu trong dữ liệu của gia đình), không có thì dùng emoji.
 const photoOf = k => /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(k?.photo || '') ? k.photo : '';
-// Su mặc định là bộ gà, Sa là bộ ngựa (mỗi ngày một kiểu), cho tới khi bố mẹ chọn hình khác trong thông tin của con.
-const AV_DEFAULT = { misu: 'set:ga', su: 'set:ga', misa: 'set:ngua', sa: 'set:ngua' };
 const avatarOf = k => k?.avatarChosen || isSvgAvatar(k?.avatar) ? (k.avatar || '🙂') : AV_DEFAULT[String(k?.name || '').trim().toLowerCase()] || k?.avatar || '🙂';
 // Nội dung bên trong khung tròn cho một giá trị hình đại diện (SVG hoặc emoji).
 const avInner = v => { const p = avatarPick(v); return p ? p.svg : esc(v || '🙂'); };
@@ -460,14 +414,6 @@ function choreSummary(c) {
     (c.variants || []).length ? `xen kẽ: ${c.variants.map(esc).join(' / ')}` : '', c.shared ? 'việc chung' : '', c.claim ? 'ai làm trước thì tính' : '', c.prep === 'school' ? 'chỉ khi hôm sau đi học' : c.prep ? 'tối trước buổi học thêm' : '',
     c.imp ? '<span class="late">quan trọng</span>' : '', c.unlock && !isFun(c) ? 'xong mới mở khoá việc thích làm' : '', c.place ? `chỉ ở ${esc(placeLow(c.place))}` : ''].filter(Boolean).join(' · ');
 }
-function daysLabel(days) {
-  const s = [...(days || [])].sort();
-  if (s.length === 7) return 'mỗi ngày';
-  if (s.join() === '1,2,3,4,5') return 'ngày thường';
-  if (s.join() === '0,6') return 'cuối tuần';
-  if (!s.length) return 'chưa chọn ngày';
-  return WEEK_ORDER.filter(d => s.includes(d)).map(d => WDS[d]).join(', ');
-}
 const modeLabel = k => isDaily(k) ? (dayBonusOf(k) ? `mỗi ngày làm đủ việc được thưởng ${money(dayBonusOf(k))}` : 'không có thưởng ngày đủ việc') : weekBonusOf(k) ? `làm đủ việc cả tuần được thưởng ${money(weekBonusOf(k))}` : 'không có thưởng đủ tuần';
 function ageOf(k, at = today()) {
   if (!k.birthday) return null;
@@ -478,13 +424,6 @@ function ageOf(k, at = today()) {
 }
 const isBirthday = (k, d) => { if (!k.birthday) return false; const b = parse(k.birthday); return b.getDate() === d.getDate() && b.getMonth() === d.getMonth(); };
 const bdayChip = (k, d) => isBirthday(k, d) ? `<span class="streak">🎂 Sinh nhật ${ageOf(k, d)} tuổi</span>` : '';
-
-// ---------- thời khoá biểu ----------
-const toMin = s => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(s || '')); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
-const hm = n => pad(Math.floor(n / 60) % 24) + ':' + pad(n % 60);
-const durTxt = n => { const h = Math.floor(n / 60), m = n % 60; return h ? `${h} giờ${m ? ` ${m} phút` : ''}` : `${m} phút`; };
-const nowMin = () => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); };
-const WDN = d => d === 0 ? 'Chủ nhật' : 'Thứ ' + (d + 1);
 const tkbOf = kidId => { const t = S.timetables[kidId]; return t && Array.isArray(t.rows) ? t : null; };
 const tkbDays = t => (Array.isArray(t.days) && t.days.length ? t.days : [1, 2, 3, 4, 5]).map(Number).sort();
 // Thời khoá biểu có sẵn của con này (theo tên), không có thì null.
@@ -514,37 +453,17 @@ function nextSchool(t, d, kidId) {
 // events: { name, icon, kind: exam|holiday|meeting|event, from: "YYYY-MM-DD", to: "YYYY-MM-DD" (không bắt buộc), kids: [] = cả nhà }
 const EVENT_KINDS = [['exam', 'Kiểm tra', '📝'], ['holiday', 'Nghỉ học', '🏖️'], ['meeting', 'Họp phụ huynh', '👪'], ['event', 'Sự kiện', '🎉']];
 const EVENT_ICONS = ['📝', '🏫', '🎒', '📘', '🌱', '🌸', '🧧', '🎓', '🏆', '👪', '🎉', '🏖️', '⚽', '🎭', '🩺', '📣'];
-// Khung thời gian năm học 2026 – 2027 theo hướng dẫn của Bộ GD&ĐT và Sở GD&ĐT Hà Nội (khối 4).
-const SAMPLE_YEAR = { label: 'năm học 2026 – 2027', items: [
-  { name: 'Khối 4 tập trung, sinh hoạt lớp đầu năm', icon: '🎒', kind: 'event', from: '2026-09-03' },
-  { name: 'Lễ khai giảng', icon: '🏫', kind: 'event', from: '2026-09-05' },
-  { name: 'Khảo sát đầu năm Tiếng Việt, Toán, Tiếng Anh', icon: '📝', kind: 'exam', from: '2026-09-07', to: '2026-09-11' },
-  { name: 'Kiểm tra, khảo sát giữa kì I', icon: '📝', kind: 'exam', from: '2026-10-26', to: '2026-11-01' },
-  { name: 'Kiểm tra học kì I', icon: '📝', kind: 'exam', from: '2026-12-14', to: '2026-12-27' },
-  { name: 'Kết thúc học kì I', icon: '📘', kind: 'event', from: '2027-01-15' },
-  { name: 'Họp phụ huynh cuối kì I', icon: '👪', kind: 'meeting', from: '2027-01-17' },
-  { name: 'Bắt đầu chương trình học kì II', icon: '🌱', kind: 'event', from: '2027-01-18' },
-  { name: 'Lễ hội chào Xuân 2027', icon: '🌸', kind: 'event', from: '2027-01-27', to: '2027-01-28' },
-  { name: 'Nghỉ Tết Nguyên đán', icon: '🧧', kind: 'holiday', from: '2027-02-04', to: '2027-02-22' },
-  { name: 'Kiểm tra, khảo sát giữa kì II', icon: '📝', kind: 'exam', from: '2027-03-09', to: '2027-03-10' },
-  { name: 'Kiểm tra học kì II', icon: '📝', kind: 'exam', from: '2027-04-19', to: '2027-05-09' },
-  { name: 'Kết thúc chương trình học kì II', icon: '🎓', kind: 'event', from: '2027-05-21' },
-  { name: 'Họp phụ huynh cuối năm học', icon: '👪', kind: 'meeting', from: '2027-05-23' },
-  { name: 'Kết thúc năm học (bế giảng)', icon: '🏆', kind: 'event', from: '2027-05-24', to: '2027-05-30' },
-] };
 const eventsList = () => Object.entries(S.events || {}).map(([id, e]) => ({ id, ...e, to: e.to && e.to > e.from ? e.to : e.from }))
   .filter(e => e.from).sort((a, b) => a.from.localeCompare(b.from) || String(a.name).localeCompare(String(b.name), 'vi'));
 const forKid = (e, kidId) => !(e.kids || []).length || e.kids.includes(kidId);
 const eventsOf = kidId => eventsList().filter(e => forKid(e, kidId));
 const holidayOn = (kidId, d) => { const dk = key(d); return eventsOf(kidId).find(e => e.kind === 'holiday' && e.from <= dk && dk <= e.to) || null; };
 const schoolOn = (kidId, d) => holidayOn(kidId, d) ? null : schoolDay(tkbOf(kidId), d.getDay());
-const dmy = d => `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
 function eventRange(e) {
   const a = parse(e.from), b = parse(e.to);
   if (e.from === e.to) return `${WDN(a.getDay())}, ${dmy(a)}`;
   return a.getFullYear() === b.getFullYear() ? `${dm(a)} – ${dmy(b)}` : `${dmy(a)} – ${dmy(b)}`;
 }
-const daysTo = dk => Math.round((parse(dk) - today()) / 864e5);
 // Trạng thái so với hôm nay: { past, now, txt }.
 function eventWhen(e) {
   const tk = key(today()), n = daysTo(e.from);
@@ -716,11 +635,6 @@ function tripWarnings(trips) {
 }
 const placeTxt = l => l.home === true ? `🏠 ${esc(placeName(l.at) || 'Ở nhà')}` : l.home === false
   ? `${l.at ? '📍 ' + esc(placeName(l.at)) + ' · ' : ''}${l.go ? whoIcon(l.go) + ' Đi: ' + esc(l.go) : '⚠️ Chưa có người đưa'} · ${l.back ? 'Về: ' + esc(l.back) : '⚠️ chưa có người đón'}` : (l.at ? '📍 ' + esc(placeName(l.at)) : '');
-// ---------- các con ở đâu ----------
-// stays: id = thứ ("0".."6"), { day: ban ngày ở đâu (bỏ trống = đi học / như buổi tối), night: tối ngủ ở đâu }.
-const PLACE_NAMES = ['Nhà B4', '6th Element', 'Nhà ông bà'];
-// Tên cũ được hiện bằng tên mới: nhà gọi theo tên toà nhà, không theo bố hay mẹ (dữ liệu cũ ghi "Nhà mẹ", "Nhà bố", "bên mẹ", "Mẹ"...).
-const PLACE_ALIAS = [[/^(?:(?:nhà|bên|chỗ|ở)\s+)?(?:mẹ|má)$/i, '6th Element'], [/^(?:(?:nhà|bên|chỗ|ở)\s+)?(?:bố|ba)$/i, 'Nhà B4']];
 const placeName = p => { const v = String(p || '').normalize('NFC').trim().replace(/\s+/g, ' '); return (PLACE_ALIAS.find(([re]) => re.test(v)) || [, v])[1]; };
 // Viết thường chữ "nhà" ở giữa câu, giữ nguyên tên riêng ("6th Element").
 const placeLow = p => placeName(p).replace(/^nhà(?=\s)/i, 'nhà');
@@ -922,13 +836,6 @@ function noKids() {
   <p class="muted">Thêm tên và hình đại diện cho từng con, sau đó giao việc nhà cho các con. Nếu có file sao lưu, vào mục Gia đình để nhập.</p>
   <div class="row" style="justify-content:center;margin-top:10px"><button class="btn primary" data-act="kid-form">Thêm con</button><button class="btn ghost" data-act="seed-form">Nạp lịch gia đình</button></div></div>`;
 }
-
-// ---------- bảng tuần (lưới việc × ngày) ----------
-// Nút tròn nhỏ: dấu cộng, ba chấm, mũi tên xuống.
-const PLUS = '<svg class="gl" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
-const DOTS = '<svg class="gl dots" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
-const DOWN = '<svg class="chev down" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
-const PREV = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>', NEXT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>';
 const skipNote = (k, d) => { const e = skipEntry(k.id, d); return e ? `<div class="skip-note">🎟️ ${key(d) === key(today()) ? 'Hôm nay' : 'Ngày này'} ${esc(k.name)} dùng phiếu “Một ngày không làm việc nhà”: việc phải làm được miễn, làm thì vẫn được thưởng.</div>` : ''; };
 function viewWeekGrid() {
   const kids = kidsList(), t = today(), ws = UI.gridWs || weekStart(t), days = Array.from({ length: 7 }, (_, i) => addDays(ws, i));
@@ -1234,13 +1141,6 @@ function nextSubjectDay(kidId, subj, from = today()) {
   }
   return null;
 }
-function dueLabel(dk) {
-  const n = daysTo(dk), d = parse(dk);
-  if (n < 0) return `quá hạn ${-n} ngày`;
-  if (n === 0) return 'hôm nay';
-  if (n === 1) return 'ngày mai';
-  return n < 7 ? `${WDN(d.getDay())} ${dm(d)}` : `${WDN(d.getDay())} ${dm(d)} (còn ${n} ngày)`;
-}
 const subjDot = s => s ? `<i class="dot sj${subjTint(s)}"></i>` : '';
 function taskRow(t, showKid, mode = '') {
   const big = mode === 'big', bare = big || mode === 'mini';
@@ -1445,26 +1345,6 @@ const getLop = () => { try { return localStorage.getItem(LOP_KEY); } catch (e) {
 const setLop = v => { try { localStorage.setItem(LOP_KEY, v); } catch (e) {} };
 const emptySo = () => ({ info: {}, sessions: {}, tasks: {} });
 const soOf = code => CLS[code]?.data || emptySo();
-// Các cô dạy thêm của nhà mình và học phí: app tự tạo sẵn sổ học một lần trên máy của bố mẹ (xem autoAdds), mỗi con chỉ nhận sổ của mình.
-// Cô Ngân: buổi Offline 140.000đ, buổi Online một tiếng 65.000đ. Cô Hải chưa có học phí nên tạm ẩn phần học phí (feeOff), bật lại ở Sửa sổ.
-// Tên sổ (book): để trống thì sổ gọi là "Nhật ký học <môn>".
-const SU_TV_BOOK = 'Nhật ký học Tiếng Việt';
-// Thời lượng mỗi buổi theo thứ (dur: 7 số, CN = 0 … T7 = 6; 0 = theo lịch học thêm). Cô Thảo: thứ 3 học 60 phút, chủ nhật 120 phút.
-const SU_TV_DUR = [120, 0, 60, 0, 0, 0, 0];
-const SU_TV_HW_FROM = '2026-11-22';
-// Hình thức theo thứ của sổ Tiếng Việt của Su: chủ nhật học Offline (2 tiếng), thứ 3 học Online (1 tiếng).
-const SU_TV_MODE = ['off', '', 'on', '', '', '', ''];
-const isSuTV = (kidNm, subj) => ['su', 'misu'].includes(norm(kidNm)) && norm(subj) === 'tiếng việt';
-// Lịch cố định theo thứ của các cô nhà mình (CN = 0 … T7 = 6): thời lượng (phút) và hình thức. Cô Thảo (Tiếng Việt của Su): CN Offline 2 tiếng,
-// T3 Online 1 tiếng. Cô Trang (Toán của Su): T2 và T5 Offline 2 tiếng, 17:45–19:45. Cô Ngân (Tiếng Việt của Sa): T4 Online 18:30–19:30, CN Offline 9:00–11:00.
-// Cô Hải (Toán của Sa): T3 Online 17:30–19:30, T5 Offline 18:00–20:00.
-// Dùng để điền sẵn form ghi buổi, tính ngày cần điền và hạn nộp bài. time: giờ học theo thứ (nếu biết).
-const FIXED_SCHED = [
-  { kids: ['su', 'misu'], subj: 'tiếng việt', dur: SU_TV_DUR, mode: SU_TV_MODE },
-  { kids: ['su', 'misu'], subj: 'toán', dur: [0, 120, 0, 0, 120, 0, 0], mode: ['', 'off', '', '', 'off', '', ''], time: { 1: ['17:45', '19:45'], 4: ['17:45', '19:45'] } },
-  { kids: ['sa', 'misa'], subj: 'tiếng việt', dur: [120, 0, 0, 60, 0, 0, 0], mode: ['off', '', '', 'on', '', '', ''], time: { 0: ['09:00', '11:00'], 3: ['18:30', '19:30'] } },
-  { kids: ['sa', 'misa'], subj: 'toán', dur: [0, 0, 120, 0, 120, 0, 0], mode: ['', '', 'on', '', 'off', '', ''], time: { 2: ['17:30', '19:30'], 4: ['18:00', '20:00'] } },
-];
 const fixedFor = (kidNm, subj) => FIXED_SCHED.find(f => f.kids.includes(norm(kidNm)) && norm(subj) === f.subj) || null;
 // Thứ và giờ học của sổ: lịch cố định có ghi giờ thì theo lịch cố định (giờ cô dạy do nhà báo, đúng nhất);
 // không thì theo lịch học thêm nhà đã ghi; chưa có nữa thì theo các thứ trong lịch cố định.
@@ -1474,10 +1354,6 @@ const schedSlots = info => { const f = fixedFor(info?.student, info?.name);
 // Màn của cô đọc thông tin lớp (có student): sổ chưa được máy bố mẹ ghi dur thì vẫn dùng thời lượng theo lịch cố định.
 const durOf = x => Array.isArray(x?.dur) ? [0, 1, 2, 3, 4, 5, 6].map(i => Math.max(0, Math.round(Number(x.dur[i]) || 0)))
   : x?.student && fixedFor(x.student, x.name) ? fixedFor(x.student, x.name).dur.slice() : [0, 0, 0, 0, 0, 0, 0];
-const SAMPLE_CLASSES = [
-  { kids: ['su', 'misu'], name: 'Tiếng Việt', book: SU_TV_BOOK, dur: SU_TV_DUR, teacher: 'Cô Thảo', fee: 200000 }, { kids: ['su', 'misu'], name: 'Toán', dur: [0, 120, 0, 0, 120, 0, 0], teacher: 'Cô Trang', fee: 220000 },
-  { kids: ['sa', 'misa'], name: 'Tiếng Việt', dur: [120, 0, 0, 60, 0, 0, 0], teacher: 'Cô Ngân', fee: 140000, feeOn: 65000 }, { kids: ['sa', 'misa'], name: 'Toán', dur: [0, 0, 120, 0, 120, 0, 0], teacher: 'Cô Hải', feeOff: true },
-];
 // Những sổ mẫu nhà chưa có (so theo con và môn). id cố định theo con và thứ tự mẫu: hai máy cùng tạo thì vẫn chỉ ra một sổ.
 const classSamples = () => kidsList().flatMap(k => SAMPLE_CLASSES.map((sp, i) => ({ sp, i })).filter(({ sp }) => sp.kids.includes(norm(k.name)) && !classesOf(k.id).some(c => norm(c.name) === norm(sp.name)))
   .map(({ sp, i }) => ({ id: `lop-${k.id}-${i}`, kid: k.id, name: sp.name, ...(sp.book ? { book: sp.book } : {}), ...(sp.dur ? { dur: sp.dur.slice() } : {}), teacher: sp.teacher, fee: sp.fee || 0, feeOn: sp.feeOn || 0, feeBy: 'buoi', feeOff: !!sp.feeOff })));
@@ -1597,8 +1473,6 @@ const hwList = d => Object.entries(d.tasks || {}).filter(([id, t]) => okId(id) &
   session: okId(t.session) ? t.session : '', sub: cleanFiles(t.sub), subAt: okDate(t.subAt), chk: CHK[t.chk] ? t.chk : '', chkBy: okId(t.chkBy) ? t.chkBy : '', score: String(t.score || '').slice(0, 30), steps: cleanSteps(t.steps), files: cleanFiles(t.files) })).filter(t => t.title)
   .sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999') || String(a.at || '').localeCompare(String(b.at || '')));
 const SESS_MODES = [['', 'Chưa ghi'], ['off', 'Offline'], ['on', 'Online']];
-const dateTxt = dk => { const d = parse(dk); return `${WDN(d.getDay())} ${dm(d)}`; };
-const monthTxt = mk => mk ? `Tháng ${Number(mk.slice(5, 7))}, ${mk.slice(0, 4)}` : 'Chưa có ngày';
 // Tên buổi học lấy theo ngày học, cô không phải gõ tên. Buổi ghi từ bản trước có tên riêng (topic) thì vẫn giữ tên đó.
 const sessDayTitle = dk => dk ? `Buổi học ngày ${dm(parse(dk))}/${dk.slice(0, 4)}` : 'Buổi học chưa có ngày';
 const sessName = s => s.topic || (s.date ? dateTxt(s.date) : 'Chưa có ngày');
@@ -1843,7 +1717,6 @@ function soMissing(d) {
   }
   return { miss, stale, n: miss.length + stale.length };
 }
-const daysBetween = (a, b) => Math.round((parse(a) - parse(b)) / 86400000);
 // Các buổi theo tháng, tháng mới nhất ở trên, mỗi tháng đếm số buổi đã học (để tính học phí).
 // Màn của cô (edit): buổi ghi trước (Chưa học) gom vào mục Sắp tới; các tháng đã qua gập lại, chỉ mở sẵn tháng mới nhất. Bấm vào buổi để xem chi tiết.
 function soMonths(code, d, mode) {
@@ -1872,7 +1745,6 @@ function soMonths(code, d, mode) {
 // hạn nộp là buổi sau; Đã nộp thì coi như cô đã nhận, kèm điểm và nhận xét. Buổi đã có trong sổ (cùng ngày, hoặc đã nhập trước) được giữ nguyên.
 let SO_IMPORT = null;
 const cellTxt = v => v == null ? '' : String(v).replace(/\r/g, '').trim();
-const pad2 = n => String(n).padStart(2, '0');
 function xlDay(v) {
   if (typeof v === 'number' && v > 20000) { const d = excelDate(v); return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`; }
   const m = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(cellTxt(v)); return m ? okDate(`${m[3]}-${pad2(m[2])}-${pad2(m[1])}`) : '';
@@ -3277,15 +3149,6 @@ function printTkb(kidId) {
     ${st.periods ? `<div style="margin-top:10px;font-size:13px">Mỗi tuần ${st.periods} tiết, ngồi trong lớp ${durTxt(st.inClass)}, ở trường ${durTxt(st.atSchool)}.</div>` : ''}
     ${lessonsOf(kidId).length ? `<h2 style="font-family:var(--display);margin:14px 0 6px;font-size:20px">Học thêm</h2><div class="print-lessons">${WEEK_ORDER.filter(d => lessonsOn(kidId, d).length).map(d => `<div><b>${WDN(d)}</b>${lessonsOn(kidId, d).map(l => `<div>${lessonIcon(l.name)} ${esc(l.s)} – ${esc(l.e)} ${esc(l.name)}</div>`).join('')}</div>`).join('')}</div>` : ''}`, 'landscape');
 }
-function printHtml(html, cls = '') {
-  const pa = $('#print-area');
-  pa.className = cls; pa.innerHTML = html; iconify(pa); // thay emoji ngay, vì window.print() chặn trang trước khi autoIcons kịp chạy
-  document.body.classList.add('printing');
-  const done = () => { document.body.classList.remove('printing'); window.removeEventListener('afterprint', done); };
-  window.addEventListener('afterprint', done);
-  window.print();
-  setTimeout(done, 1500);
-}
 
 // ---------- modal ----------
 function openModal(html, wide, keep) {
@@ -3683,15 +3546,6 @@ function markChore(d, kid, cid, on) {
   }
   if (msg) toast(msg);
 }
-
-// ---------- actions ----------
-let toastT = 0;
-// undo: hàm hoàn tác. Có thì thông báo kèm nút Hoàn tác và ở lại lâu hơn.
-function toast(msg, undo) {
-  const t = $('#toast'); t.textContent = msg; t.classList.toggle('has-act', !!undo);
-  if (undo) { const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Hoàn tác'; b.onclick = () => { t.hidden = true; undo(); }; t.appendChild(b); }
-  t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => (t.hidden = true), undo ? 7000 : 2800);
-}
 // Màn chúc mừng khi con làm xong hết việc phải làm hôm nay.
 function celebrate(kidId, got) {
   const k = S.kids[kidId]; if (!k) return;
@@ -3714,13 +3568,6 @@ function celebrate(kidId, got) {
   el.addEventListener('click', e => { if (e.target.closest('[data-cel-close]') || e.target === el || e.target.classList.contains('cel-burst')) close(); });
   document.addEventListener('keydown', esc1);
   el.querySelector('[data-cel-close]').focus();
-}
-function confetti() {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const box = document.createElement('div'); box.className = 'confetti';
-  const cols = ['#FFC633', '#22B85C', '#FF6B6B', '#4DA8FF', '#B07CFF', '#FF9F2E'];
-  for (let i = 0; i < 60; i++) { const s = document.createElement('i'); s.style.left = Math.random() * 100 + '%'; s.style.background = cols[i % cols.length]; s.style.animationDelay = Math.random() * 0.5 + 's'; s.style.animationDuration = 1.2 + Math.random() + 's'; box.appendChild(s); }
-  document.body.appendChild(box); setTimeout(() => box.remove(), 2600);
 }
 const confirmArm = {};
 function armed(btn, label) {
@@ -4528,14 +4375,6 @@ setInterval(() => {
   if (k !== lastDay) { if (key(UI.date) === lastDay) UI.date = today(); lastDay = k; lastSlot = sl; return render(); }
   if (sl !== lastSlot) { lastSlot = sl; if ($('#modal').hidden) render(); }
 }, 60000);
-
-// ---------- family setup (Firebase) ----------
-function newFamilyCode() {
-  const abc = 'abcdefghjkmnpqrstuvwxyz23456789';
-  const r = crypto.getRandomValues(new Uint8Array(20));
-  const s = [...r].map(x => abc[x % abc.length]).join('');
-  return s.match(/.{5}/g).join('-');
-}
 const cleanCode = v => String(v || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
 // Tách mã gia đình và mã của con (nếu là link riêng của một con, ...?gd=...&con=...) từ thứ được dán vào: cả link hoặc chỉ mã.
 function parseInvite(v) {
