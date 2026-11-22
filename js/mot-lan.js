@@ -8,7 +8,7 @@
 // giữ nguyên. Bước nào dùng hằng số riêng ở nha-minh.js (SAMPLE_CLASSES, SU_TV_HW_FROM, SA_TV_HW_FROM…) thì xem còn chỗ nào dùng không.
 //   - Giữ: merit, hw (nhà mới cũng được thêm sẵn 5 mục thành tích, hai việc BTVN và mục phạt Thiếu BTVN).
 //   - Bỏ được: autoFill; các cờ bottle, nodone, read, screen, vac, game, so, book, hwfromSa, hwfrom, dur2, trang1745, trangHome,
-//     homeAll, sportOut, dur (chỉ sửa dữ liệu của nhà mình).
+//     homeAll, sportOut, dur, water (chỉ sửa dữ liệu của nhà mình; nhà mới có việc uống nước trong bảng mẫu).
 //   - Đổi tên nơi ở cũ (Nhà mẹ, Nhà bố) không có cờ, chạy mỗi lần mở app: bỏ được khi không còn nạp bản sao lưu cũ (lúc hiện,
 //     placeName vẫn đổi tên cũ sang tên mới).
 //   - Sổ học: suAutoImport, suFixes, suTeachFix (sổ Tiếng Việt của Su) và planAuto (kế hoạch Toán của Su, sổ Tiếng Việt của Sa)
@@ -21,7 +21,7 @@ import { choresList, del, deviceRole, isDaily, isDone, isFun, kidName, kidsList,
   SETTINGS_ID, stale, stepMask, stepText, TEACH } from './du-lieu.js';
 import { classesList, classesOf, classLessons, classTitle, CLS, clsPut, fixedFor, okDate, onSoData, paidOf, parseSoRows, sessList, soImportApply,
   soImportPlan } from './so-hoc.js';
-import { FUN_DEFAULT, HW_CHORES, HW_PENALTY, SAMPLE_MERITS, sampleAdds, TABLE_VER } from './quy-dinh.js';
+import { FUN_DEFAULT, HW_CHORES, HW_PENALTY, SAMPLE_MERITS, sampleAdds, TABLE_VER, WATER_CHORE } from './quy-dinh.js';
 
 // ---------- bảng mẫu: đưa việc của bảng vào lịch từng ngày (k.tableFull) ----------
 // Nhà đã dùng bảng bản này (mọi con đã thưởng theo ngày) mà lịch từng ngày còn thiếu việc của bảng: tự thêm một lần lúc mở app.
@@ -52,12 +52,14 @@ const classSamples = () => kidsList().flatMap(k => SAMPLE_CLASSES.map((sp, i) =>
 //   bottle: mục con "Đã tráng bình nước" trong các checklist đang có được gắn "(mai đi học)", để tối trước ngày nghỉ không phải tick.
 //   nodone: bỏ mục con "Việc ngày hôm nay đã hoàn thành" khỏi các checklist đang có (dòng tự soát, app không kiểm tra được).
 //   hw: hai việc quan trọng về bài tập về nhà (hôm sau có học thêm, hôm sau đi học) và mục phạt Thiếu BTVN (lần 2 trong tuần phạt nặng hơn).
+//   water: việc phải làm Uống đủ 1200ml nước lọc mỗi ngày cho mọi con (hai mục con, mỗi chai 600ml), nếu nhà đã có việc nhà và chưa có việc
+//     cùng tên. Nhà mới chưa có việc nào thì không thêm: bảng mẫu đã có việc này.
 //   Các cờ còn lại ghi ngay ở từng đoạn bên dưới.
 let addsChecked = false;
 export function autoAdds() {
   if (addsChecked || !loaded || stale || deviceRole() !== 'parent' || !kidsList().length) return;
   addsChecked = true;
-  const set = S.paid[SETTINGS_ID] || {}, flags = {};
+  const set = S.paid[SETTINGS_ID] || {}, flags = {}, hadChores = choresList().length > 0;
   if (!set.merit) {
     if (!pricesList('merit').length) SAMPLE_MERITS.forEach((m, i) => put('rewards', 'merit-' + (i + 1), { ...m, kind: 'merit' }));
     flags.merit = 1;
@@ -70,6 +72,15 @@ export function autoAdds() {
     if (pen) put('rewards', HW_PENALTY[0], HW_PENALTY[1]);
     flags.hw = 1;
     if (n || pen) toast(`Đã thêm ${[n ? `${n} việc quan trọng về BTVN` : '', pen ? 'mục phạt Thiếu BTVN' : ''].filter(Boolean).join(' và ')}. Sửa ở trang Quy định.`);
+  }
+  if (!set.water) {
+    // Mã giống việc của bảng mẫu (sampleAdds) để không ra hai việc. Xếp ngay sau "Không kén ăn" nếu nhà có việc đó.
+    const list = choresList(), have = new Set(list.map(c => norm(c.name))), { also, ...w } = WATER_CHORE, nid = 'mau-' + slug(w.name);
+    const add = hadChores && !S.chores[nid] && ![w.name, ...also].some(n => have.has(norm(n))), after = list.find(c => norm(c.name) === 'không kén ăn');
+    if (add) put('chores', nid, { ...w, steps: w.steps.slice(), money: 0, kind: 'must', kids: kidsList().map(k => k.id), days: DAILY.slice(), slot: '',
+      since: key(today()), order: after ? (Number(after.order) || 0) + 0.5 : list.length });
+    flags.water = 1;
+    if (add) toast(`Đã thêm việc phải làm “${w.name}” (2 chai). Sửa ở trang Quy định.`);
   }
   // Sửa mục con của các checklist đang có. Gom mọi thay đổi của một việc vào một lần ghi: với Firestore, dữ liệu trong máy chưa đổi ngay sau khi ghi,
   // nên ghi hai lần liên tiếp thì lần sau sẽ đè mất thay đổi của lần trước.

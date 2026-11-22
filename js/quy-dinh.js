@@ -9,7 +9,7 @@ import { addBtn, blankAdd, editBtn, moreBtn, pillBar, plusBtn, secHead, secIsOpe
 import { DAY_SETS, daySet, formFoot, frow, kidRow, openModal, pickGrid, pillNum, pillSel, titleCard, toggle } from './form.js';
 
 // ---------- biểu tượng, loại mục giá ----------
-const CHORE_ICONS = ['🛏️', '🪥', '🧸', '🍽️', '🪴', '📚', '🎒', '👕', '🧹', '🧽', '🗑️', '📦', '🛋️', '🧦', '👟', '🧺', '🛁', '🥢', '🐶', '🐟', '🍚', '✏️', '🎹', '🏃', '🪢', '🏫', '🎧', '🪑', '🤝', '🌙', '🎬', '🎮', '📺', '🧩', '🗣️'];
+const CHORE_ICONS = ['🛏️', '🪥', '🧸', '🍽️', '🪴', '📚', '🎒', '👕', '🧹', '🧽', '🗑️', '📦', '🛋️', '🧦', '👟', '🧺', '🛁', '🥢', '🐶', '🐟', '🍚', '✏️', '🎹', '🏃', '🪢', '🏫', '🎧', '🪑', '🤝', '🌙', '🎬', '🎮', '📺', '🧩', '🗣️', '💧'];
 const PRICE_ICONS = {
   gift: ['🎁', '🎟️', '🍿', '🌙', '🧹', '🥞', '👫', '🍰', '🎬', '🎮', '🍦', '🧋', '🍕', '🧁', '📖', '🎡', '🛝', '🚲', '🏊'],
   penalty: ['😤', '🐢', '🤐', '🙉', '📢', '⚠️', '🙅', '🥊', '📵'],
@@ -26,11 +26,16 @@ export const PRICE_KINDS = [['merit', 'Thành tích', '🏅'], ['penalty', 'Ph�
 // Việc được thưởng (việc mỗi ngày có money > 0): làm lần nào cộng tiền lần đó, không tính vào thưởng làm đủ việc.
 // Việc thích làm mặc định của mỗi con.
 export const FUN_DEFAULT = 'Chơi game hoặc dùng iPad/điện thoại 15 phút';
+// Việc phải làm uống đủ nước mỗi ngày (cả ngày, không theo buổi). Nhà đang dùng được thêm một lần (cờ water, xem autoAdds trong mot-lan.js).
+export const WATER_CHORE = { name: 'Uống đủ 1200ml nước lọc', also: ['Uống đủ nước', 'Uống nước', 'Uống đủ 1200ml nước'], icon: '💧',
+  steps: ['Hết chai thứ nhất (600ml)', 'Hết chai thứ hai (600ml)'] };
 export const SAMPLE_CHORES = [
   // claim: việc ai làm trước thì tính, hai con cùng làm thì chia đôi tiền.
   // also: tên cũ của cùng việc, nhà nào đã có thì không thêm lại; bấm "Cập nhật theo bảng mẫu" thì được đổi sang tên mới.
   { name: 'Gấp chăn, dọn giường', also: ['Dọn giường', 'Gấp chăn'], icon: '🛏️', money: 0, days: DAILY, slot: 'sang', claim: true },
   { name: 'Không kén ăn', icon: '🍚', money: 0, days: DAILY },
+  // Hai mục con: mỗi chai con mang đi học 600ml, uống hết hai chai là đủ.
+  { ...WATER_CHORE, steps: WATER_CHORE.steps.slice(), money: 0, days: DAILY },
   { name: 'Tự giác hoàn thành bài tập', icon: '✏️', money: 0, days: [1, 2, 3, 4, 5], slot: 'toi' },
   { name: 'Hoàn thành bài tập ở lớp', icon: '🏫', money: 0, days: [1, 2, 3, 4, 5], slot: 'toi' },
   { name: 'Tự chuẩn bị, cất cặp', icon: '🎒', money: 0, days: [1, 2, 3, 4, 5], slot: 'toi' },
@@ -107,7 +112,7 @@ function choreSummary(c) {
     c.imp ? '<span class="late">quan trọng</span>' : '', c.unlock && !isFun(c) ? 'xong mới mở khoá việc thích làm' : '', c.place ? `chỉ ở ${esc(placeLow(c.place))}` : ''].filter(Boolean).join(' · ');
 }
 // Đoán biểu tượng theo tên việc, để thêm nhanh không phải chọn.
-const ICON_GUESS = [[/nhảy dây/, '🪢'], [/giường|chăn/, '🛏️'], [/răng|rửa mặt/, '🪥'], [/đồ chơi|lego/, '🧸'], [/bát|chén|dọn mâm/, '🍽️'], [/cây|tưới/, '🪴'], [/cặp/, '🎒'], [/quần áo|gấp áo/, '👕'], [/quét/, '🧹'], [/lau/, '🧽'],
+const ICON_GUESS = [[/nhảy dây/, '🪢'], [/uống|nước lọc/, '💧'], [/giường|chăn/, '🛏️'], [/răng|rửa mặt/, '🪥'], [/đồ chơi|lego/, '🧸'], [/bát|chén|dọn mâm/, '🍽️'], [/cây|tưới/, '🪴'], [/cặp/, '🎒'], [/quần áo|gấp áo/, '👕'], [/quét/, '🧹'], [/lau/, '🧽'],
   [/rác/, '🗑️'], [/tắm|gội/, '🛁'], [/đàn|piano/, '🎹'], [/chạy|đi bộ|thể dục|bơi/, '🏃'], [/nghe/, '🎧'], [/sách|đọc|truyện/, '📚'], [/bài|học|viết|toán/, '✏️'], [/bàn/, '🪑'], [/ngủ/, '🌙'], [/phim/, '🎬'], [/tivi|tv/, '📺'],
   [/game|chơi/, '🎮'], [/giày|dép/, '👟'], [/tất|vớ/, '🧦'], [/chó|mèo/, '🐶'], [/cá/, '🐟'], [/cơm|ăn/, '🍚'], [/giúp/, '🤝'], [/phơi|giặt/, '🧺']];
 export const guessIcon = name => (ICON_GUESS.find(([rx]) => rx.test(String(name).toLowerCase())) || [0, '✅'])[1];
