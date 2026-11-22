@@ -354,6 +354,14 @@ textarea.hw-in{resize:none;overflow:hidden;min-height:44px}
 .so-new .txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .so-new .txt span{font-size:13px;color:var(--muted)}
 .so-new .ico{font-size:22px}
+.fg .seg.modes.seg-pick{flex:none;display:flex;flex-wrap:nowrap;min-width:200px}
+.fr.col .seg.modes.seg-pick{width:100%}
+.fg .seg.modes.seg-pick label{flex:1 1 auto}
+.fg .seg.modes.seg-pick label>span{display:flex;align-items:center;justify-content:center;min-height:38px;padding:4px 14px;white-space:nowrap;border-radius:11px;background:none;border:0;box-shadow:none;color:var(--muted);font-weight:500}
+.fg .seg.modes.seg-pick input:checked+span{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 1px 3px rgba(30,26,16,.16)}
+.got-box{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.fg .btn.got-btn{width:100%;justify-content:center;min-height:44px;font-size:15px;font-weight:600;background:var(--accent);color:var(--on-accent);border:0}
+.got-on{flex:1;padding:10px 14px;border-radius:12px;background:var(--good-soft);color:var(--good);font-weight:600}
 .fg-cap{margin:4px 6px -6px;font-size:13px;font-weight:600;color:var(--muted)}
 @media (min-width:600px){.overlay{align-items:center;padding:24px}.dialog{border-radius:26px;box-shadow:var(--shadow-float)}.sheet-bar::before{display:none}.sheet-bar{padding-top:6px}}
 

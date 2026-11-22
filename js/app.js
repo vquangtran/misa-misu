@@ -2129,7 +2129,7 @@ function hwCheckRow(t) {
     <div class="hw-lv" ${main === 'thieu' ? '' : 'hidden'}><span class="muted small">Mức thiếu</span>${segPick('lv-' + t.id, [['thieu-it', 'Ít'], ['thieu-nua', 'Một nửa'], ['thieu-nhieu', 'Nhiều']], lv)}</div></div>`;
 }
 // Hai, ba lựa chọn thì hiện hết ra, bấm vào để chọn (thay cho ô chọn thả xuống).
-const segPick = (name, opts, val) => `<div class="seg">${opts.map(([v, l]) => `<label><input type="radio" name="${name}" value="${esc(v)}" ${String(v) === String(val) ? 'checked' : ''}><span>${esc(l)}</span></label>`).join('')}</div>`;
+const segPick = (name, opts, val) => `<div class="seg modes seg-pick">${opts.map(([v, l]) => `<label><input type="radio" name="${name}" value="${esc(v)}" ${String(v) === String(val) ? 'checked' : ''}><span>${esc(l)}</span></label>`).join('')}</div>`;
 // Thời lượng và hình thức mặc định của buổi học ngày dk: thời lượng theo thứ nhà đã ghi (dur), không có thì theo lịch học thêm của thứ đó,
 // rồi như buổi gần nhất cùng thứ, rồi như buổi trước. Hình thức như buổi gần nhất cùng thứ (lớp có buổi Online, Offline cố định theo thứ), rồi như buổi trước.
 function sessDefaults(d, dk) {
@@ -2175,6 +2175,9 @@ function sessForm(id, preDate) {
   ${formFoot(s ? 'sess-del' : '', id, 'sess-save')}`);
   $('#modal .dialog')?.focus();
 }
+// Nút nhận bài: chưa nhận là nút lớn màu nhấn; đã nhận thì hiện rõ trạng thái kèm nút bỏ đánh dấu.
+const gotBtn = on => `<div class="got-box">${on ? `<div class="got-on">✓ Đã nhận bài</div><button type="button" class="linkbtn" data-act="hw-got" data-v="0">Bỏ đánh dấu</button>`
+  : `<button type="button" class="btn primary got-btn" data-act="hw-got" data-v="1">✓ Đánh dấu đã nhận bài</button>`}</div>`;
 function hwForm(id, sessPre) {
   if (id && !okId(id)) return;
   const d = soOf(TEACH), t = id ? d.tasks[id] : null, ss = sessList(d).reverse(), nx = nextClassDay(d);
@@ -2192,7 +2195,7 @@ function hwForm(id, sessPre) {
   <div class="fg">${frow('Đính kèm', attBox(), { cls: 'col', sub: 'Phiếu bài tập, ảnh chụp đề… con mở được ngay trong bài. Mỗi file tối đa 8 MB.' })}
     ${frow('Link', `<textarea id="hlinks" class="input" rows="2" maxlength="2000" placeholder="https://…">${esc(linkList(t?.links).join('\n'))}</textarea>`, { id: 'hlinks', cls: 'col', sub: 'Canva, Google Drive… mỗi dòng một link' })}</div>
   ${t && cleanFiles(t.sub).length ? `<div class="fg">${frow('Bài con nộp', attView(TEACH, t.sub) + `<div class="row"><button class="btn quiet sm" data-act="sub-dl" data-id="${esc(id)}">⬇️ Tải tất cả ${cleanFiles(t.sub).length} file về máy</button></div>`, { cls: 'col', sub: `${cleanFiles(t.sub).length} file${okDate(t.subAt) ? ' · nộp ngày ' + dm(parse(t.subAt)) : ''} · bấm vào file để xem` })}</div>` : ''}
-  ${t ? `<div class="fg">${frow('Nhận bài', segPick('hgot', [['0', 'Chưa nhận'], ['1', 'Đã nhận bài']], t.got ? '1' : '0'), { sub: cleanFiles(t.sub).length ? `Con đã nộp ${cleanFiles(t.sub).length} file${okDate(t.subAt) ? ' ngày ' + dm(parse(t.subAt)) : ''}. Xem xong thì chọn Đã nhận bài` : t.done ? `Con báo đã làm xong${okDate(t.doneAt) ? ' ngày ' + dm(parse(t.doneAt)) : ''}` : 'Con chưa báo làm xong. Ghi điểm thì bài tự tính là đã nhận' })}
+  ${t ? `<div class="fg">${frow('Nhận bài', `<input type="hidden" id="hgot" value="${t.got ? '1' : '0'}">${gotBtn(!!t.got)}`, { cls: 'col', sub: cleanFiles(t.sub).length ? `Con đã nộp ${cleanFiles(t.sub).length} file${okDate(t.subAt) ? ' ngày ' + dm(parse(t.subAt)) : ''}. Xem xong thì chọn Đã nhận bài` : t.done ? `Con báo đã làm xong${okDate(t.doneAt) ? ' ngày ' + dm(parse(t.doneAt)) : ''}` : 'Con chưa báo làm xong. Ghi điểm thì bài tự tính là đã nhận' })}
     ${frow('Điểm', `<input id="hscore" class="pillin txt" maxlength="30" value="${esc(t.score || '')}" placeholder="9/10">`, { id: 'hscore' })}
     ${frow('Nhận xét bài làm', `<textarea id="hreview" class="input" rows="3" maxlength="2000" placeholder="Con làm tốt phần nào, cần sửa gì…">${esc(t.review || '')}</textarea>`, { id: 'hreview', cls: 'col', sub: 'Con và phụ huynh đều đọc được' })}</div>` : ''}
   ${formFoot(t ? 'hw-del' : '', id, 'hw-save', t ? 'Lưu' : 'Giao bài')}`);
@@ -3001,7 +3004,7 @@ const kidLink = id => inviteLink() + '&con=' + encodeURIComponent(id);
 const KID_ACTS = new Set(['close', 'tick', 'step', 'slot-toggle', 'task-done', 'task-step', 'role-kid', 'role-kid-ok', 'role-parent', 'pin-ok',
   'tkb-go', 'learn-tab', 'tkb-day', 'ag-day', 'ag-week', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel', 'fun-form', 'fun-ask', 'fun-cancel', 'fun-need', 'num-step', 'km-acct', 'task-form', 'task-save', 'task-del', 'task-subj', 'task-due', 'hw-view', 'file-open', 'print-ask', 'sub-del']);
 // Việc màn của cô được làm: chỉ những gì thuộc sổ học.
-const TEACH_ACTS = new Set(['close', 't-tab', 'sess-form', 'sess-view', 'sess-toggle', 'none', 'so-plan-more', 'so-off', 'sess-save', 'hw-row-add', 'so-import', 'so-import-go', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'sub-dl', 'att-del', 'so-print', 'sec-toggle', 'num-step', 'bank-form', 'bank-save']);
+const TEACH_ACTS = new Set(['close', 't-tab', 'sess-form', 'sess-view', 'sess-toggle', 'none', 'so-plan-more', 'so-off', 'sess-save', 'hw-row-add', 'so-import', 'so-import-go', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'sub-dl', 'hw-got', 'att-del', 'so-print', 'sec-toggle', 'num-step', 'bank-form', 'bank-save']);
 function kidMay(a, b) {
   const r = deviceRole(); if (r === 'parent') return true;
   if (!KID_ACTS.has(a)) return false;
@@ -3789,6 +3792,7 @@ document.addEventListener('click', e => {
     $('#hdue').value = d ? key(d) : ''; return;
   }
   if (a === 'att-del') { if (ATT) { ATT.files = ATT.files.filter(f => f.id !== b.dataset.fid); attDraw(); } return; }
+  if (a === 'hw-got') { const v = b.dataset.v === '1', h = $('#hgot'); if (!h) return; h.value = v ? '1' : '0'; b.closest('.got-box').outerHTML = gotBtn(v); return; }
   if (a === 'sub-dl') {
     const code = TEACH, t = code && soOf(code).tasks[id], st = CLS[code]?.st; if (!t || !st) return;
     const files = cleanFiles(t.sub); toast(`Đang tải ${files.length} file…`);
@@ -3870,7 +3874,7 @@ document.addEventListener('click', e => {
     const steps = $('#hsteps').value.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 15).map(x => ({ t: x, done: !!prev.find(p => p.t === x)?.done }));
     const data = { title, notes: $('#hnotes').value.trim(), due: $('#hdue').value || '', session: $('#hsess')?.value || '', steps, links: linkList($('#hlinks').value), files: attTake(old?.files), at: old?.at || new Date().toISOString() };
     // Có điểm thì coi như cô đã nhận bài.
-    if (old) { const score = $('#hscore').value.trim(), got = radioVal('hgot') === '1' || !!score; Object.assign(data, { got, gotAt: got ? old.gotAt || key(today()) : '', score, review: $('#hreview').value.trim() }); }
+    if (old) { const score = $('#hscore').value.trim(), got = $('#hgot')?.value === '1' || !!score; Object.assign(data, { got, gotAt: got ? old.gotAt || key(today()) : '', score, review: $('#hreview').value.trim() }); }
     // Chỉ ghi phần của cô, giữ nguyên phần con đã báo làm xong.
     if (!clsPatch(TEACH, 'tasks', id || uid(), data)) return;
     closeModal(); if (!old) UI.tTab = 'bai';
