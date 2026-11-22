@@ -194,6 +194,29 @@ function attView(code, files, links) {
 }
 // Loại file được mở ngay trong trình duyệt. Loại khác chỉ cho tải về, để một file lạ không chạy được trong trang của app.
 const FILE_SHOW = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
+// Bài con nộp: ảnh hiện thu nhỏ (bấm để xem to), file khác hiện như đính kèm. canDel: còn bỏ được file (cô chưa nhận bài).
+// Ảnh vẽ vào <canvas> sau khi mở form (loadThumbs), nên HTML của form không đổi theo ảnh. Ảnh đã tải giữ trong phiên để vẽ lại form không tải lại.
+const THUMB = new Map(), THUMB_BUSY = new Set();   // mã file → ImageBitmap; file đang tải
+const isImg = f => FILE_SHOW.includes(f.type) && f.type.startsWith('image/');
+function subFiles(code, tid, files, canDel) {
+  const imgs = files.filter(isImg), rest = files.filter(f => !isImg(f));
+  const del = f => canDel ? `<button class="att-x" data-act="sub-del" data-id="${esc(tid)}" data-fid="${esc(f.id)}" aria-label="Bỏ file: ${esc(f.name)}">×</button>` : '';
+  return (imgs.length ? `<div class="sub-thumbs">${imgs.map((f, i) => `<div class="sub-thumb"><button class="sub-img" data-act="file-open" ${fileAttr(code, f)} aria-label="Xem ảnh ${i + 1}: ${esc(f.name)}"><canvas width="240" height="240" data-thumb="${esc(code)}" data-fid="${esc(f.id)}" data-n="${Number(f.n) || 1}" data-type="${esc(f.type)}"></canvas><i class="num">${i + 1}</i></button>${del(f)}</div>`).join('')}</div>` : '')
+    + (rest.length ? `<div class="atts">${rest.map(f => `<div class="att-row"><button class="att" data-act="file-open" ${fileAttr(code, f)}>${fileIcon(f)}<span>${esc(f.name)}</span><i class="num">${fileSize(f.size)}</i></button>${del(f)}</div>`).join('')}</div>` : '');
+}
+// Vẽ ảnh thu nhỏ (cắt vuông giữa ảnh) vào các canvas của bài con nộp đang hiện.
+function loadThumbs() {
+  const draw = (cv, bmp) => { const s = Math.min(bmp.width, bmp.height), cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(bmp, (bmp.width - s) / 2, (bmp.height - s) / 2, s, s, 0, 0, cv.width, cv.height); };
+  for (const cv of document.querySelectorAll('#modal canvas[data-thumb]')) {
+    const id = cv.dataset.fid, st = CLS[cv.dataset.thumb]?.st;
+    if (THUMB.has(id)) { draw(cv, THUMB.get(id)); continue; }
+    if (!st || !window.createImageBitmap || THUMB_BUSY.has(id)) continue;
+    THUMB_BUSY.add(id);
+    st.getFile(id, Number(cv.dataset.n) || 1).then(parts => createImageBitmap(new Blob(parts, { type: cv.dataset.type })))
+      .then(bmp => { THUMB.set(id, bmp); for (const x of document.querySelectorAll(`#modal canvas[data-thumb][data-fid="${id}"]`)) draw(x, bmp); })
+      .catch(e => console.error(e)).finally(() => THUMB_BUSY.delete(id));
+  }
+}
 export async function fileOpen(code, f) {
   const st = CLS[code]?.st; if (!st) return toast('Sổ học đang mở, thử lại sau giây lát.');
   toast('Đang tải file…');
@@ -665,12 +688,13 @@ export function hwForm(id, sessPre) {
     ${frow('Các bước', `<textarea id="hsteps" class="input" rows="2" placeholder="Ôn lại lý thuyết&#10;Làm phiếu bài tập">${esc(cleanSteps(t?.steps).map(x => x.t).join('\n'))}</textarea>`, { id: 'hsteps', cls: 'col', sub: 'Không bắt buộc. Mỗi dòng một bước, con tick từng bước.' })}</div>
   <div class="fg">${frow('Đính kèm', attBox(), { cls: 'col', sub: 'Phiếu bài tập, ảnh chụp đề… con mở được ngay trong bài. Mỗi file tối đa 8 MB.' })}
     ${frow('Link', `<textarea id="hlinks" class="input" rows="2" maxlength="2000" placeholder="https://…">${esc(linkList(t?.links).join('\n'))}</textarea>`, { id: 'hlinks', cls: 'col', sub: 'Canva, Google Drive… mỗi dòng một link' })}</div>
-  ${t && cleanFiles(t.sub).length ? `<div class="fg">${frow('Bài con nộp', attView(TEACH, t.sub) + `<div class="row"><button class="btn quiet sm" data-act="sub-dl" data-id="${esc(id)}">⬇️ Tải tất cả ${cleanFiles(t.sub).length} file về máy</button></div>`, { cls: 'col', sub: `${cleanFiles(t.sub).length} file${okDate(t.subAt) ? ' · nộp ngày ' + dm(parse(t.subAt)) : ''} · bấm vào file để xem` })}</div>` : ''}
+  ${t && cleanFiles(t.sub).length ? `<div class="fg">${frow('Bài con nộp', subFiles(TEACH, id, cleanFiles(t.sub), false) + `<div class="row"><button class="btn quiet sm" data-act="sub-dl" data-id="${esc(id)}">⬇️ Tải tất cả ${cleanFiles(t.sub).length} file về máy</button></div>`, { cls: 'col', sub: `${cleanFiles(t.sub).length} file${okDate(t.subAt) ? ' · nộp ngày ' + dm(parse(t.subAt)) : ''} · bấm vào file để xem` })}</div>` : ''}
   ${t ? `<div class="fg">${frow('Nhận bài', segPick('hgot', [['0', 'Chưa nhận'], ['1', 'Đã nhận']], t.got ? '1' : '0'), { sub: cleanFiles(t.sub).length && t.done ? `Con đã nộp ${cleanFiles(t.sub).length} file${okDate(t.subAt) ? ' ngày ' + dm(parse(t.subAt)) : ''}. Xem xong thì chọn Đã nhận` : cleanFiles(t.sub).length ? `Con đã tải lên ${cleanFiles(t.sub).length} file nhưng chưa bấm Nộp bài` : t.done ? `Con báo đã làm xong${okDate(t.doneAt) ? ' ngày ' + dm(parse(t.doneAt)) : ''}` : 'Con chưa báo làm xong. Ghi điểm thì bài tự tính là đã nhận' })}
     ${frow('Điểm', `<input id="hscore" class="pillin txt" maxlength="30" value="${esc(t.score || '')}" placeholder="9/10">`, { id: 'hscore' })}
     ${frow('Nhận xét bài làm', `<textarea id="hreview" class="input" rows="3" maxlength="2000" placeholder="Con làm tốt phần nào, cần sửa gì…">${esc(t.review || '')}</textarea>`, { id: 'hreview', cls: 'col', sub: 'Con và phụ huynh đều đọc được' })}</div>` : ''}
   ${formFoot(t ? 'hw-del' : '', id, 'hw-save', t ? 'Lưu' : 'Giao bài')}`);
   teachFocus('htitle', !t);
+  loadThumbs();
 }
 
 // ----- phần của nhà: danh sách sổ, tạo sổ, gửi link cho cô, xem sổ -----
@@ -810,7 +834,7 @@ function subSection(tid, code, w) {
   if (w.got && !files.length) return '';
   return `<div class="fg"><div class="fr col"><div class="fl"><span class="lbl">Nộp bài</span><span class="fs">${!files.length ? 'Chụp ảnh từng trang bài làm hoặc chọn ảnh, file PDF. Đủ hết các trang thì bấm nút Nộp bài.'
       : w.done ? `Đã nộp ${files.length} file${okDate(w.subAt) ? ' ngày ' + dm(parse(w.subAt)) : ''}. Cô xem được ngay.` : `Đã tải lên ${files.length} file, <b>chưa nộp</b>. Còn trang nào thì chụp thêm, đủ rồi bấm nút Nộp bài.`}</span></div>
-    ${files.length ? `<div class="atts">${files.map(f => `<div class="att-row"><button class="att" data-act="file-open" ${fileAttr(code, f)}>${fileIcon(f)}<span>${esc(f.name)}</span><i class="num">${fileSize(f.size)}</i></button>${w.got ? '' : `<button class="att-x" data-act="sub-del" data-id="${esc(tid)}" data-fid="${esc(f.id)}" aria-label="Bỏ file: ${esc(f.name)}">×</button>`}</div>`).join('')}</div>` : ''}
+    ${subFiles(code, tid, files, !w.got)}
     ${busy ? `<div class="att-busy" role="status">Đang nộp ${busy} file…</div>` : ''}
     ${w.got ? '' : `<label class="btn ${files.length ? 'quiet' : 'primary'} sm file-btn sub-btn">📷 ${files.length ? 'Thêm ảnh hoặc file' : 'Chụp ảnh hoặc chọn file'}<input type="file" id="sub-file" data-tid="${esc(tid)}" accept="image/*,application/pdf" multiple></label>`}</div></div>`;
 }
@@ -858,4 +882,5 @@ export function hwView(tid) {
   <div class="foot"><button class="btn quiet" data-act="close">Đóng</button>${w.got ? ''
     : t.done ? `<button class="btn quiet sm left" data-act="task-done" data-id="${esc(tid)}">${subs ? 'Rút lại bài đã nộp' : 'Chưa làm xong'}</button>`
     : `<button class="btn primary" data-act="task-done" data-id="${esc(tid)}" data-close="1" ${SUB_BUSY[tid] ? 'disabled' : ''}>${subs ? `📤 Nộp bài (${subs} file)` : 'Đã làm xong'}</button>`}</div>`);
+  loadThumbs();
 }
