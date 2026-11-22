@@ -1416,12 +1416,12 @@ const SU_TV_HW_FROM = '2026-11-22';
 const SU_TV_MODE = ['off', '', 'on', '', '', '', ''];
 const isSuTV = (kidNm, subj) => ['su', 'misu'].includes(norm(kidNm)) && norm(subj) === 'tiếng việt';
 // Lịch cố định theo thứ của các cô nhà mình (CN = 0 … T7 = 6): thời lượng (phút) và hình thức. Cô Thảo (Tiếng Việt của Su): CN Offline 2 tiếng,
-// T3 Online 1 tiếng. Cô Trang (Toán của Su): T2 và T5 Offline 2 tiếng. Cô Ngân (Tiếng Việt của Sa): T4 Online 18:30–19:30, CN Offline 9:00–11:00.
+// T3 Online 1 tiếng. Cô Trang (Toán của Su): T2 và T5 Offline 2 tiếng, 17:45–19:45. Cô Ngân (Tiếng Việt của Sa): T4 Online 18:30–19:30, CN Offline 9:00–11:00.
 // Cô Hải (Toán của Sa): T3 Online 17:30–19:30, T5 Offline 18:00–20:00.
 // Dùng để điền sẵn form ghi buổi, tính ngày cần điền và hạn nộp bài. time: giờ học theo thứ (nếu biết).
 const FIXED_SCHED = [
   { kids: ['su', 'misu'], subj: 'tiếng việt', dur: SU_TV_DUR, mode: SU_TV_MODE },
-  { kids: ['su', 'misu'], subj: 'toán', dur: [0, 120, 0, 0, 120, 0, 0], mode: ['', 'off', '', '', 'off', '', ''] },
+  { kids: ['su', 'misu'], subj: 'toán', dur: [0, 120, 0, 0, 120, 0, 0], mode: ['', 'off', '', '', 'off', '', ''], time: { 1: ['17:45', '19:45'], 4: ['17:45', '19:45'] } },
   { kids: ['sa', 'misa'], subj: 'tiếng việt', dur: [120, 0, 0, 60, 0, 0, 0], mode: ['off', '', '', 'on', '', '', ''], time: { 0: ['09:00', '11:00'], 3: ['18:30', '19:30'] } },
   { kids: ['sa', 'misa'], subj: 'toán', dur: [0, 0, 120, 0, 120, 0, 0], mode: ['', '', 'on', '', 'off', '', ''], time: { 2: ['17:30', '19:30'], 4: ['18:00', '20:00'] } },
 ];
@@ -2642,6 +2642,12 @@ function autoAdds() {
   if (!set.dur2) {
     for (const c of classesList()) { const f = fixedFor(kidName(c.kid), c.name); if (f && !isSuTV(kidName(c.kid), c.name) && !Array.isArray(c.dur)) { const { id, ...o } = c; put('paid', id, { ...o, dur: f.dur.slice() }); } }
     flags.dur2 = 1;
+  }
+  // Cô Trang đổi giờ dạy: buổi học thêm Toán của Su vào thứ 2 và thứ 5 thành 17:45–19:45 (một lần).
+  if (!set.trang1745) {
+    const c = classesList().find(x => ['su', 'misu'].includes(norm(kidName(x.kid))) && norm(x.name) === 'toán');
+    if (c) for (const l of classLessons(c)) if ([1, 4].includes(l.day) && (l.s !== '17:45' || l.e !== '19:45')) { const { id, ...o } = l; put('lessons', id, { ...S.lessons[id], s: '17:45', e: '19:45' }); }
+    flags.trang1745 = 1;
   }
   // Sổ Tiếng Việt của Su: thứ 3 học 60 phút, chủ nhật 120 phút (một lần; sổ đã có thời lượng riêng thì giữ nguyên).
   if (!set.dur) {
