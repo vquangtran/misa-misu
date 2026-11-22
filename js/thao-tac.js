@@ -198,8 +198,9 @@ document.addEventListener('click', e => {
     if (t.cls) {
       if (t.hw.got) return toast('Cô đã nhận bài này rồi.');
       const subs = cleanFiles(t.hw.sub).length;
-      // Bỏ dấu bài đã làm xong (hay đã nộp file) phải bấm hai lần, để khỏi bấm nhầm.
-      if (!on && !armed(b, b.classList.contains('check') ? b.textContent : subs ? 'Bấm lần nữa để rút lại' : 'Bấm lần nữa')) return toast(subs ? 'Bài đã nộp. Bấm lần nữa để rút lại, cô sẽ thấy bài chưa nộp.' : 'Bấm lần nữa để bỏ dấu đã làm xong.');
+      // Bài đã nộp là đã xong, không bỏ dấu được. Bỏ dấu bài đã làm xong (không nộp file) phải bấm hai lần, để khỏi bấm nhầm.
+      if (!on && subs) return toast('Bài đã nộp rồi. Cần sửa thì mở bài, nộp thêm ảnh hoặc bỏ ảnh nộp nhầm.');
+      if (!on && !armed(b, b.classList.contains('check') ? b.textContent : 'Bấm lần nữa')) return toast('Bấm lần nữa để bỏ dấu đã làm xong.');
       if (!clsPatch(t.cls.code, 'tasks', t.hw.id, { done: on, doneAt: on ? key(today()) : '', steps, ...(on && subs ? { subAt: key(today()) } : {}) })) return;
       if (b.dataset.close) closeModal(); else if (!on && !$('#modal').hidden) hwView(id);
       if (on && subs) { confetti(); return toast(`Đã nộp bài “${t.title}” (${subs} file). Cô xem được ngay.`); }

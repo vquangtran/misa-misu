@@ -367,7 +367,7 @@ export const CANH = [
     },
   },
 
-  // Nộp bài cô giao trên máy của con: tải lên từng trang chưa phải là nộp; bấm Nộp bài mới tính, rút lại phải bấm hai lần.
+  // Nộp bài cô giao trên máy của con: tải lên từng trang chưa phải là nộp; bấm Nộp bài mới tính; bài đã nộp không bỏ dấu được.
   {
     ten: 'nop-bai',
     sua: (ls, { pinHash, PIN }) => {
@@ -388,8 +388,9 @@ export const CANH = [
       await c.check('#km input[name="tview"][value="1"]');
       await c.click('#km ' + act('hw-view'), { label: 'mở lại bài đã nộp' });
       await c.files('#sub-file', [trang(3)], 'nộp thêm 1 trang');
-      await c.click('#modal ' + act('task-done'), { label: 'Rút lại: bấm lần đầu chỉ hỏi lại' });
-      await c.click('#modal ' + act('task-done'), { label: 'Rút lại: bấm lần nữa' });
+      await c.click(X);
+      await c.click('#km [data-act="task-done"][data-id$="~hw-thu"]', { label: 'bỏ dấu bài đã nộp: không được' });
+      await c.click('#km ' + act('hw-view'), { label: 'mở lại bài đã nộp' });
       await c.click('#modal ' + act('sub-del'), { label: 'bỏ một file' });
       await c.click('#modal ' + act('sub-del'), { label: 'bấm lần nữa để bỏ file' });
       await c.click(X);

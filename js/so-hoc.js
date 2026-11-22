@@ -827,7 +827,7 @@ function printFallback(files, text, who) {
 }
 // Nộp bài: con (hoặc bố mẹ nộp hộ) chụp ảnh bài làm hay chọn file ảnh, PDF. Ảnh tự thu nhỏ, lưu vào sổ của cô (task.sub).
 // Tải file lên chưa phải là nộp: con chụp đủ các trang rồi bấm Nộp bài (task-done) thì bài mới tính là đã nộp (done), cô mới thấy bài mới nộp.
-// Đã nộp rồi vẫn nộp thêm được. Cô chưa nhận bài thì xoá được file nộp nhầm.
+// Bài đã nộp là đã xong, không rút lại được; vẫn nộp thêm được, cô chưa nhận bài thì xoá được file nộp nhầm.
 const SUB_BUSY = {};   // mã bài → số file đang tải lên
 function subSection(tid, code, w) {
   const files = cleanFiles(w.sub), busy = SUB_BUSY[tid] || 0;
@@ -880,7 +880,7 @@ export function hwView(tid) {
       <div class="row print-ask"><button class="btn quiet sm" data-act="print-ask" data-id="${esc(tid)}" data-who="send">📤 Gửi file in</button></div></div>`) : ''}</div>` : ''}
   ${subSection(tid, c.code, w)}
   <div class="foot"><button class="btn quiet" data-act="close">Đóng</button>${w.got ? ''
-    : t.done ? `<button class="btn quiet sm left" data-act="task-done" data-id="${esc(tid)}">${subs ? 'Rút lại bài đã nộp' : 'Chưa làm xong'}</button>`
+    : t.done ? (subs ? '' : `<button class="btn quiet sm left" data-act="task-done" data-id="${esc(tid)}">Chưa làm xong</button>`)
     : `<button class="btn primary" data-act="task-done" data-id="${esc(tid)}" data-close="1" ${SUB_BUSY[tid] ? 'disabled' : ''}>${subs ? `📤 Nộp bài (${subs} file)` : 'Đã làm xong'}</button>`}</div>`);
   loadThumbs();
 }
