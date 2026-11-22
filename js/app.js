@@ -182,8 +182,11 @@ const SAMPLE_TKBS = [
 let S = Object.fromEntries(COLS.map(c => [c, {}]));
 const UI = { view: 'hom-nay', date: today(), acctKid: null, acctKind: 'penalty', histAll: false, slotOpen: {}, learn: 'sap-toi', todayMode: 'day', todayKid: null, secOpen: {}, gridWs: null, planNext: false, agDate: null, taskDone: false, tkbKid: null, tkbDay: null, km: { on: false, kid: null }, sheet: false };
 let store = null, loaded = false, stale = false, family = null;
+// Module khác không gán lại được biến của module này: đổi S, store, loaded, stale, family (mã gia đình), RO bằng các hàm dưới đây.
+const setData = v => { S = v; }, setStore = v => { store = v; }, setLoaded = v => { loaded = v; }, setStale = v => { stale = v; }, setFamilyCode = v => { family = v; };
 // Đang vẽ cho con xem (mục Học tập ở màn của con): các nút thêm, sửa không hiện.
 let RO = false;
+const setRO = v => { RO = v; };
 const FAMILY_KEY = 'be-cham-ngoan-family';
 const getFamily = () => { try { return localStorage.getItem(FAMILY_KEY); } catch (e) { return null; } };
 const setFamily = v => { try { v ? localStorage.setItem(FAMILY_KEY, v) : localStorage.removeItem(FAMILY_KEY); } catch (e) {} };
@@ -319,6 +322,7 @@ function variantOf(c, kid, d) {
 // Tính lại sau mỗi lần dữ liệu đổi (xoá trong render).
 let memo = {};
 const memoize = (k, f) => (k in memo ? memo[k] : (memo[k] = f()));
+const clearMemo = () => { memo = {}; };
 // Tiền kiếm được từ việc nhà, từ ngày a đến ngày b (khoá "YYYY-MM-DD", không bắt buộc).
 function earned(kidId, a = '', b = '9999') {
   let s = 0;
@@ -879,7 +883,10 @@ const markRow = (x, big) => x.type === 'lesson'
 
 // ---------- rendering ----------
 let raf = 0;
-const render = () => { memo = {}; cancelAnimationFrame(raf); raf = requestAnimationFrame(draw); };
+// Hàm vẽ cả màn hình do phần khởi động đặt (setDraw), để phần lõi không phải import các màn.
+let drawFn = () => {};
+const setDraw = f => { drawFn = f; };
+const render = () => { memo = {}; cancelAnimationFrame(raf); raf = requestAnimationFrame(drawFn); };
 function draw() {
   if (TEACH) return drawTeacher();
   const navHtml = cls => NAV.map(n => `<a href="#${n.id}" class="${cls} ${UI.view === n.id ? 'on' : ''}" ${UI.view === n.id ? 'aria-current="page"' : ''}>${iconSvg(n.ic)}<span>${n.label}</span></a>`).join('');
@@ -1426,6 +1433,7 @@ function lessonItem(l, who = false) {
 // nhận bài và cho điểm. Máy của cô chỉ biết mã lớp nên không đọc được gì khác của gia đình (xem js/store.js).
 // Bài cô giao tự hiện trong phần Bài tập của con (tab Bài tập, màn Hôm nay, máy của con); con tick xong thì cô thấy ngay.
 let TEACH = null;   // mã lớp, khi máy này đang mở bằng link của cô
+const setTeach = v => { TEACH = v; };
 const CLS = {};     // mã lớp → { st: nơi lưu, data: { info, sessions, tasks }, loaded, err }
 const LOP_KEY = 'misa-misu-lop';
 const getLop = () => { try { return localStorage.getItem(LOP_KEY); } catch (e) { return null; } };
@@ -1699,6 +1707,8 @@ function attTake(old) {
   for (const f of [...cleanFiles(old), ...a.added]) if (!keep.has(f.id)) Promise.resolve(st?.delFile(f.id, f.n)).catch(() => {});
   return a.files;
 }
+// Lấy danh sách file của form đang mở và bỏ khỏi form (xoá buổi, xoá bài).
+function attClear() { const a = ATT; ATT = null; return a; }
 // Đóng form mà không lưu: xoá những file vừa tải lên.
 function attCancel() {
   const a = ATT; ATT = null; if (!a) return;
@@ -2921,13 +2931,13 @@ function tableUpdateRun(apply, bals = []) {
   }
   for (const k of u.kids) save('kids', k.id, { ...raw.kids[k.id], ...(kidNext[k.id] || {}), tableVer: TABLE_VER, tableFull: TABLE_VER });
   if (apply && bals.length) {
-    memo = {}; const at = new Date().toISOString();
+    clearMemo(); const at = new Date().toISOString();
     for (const x of bals) {
       const diff = S.kids[x.kid] ? x.target - balance(x.kid) : 0; if (!diff) continue;
       const lid = uid(); added.push(['ledger', lid]);
       put('ledger', lid, { kid: x.kid, amount: diff, kind: 'adjust', icon: '🏦', note: `Khớp số dư khi cập nhật theo bảng mẫu: ${money(x.target)}`, at });
     }
-    memo = {};
+    clearMemo();
   }
   return () => { for (const [col, id, old] of before) put(col, id, old); for (const [col, id] of added) del(col, id); };
 }
@@ -3160,8 +3170,8 @@ function drawKidMode() {
   el.classList.toggle('plain', tab !== 'today');
   if (tab !== 'today') {
     // Tab Học tập của con nhớ tab riêng (UI.kmLearn), mở ở Sắp tới, không theo tab bố mẹ xem lần cuối trên cùng máy.
-    const parent = [UI.learn, UI.truong]; RO = true; UI.learn = UI.kmLearn || 'sap-toi'; UI.truong = UI.kmTruong || 'tkb';
-    try { el.innerHTML = `<div class="wrap">${top}${tab === 'learn' ? learnPage([k], false) : kidAcct(k)}</div>`; } finally { RO = false; [UI.learn, UI.truong] = parent; }
+    const parent = [UI.learn, UI.truong]; setRO(true); UI.learn = UI.kmLearn || 'sap-toi'; UI.truong = UI.kmTruong || 'tkb';
+    try { el.innerHTML = `<div class="wrap">${top}${tab === 'learn' ? learnPage([k], false) : kidAcct(k)}</div>`; } finally { setRO(false); [UI.learn, UI.truong] = parent; }
     return;
   }
   const list = mustFor(k.id, t), n = list.filter(c => isDone(t, k.id, c.id)).length, plan = dayPlan(k.id, t), cur = slotAt(nowMin());
@@ -3294,9 +3304,14 @@ function openModal(html, wide, keep) {
   if (f && !f.value && !wide) f.focus(); else dlg.focus();
   dlg.querySelectorAll('.pick input:checked').forEach(x => { const sp = x.nextElementSibling, box = x.closest('.pick'); if (sp && box.scrollWidth > box.clientWidth) box.scrollLeft = Math.max(0, sp.offsetLeft - box.clientWidth / 2); });
 }
-function closeModal() { attCancel(); $('#modal').hidden = true; $('#modal').innerHTML = ''; UI.sheet = false; modalDirty = false; }
+// Việc cần làm trước khi đóng form, do module khác thêm vào bằng onCloseModal (sổ học: xoá file vừa tải lên mà chưa lưu).
+const modalClosers = [];
+const onCloseModal = f => { modalClosers.push(f); };
+function closeModal() { for (const f of modalClosers) f(); $('#modal').hidden = true; $('#modal').innerHTML = ''; UI.sheet = false; modalDirty = false; }
 // Form đã gõ hoặc chọn gì đó thì bấm ra ngoài / phím Esc không đóng, tránh mất công nhập. Muốn bỏ thì bấm Huỷ.
 let modalDirty = false;
+const setModalDirty = v => { modalDirty = v; };
+onCloseModal(attCancel);
 function dismissModal() {
   if (modalDirty && !UI.sheet && !$('#modal .qa')) return toast('Chưa lưu. Bấm Lưu để giữ, hoặc Huỷ để bỏ.');
   closeModal();
@@ -3306,6 +3321,7 @@ const radioVal = n => { const r = document.querySelector(`#modal input[name="${n
 
 // Cắt ảnh vuông theo mức phóng to và vị trí đã chọn, thu về 320px JPEG (khoảng 20–40KB).
 let photoEdit = { img: null, out: undefined };
+const setPhotoEdit = v => { photoEdit = v; };
 function photoRender() {
   const img = photoEdit.img; if (!img) return;
   const z = Number($('#pzoom')?.value) || 1, fx = Number($('#px')?.value ?? .5), fy = Number($('#py')?.value ?? .3);
@@ -3589,6 +3605,7 @@ async function decryptSeed(pass, f) {
 }
 // Lúc mở app: nếu máy này đã nhớ mật khẩu và lịch lưu sẵn có bản mới thì tự nạp.
 let seedChecked = false;
+const setSeedChecked = v => { seedChecked = v; };
 async function autoSeed() {
   if (seedChecked) return; seedChecked = true;
   const mem = getSeedMem(); if (!mem?.pass || !crypto?.subtle) return;
@@ -3619,7 +3636,7 @@ function seedForm() {
 // Xong việc phải làm cuối cùng của buổi thì báo mở khoá việc thích làm.
 function markChore(d, kid, cid, on) {
   const ch = S.chores[cid]; if (!ch || isFun(ch)) return;
-  memo = {};
+  clearMemo();
   const who = ch.shared && !ch.claim ? (ch.kids || []).filter(x => S.kids[x] && choresFor(x, d).some(c => c.id === cid)) : [kid];
   if (!who.includes(kid)) who.push(kid);
   let msg = null;
@@ -3671,7 +3688,7 @@ function toast(msg, undo) {
 // Màn chúc mừng khi con làm xong hết việc phải làm hôm nay.
 function celebrate(kidId, got) {
   const k = S.kids[kidId]; if (!k) return;
-  memo = {};
+  clearMemo();
   document.querySelector('.celebrate')?.remove();
   const n = streakOf(kidId), st = weekStats({ id: kidId, ...k }, weekStart(today())), wb = weekBonusOf(k), db = dayBonusAt(k, key(today()));
   const el = document.createElement('div'); el.className = 'celebrate'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'cel-h');
@@ -3908,7 +3925,7 @@ document.addEventListener('click', e => {
   }
   if (a === 'sess-del') {
     if (!armed(b, 'Bấm lần nữa để xoá')) return;
-    const old = soOf(TEACH).sessions[id], at = ATT; ATT = null;
+    const old = soOf(TEACH).sessions[id], at = attClear();
     delFiles(TEACH, [...(old?.files || []), ...(at?.added || [])]);
     closeModal(); clsDel(TEACH, 'sessions', id); return toast('Đã xoá buổi học.');
   }
@@ -3927,7 +3944,7 @@ document.addEventListener('click', e => {
   }
   if (a === 'hw-del') {
     if (!armed(b, 'Bấm lần nữa để xoá')) return;
-    const old = soOf(TEACH).tasks[id], at = ATT; ATT = null;
+    const old = soOf(TEACH).tasks[id], at = attClear();
     delFiles(TEACH, [...(old?.files || []), ...(at?.added || [])]);
     closeModal(); clsDel(TEACH, 'tasks', id); return toast('Đã xoá bài tập.');
   }
@@ -4051,7 +4068,7 @@ document.addEventListener('click', e => {
     if (!crypto?.subtle) return toast('Trình duyệt này không giải mã được. Mở app bằng đường dẫn https.');
     b.disabled = true; b.textContent = 'Đang mở…';
     const mem = $('#seedmem').checked;
-    decryptSeed(pass).then(async ({ json, ver }) => { closeModal(); setSeedMem(mem ? { pass, ver } : null); seedChecked = true; await importData(json); confetti(); render(); })
+    decryptSeed(pass).then(async ({ json, ver }) => { closeModal(); setSeedMem(mem ? { pass, ver } : null); setSeedChecked(true); await importData(json); confetti(); render(); })
       .catch(e => {
         b.disabled = false; b.textContent = 'Nạp lịch';
         toast(e.code === 'wrong' ? 'Sai mật khẩu. Thử lại nhé.' : e.code === 'missing' ? 'App chưa có lịch gia đình nào được lưu sẵn.' : 'Không nạp được. Kiểm tra mạng rồi thử lại.');
@@ -4093,7 +4110,7 @@ document.addEventListener('click', e => {
   if (a === 'sheet-open') { UI.sheet = true; return render(); }
   if (a === 'print') return printSheet();
   if (a === 'kid-form') return kidForm(id);
-  if (a === 'photo-del') { photoEdit = { img: null, out: '' }; const pv = $('#modal .photo-prev'); if (pv) pv.innerHTML = avInner(radioVal('kava')); b.hidden = true; $('#modal .photo-adj').hidden = true; return; }
+  if (a === 'photo-del') { setPhotoEdit({ img: null, out: '' }); const pv = $('#modal .photo-prev'); if (pv) pv.innerHTML = avInner(radioVal('kava')); b.hidden = true; $('#modal .photo-adj').hidden = true; return; }
   if (a === 'chore-form') return choreForm(id, b.dataset.kind);
   // Chọn con ở màn Hôm nay hay Tài khoản thì màn kia cũng theo con đó.
   if (a === 'today-kid' || a === 'acct-kid') { UI.todayKid = UI.acctKid = b.dataset.kid; UI.histAll = false; try { localStorage.setItem(TODAY_KID, UI.todayKid); } catch (err) {} return render(); }
@@ -4115,7 +4132,7 @@ document.addEventListener('click', e => {
     const had = document.activeElement === b;
     $('#qa-chips').innerHTML = qaChips(); if (had) $(`#qa-chips [data-f="${f}"]`)?.focus({ preventScroll: true }); return;
   }
-  if (a === 'qa-more') { if (!QA) return; const q = qaData(); choreForm(null, '', q); modalDirty = !!q.name; return; }
+  if (a === 'qa-more') { if (!QA) return; const q = qaData(); choreForm(null, '', q); setModalDirty(!!q.name); return; }
   if (a === 'qa-save') {
     if (!QA) return;
     const q = qaData(); if (!q.name) { $('#qname').focus(); return toast('Gõ tên việc nhé.'); }
@@ -4539,11 +4556,11 @@ document.addEventListener('click', async e => {
     catch (err) { return toast('Không đọc được bộ nhớ tạm. Bấm giữ vào ô bên dưới rồi chọn Dán.'); }
   }
   let con = null;
-  if (b.dataset.setup === 'new') { family = newFamilyCode(); }
+  if (b.dataset.setup === 'new') { setFamilyCode(newFamilyCode()); }
   else {
     const inv = parseInvite($('#famcode').value);
     if (inv.code.length < 20) return toast('Mã gia đình chưa đúng. Hãy dán cả link mời hoặc mã 23 ký tự.');
-    family = inv.code; con = inv.con;
+    setFamilyCode(inv.code); con = inv.con;
   }
   setFamily(family);
   // Dán link riêng của một con: máy chưa chọn là của ai thì thành máy của con đó, như khi mở thẳng link.
@@ -4565,15 +4582,15 @@ async function startFirebase() {
   keepFamilyInUrl();
   render();
   try {
-    store = await firebaseStore(firebaseConfig, family, (data, meta) => {
-      S = data; loaded = true; stale = !!meta.fromCache; render(); autoSeed(); autoFill(); autoAdds(); syncClasses();
+    setStore(await firebaseStore(firebaseConfig, family, (data, meta) => {
+      setData(data); setLoaded(true); setStale(!!meta.fromCache); render(); autoSeed(); autoFill(); autoAdds(); syncClasses();
     }, (type, err) => {
       console.error(err);
       if (err?.code === 'permission-denied') toast('Firestore từ chối truy cập. Kiểm tra Rules trong README.');
-      stale = true; loaded = true; render();
-    });
+      setStale(true); setLoaded(true); render();
+    }));
     store.start();
-    setTimeout(() => { if (!loaded) { loaded = true; stale = true; render(); } }, 10000);
+    setTimeout(() => { if (!loaded) { setLoaded(true); setStale(true); render(); } }, 10000);
   } catch (err) {
     console.error(err);
     const c = err?.code || '';
@@ -4591,13 +4608,14 @@ async function startFirebase() {
 const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 if (!IOS) document.head.appendChild(Object.assign(document.createElement('link'), { rel: 'manifest', href: 'manifest.webmanifest' }));
 autoIcons(); // emoji có hình trong js/icons.js được thay bằng hình vẽ 3D ở mọi chỗ app vẽ ra
+setDraw(draw);
 { const r = parseHash(); UI.view = r.view; UI.so = r.so; }
 // Link riêng của cô (…?lop=<mã lớp>): máy này chỉ mở sổ học của lớp đó, không mở phần của gia đình.
 // Máy nhớ mã lớp để biểu tượng trên màn hình chính (mở không kèm ?lop=) vẫn vào đúng sổ, trừ khi máy này cũng là máy của nhà.
 const QS = new URLSearchParams(location.search), qLop = cleanCode(QS.get('lop')), okLop = v => /^[a-z0-9]{5}(-[a-z0-9]{5}){3}$/.test(v || '');
 const hasHome = () => { try { return !!(localStorage.getItem(FAMILY_KEY) || localStorage.getItem('be-cham-ngoan-v1')); } catch (e) { return false; } };
 if (okLop(qLop)) setLop(qLop);
-TEACH = okLop(qLop) ? qLop : !QS.get('gd') && !hasHome() && okLop(getLop()) ? getLop() : null;
+setTeach(okLop(qLop) ? qLop : !QS.get('gd') && !hasHome() && okLop(getLop()) ? getLop() : null);
 if (TEACH) {
   if (!okLop(qLop)) history.replaceState(null, '', location.pathname + '?lop=' + encodeURIComponent(TEACH));
   openClass(TEACH);
@@ -4605,16 +4623,16 @@ if (TEACH) {
 } else if (firebaseConfig) {
   const q = new URLSearchParams(location.search).get('gd');
   if (q && cleanCode(q).length >= 20) setFamily(cleanCode(q));
-  family = getFamily();
+  setFamilyCode(getFamily());
   // Bản trước dán link riêng của con (...&con=...) vào màn mở đầu thì mã của con dính luôn vào mã gia đình, thành một gia đình trống: tách lại.
   const glued = /^([a-z0-9]{5}(?:-[a-z0-9]{5}){3})con([a-z0-9-]{1,40})$/.exec(family || '');
-  if (glued) { setFamily(family = glued[1]); if (!getRole()) setRole(glued[2]); }
+  if (glued) { setFamilyCode(glued[1]); setFamily(family); if (!getRole()) setRole(glued[2]); }
   // Link riêng của một con (?gd=...&con=...): máy chưa chọn là của ai thì thành máy của con đó. Máy đã chọn rồi thì giữ nguyên.
   const con = new URLSearchParams(location.search).get('con');
   if (family && con && /^[\w-]{1,40}$/.test(con) && !getRole()) setRole(con);
   if (family) startFirebase(); else showSetup();
 } else {
-  store = localStore((data) => { S = data; loaded = true; render(); autoFill(); autoAdds(); syncClasses(); });
+  setStore(localStore((data) => { setData(data); setLoaded(true); render(); autoFill(); autoAdds(); syncClasses(); }));
   store.start();
   autoSeed();
 }

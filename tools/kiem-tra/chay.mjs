@@ -80,6 +80,14 @@ export async function newPage(browser, origin, { kho, ls, gio }) {
     return route.abort();
   });
   await ctx.route('**/js/config.js', route => route.fulfill({ status: 200, contentType: 'text/javascript; charset=utf-8', body: 'export const firebaseConfig = null;\n' }));
+  // Sổ học tự nhập từ data/*.json: nhiều file được tải cùng lúc và app làm tiếp tuỳ file nào về trước. Trả từng file một,
+  // theo thứ tự app xin, cách nhau một chút, để lần chạy nào cũng đi đúng một đường.
+  let gate = Promise.resolve();
+  await ctx.route('**/data/*.json', async route => {
+    const prev = gate; let release; gate = new Promise(r => (release = r));
+    await prev;
+    try { await route.fulfill({ response: await route.fetch() }); } finally { setTimeout(release, 400); }
+  });
   await ctx.addInitScript(initScript);
   const page = await ctx.newPage();
   await page.clock.setFixedTime(new Date(gio));
