@@ -1110,9 +1110,9 @@ function pageAdd() {
   if (v === 'lich-hoc') {
     const kid = S.kids[UI.tkbKid] ? UI.tkbKid : '', tab = UI.learn;
     if (tab === 'bai-tap') return taskForm(null, kid);
-    if (tab === 'moc') return eventForm(null, kid);
+    if (tab === 'truong' && UI.truong === 'moc') return eventForm(null, kid);
     if (tab === 'hoc-them') return menuSheet('Thêm vào Học thêm', [menuRow(`data-act="lesson-form" data-kid="${kid}"`, '📚', 'Buổi học thêm', 'Học gì, ngày nào, ai đưa đón'), menuRow(`data-act="cls-form" data-kid="${kid}"`, '📒', 'Sổ học của cô', 'Cô có link riêng để ghi buổi học và giao bài')]);
-    if (tab === 'tkb') { const ks = kid ? [S.kids[kid] && { id: kid, ...S.kids[kid] }] : kids; const pre = k => !tkbOf(k.id) && tkbOffer(k); return ks.length === 1 ? tkbForm(ks[0].id, pre(ks[0]) ? sampleTkb(tkbOffer(ks[0])) : undefined) : menuSheet('Thời khoá biểu của ai?', ks.map(k => menuRow(`data-act="tkb-form" ${pre(k) ? 'data-sample="1"' : ''} data-kid="${k.id}"`, '🏫', esc(k.name), tkbOf(k.id) ? 'Sửa thời khoá biểu' : pre(k) ? `Có sẵn ${esc(sampleLabel(tkbOffer(k)))}` : 'Chưa có, tạo mới'))); }
+    if (tab === 'truong') { const ks = kid ? [S.kids[kid] && { id: kid, ...S.kids[kid] }] : kids; const pre = k => !tkbOf(k.id) && tkbOffer(k); return ks.length === 1 ? tkbForm(ks[0].id, pre(ks[0]) ? sampleTkb(tkbOffer(ks[0])) : undefined) : menuSheet('Thời khoá biểu của ai?', ks.map(k => menuRow(`data-act="tkb-form" ${pre(k) ? 'data-sample="1"' : ''} data-kid="${k.id}"`, '🏫', esc(k.name), tkbOf(k.id) ? 'Sửa thời khoá biểu' : pre(k) ? `Có sẵn ${esc(sampleLabel(tkbOffer(k)))}` : 'Chưa có, tạo mới'))); }
     return menuSheet('Thêm vào Học tập', [menuRow(`data-act="task-form" data-kid="${kid}"`, '📝', 'Bài tập', 'Bài cô giao, hạn nộp, các bước'),
       menuRow(`data-act="lesson-form" data-kid="${kid}"`, '📚', 'Buổi học thêm', 'Học gì, ngày nào, ai đưa đón'), menuRow(`data-act="event-form" data-kid="${kid}"`, '📌', 'Mốc năm học', 'Kiểm tra, nghỉ học, họp phụ huynh')]);
   }
@@ -1158,16 +1158,24 @@ function quickAdd(slot) {
 // Các lựa chọn đang có trong ô thêm nhanh, đổi sang dạng dữ liệu của một việc.
 const qaData = () => ({ name: $('#qname')?.value.trim() || '', slot: QA.slot, days: qaReps()[QA.rep][0], kids: qaWho()[QA.who][0], money: QA_PAY[QA.pay][0] });
 
-const LEARN_TABS = [['sap-toi', 'Sắp tới'], ['bai-tap', 'Bài tập'], ['tkb', 'Thời khoá biểu'], ['moc', 'Mốc năm học'], ['hoc-them', 'Học thêm']];
+// Bốn tab, chia theo nguồn: Sắp tới (lịch gộp theo ngày), Bài tập, Ở trường (thời khoá biểu và mốc năm học), Học thêm (lịch, đưa đón, sổ học của cô, học phí).
+const LEARN_TABS = [['sap-toi', 'Sắp tới'], ['bai-tap', 'Bài tập'], ['truong', 'Ở trường'], ['hoc-them', 'Học thêm']];
+// Mở một tab của Học tập. Link cũ trỏ tới Thời khoá biểu hay Mốc năm học thì mở tab Ở trường, đúng phần đó. kid: màn của con (nhớ tab riêng).
+function setLearn(v, kid) {
+  const part = v === 'tkb' || v === 'moc' ? v : '', tab = part ? 'truong' : v;
+  if (kid) { UI.kmLearn = tab; if (part) UI.kmTruong = part; } else { UI.learn = tab; if (part) UI.truong = part; }
+}
 function viewSchedule() {
   const kids = kidsList();
   if (!kids.length) return `<div class="day-head"><h1>Học tập</h1></div>` + noKids();
+  // Trang sổ học của một cô (#lich-hoc/so/<mã sổ>). Sổ đã bị xoá thì về danh sách.
+  if (UI.so) { const c = classesList().find(x => x.id === UI.so); if (c) return soPage(c); UI.so = null; UI.soBack = null; UI.learn = 'hoc-them'; history.replaceState(null, '', location.pathname + location.search + '#lich-hoc'); }
   // Nhiều con thì mặc định xem cả nhà, để thấy ngay giờ nào cần đưa đón hai nơi.
   const all = kids.length > 1 && (UI.tkbKid === 'all' || !S.kids[UI.tkbKid]);
   const k = all ? null : kids.find(x => x.id === UI.tkbKid) || kids[0];
   return `<div class="tbar">${kidTabs(kids, all ? 'all' : k.id, 'learn-kid', null, kids.length > 1)}${pillBar(plusBtn('Thêm bài tập, buổi học thêm, mốc năm học'))}</div>` + learnPage(all ? kids : [k], all);
 }
-// Tiêu đề, 5 tab và nội dung của màn Học tập. Máy của con dùng lại phần này cho riêng con đó, ở chế độ chỉ xem (RO).
+// Tiêu đề, 4 tab và nội dung của màn Học tập. Máy của con dùng lại phần này cho riêng con đó, ở chế độ chỉ xem (RO).
 function learnPage(ks, all) {
   const k = all ? null : ks[0];
   const tab = LEARN_TABS.some(x => x[0] === UI.learn) ? UI.learn : 'sap-toi';
@@ -1176,9 +1184,14 @@ function learnPage(ks, all) {
   <div class="tabbar" role="tablist">${LEARN_TABS.map(([v, l]) => `<button role="tab" aria-selected="${v === tab}" class="${v === tab ? 'on' : ''}" data-act="learn-tab" data-v="${v}">${l}${v === 'bai-tap' && openTasks(k?.id).length ? ` <i class="cnt num">${openTasks(k?.id).length}</i>` : ''}</button>`).join('')}</div>`;
   if (tab === 'sap-toi') return h + viewAgenda(ks);
   if (tab === 'bai-tap') return h + tasksView(ks);
-  if (tab === 'moc') return h + eventsCard(all ? null : k.id);
-  if (tab === 'tkb') return h + ks.map(x => (all ? kidChip(x) : '') + kidSchedule(x, 'tkb')).join('');
+  if (tab === 'truong') return h + schoolView(ks, all);
   return h + (all ? familyWeek(ks) : kidSchedule(k, 'lessons'));
+}
+// Tab Ở trường: thời khoá biểu và mốc năm học, hai thứ đều là lịch của trường. Thanh gạt chọn phần đang xem.
+function schoolView(ks, all) {
+  const part = UI.truong === 'moc' ? 'moc' : 'tkb';
+  const seg = `<div class="seg modes">${[['tkb', 'Thời khoá biểu'], ['moc', 'Mốc năm học']].map(([v, l]) => `<label><input type="radio" name="truong" value="${v}" ${v === part ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div>`;
+  return seg + (part === 'moc' ? eventsCard(all ? null : ks[0].id) : ks.map(x => (all ? kidChip(x) : '') + kidSchedule(x, 'tkb')).join(''));
 }
 
 // ---------- bài tập ----------
@@ -1310,7 +1323,8 @@ function viewAgenda(ks) {
     <button class="wk-arrow" data-act="ag-week" data-n="7" aria-label="Tuần sau">${NEXT}</button></div>
     <div class="ws-legend muted small"><span><i class="ad exam"></i>Kiểm tra</span><span><i class="ad ev"></i>Mốc</span><span><i class="ad task"></i>Bài phải nộp</span><span><i class="ad lesson"></i>Học thêm</span></div>`;
   const dd = key(sel) === key(t) ? 'Hôm nay' : key(sel) === key(addDays(t, 1)) ? 'Ngày mai' : key(sel) === key(addDays(t, -1)) ? 'Hôm qua' : '';
-  h += `<b class="kid-sum-t">${dd ? dd + ', ' : ''}${dd ? WD[sel.getDay()].toLowerCase() : WD[sel.getDay()]} ${dm(sel)}</b><div class="slots">`;
+  const sl = stayLine(sel.getDay(), key(sel) === key(t));
+  h += `<b class="kid-sum-t">${dd ? dd + ', ' : ''}${dd ? WD[sel.getDay()].toLowerCase() : WD[sel.getDay()]} ${dm(sel)}</b>${sl ? `<div class="notes"><div class="stay-note ${stayInfo(sel.getDay())?.moved ? 'moved' : ''}">${esc(sl)}</div></div>` : ''}<div class="slots">`;
   for (const k of ks) {
     const a = dayAgenda(k.id, sel);
     let b = '';
@@ -1328,8 +1342,7 @@ function viewAgenda(ks) {
 function kidSchedule(k, part) {
   const t = tkbOf(k.id), wd = today().getDay();
   let h = '';
-  // Máy của con: luôn kèm lịch ở nhà nào (bên bố mẹ, nhà nhiều con thì lịch này nằm ở tab Cả nhà).
-  if (part === 'lessons') return `<div class="slots">${(RO ? hasStays() : kidsList().length === 1) ? staysCard(wd) : ''}${kidLessons(k)}${classesSection([k])}</div>`;
+  if (part === 'lessons') return `<div class="slots">${kidLessons(k)}${classesSection([k])}</div>`;
   if (!t && RO) {
     h += `<section class="card empty" style="padding:20px 18px"><div class="big">🏫</div><h2>Chưa có thời khoá biểu ở trường</h2><p class="muted">Nhờ bố mẹ nhập thời khoá biểu, con sẽ xem được hôm nào học môn gì.</p></section>`;
   } else if (!t && lessonsOf(k.id).length) {
@@ -1367,6 +1380,7 @@ function weekTotals(k, t, ls) {
   return h;
 }
 
+// Lịch các con ở đâu theo thứ (trang Gia đình). Sắp tới và màn Hôm nay hiện chỗ ở của từng ngày.
 function staysCard(wd) {
   const head = secHead('🏠', 'Các con ở đâu', { side: hasStays() && !RO ? '<button class="linkbtn" data-act="stay-form">Sửa</button>' : '' });
   return `<section class="slot tn4">${head}${hasStays()
@@ -1376,7 +1390,7 @@ function staysCard(wd) {
 // Cả nhà: lịch học thêm của các con theo từng ngày, kèm lịch đưa đón và cảnh báo.
 function familyWeek(kids) {
   const wd = today().getDay(), all = lessonsList();
-  let h = `<div class="slots">${staysCard(wd)}<section class="slot tn1">${secHead('📚', 'Học thêm', { cnt: all.length || '', add: addBtn('lesson-form', 'Thêm buổi học thêm') })}`;
+  let h = `<div class="slots"><section class="slot tn1">${secHead('📚', 'Học thêm', { cnt: all.length || '', add: addBtn('lesson-form', 'Thêm buổi học thêm') })}`;
   if (!all.length) return h + blankAdd('Thêm buổi học thêm của từng con, ghi ai đưa đón', 'lesson-form') + `</section>${classesSection(kids)}</div><p class="foot-note">App xếp lịch đưa đón theo từng ngày và báo khi hai chuyến sát giờ nhau.</p>`;
   const days = WEEK_ORDER.filter(d => all.some(l => l.day === d));
   h += `<div class="tiles">${kids.map(k => { const ls = all.filter(l => l.kid === k.id); return `<div class="tile"><span class="who">${ava(k, 'sm')}${esc(k.name)}</span><span class="amt num">${ls.length ? durTxt(ls.reduce((a, l) => a + lessonMin(l), 0)) : '—'}</span><span class="muted small">${ls.length} buổi học thêm mỗi tuần${ls.some(l => l.home === true) ? `, ${ls.filter(l => l.home === true).length} buổi ở nhà` : ''}</span></div>`; }).join('')}</div>`;
@@ -1904,7 +1918,6 @@ function soImportGo() {
   const paid = x.months.length && $('#so-imp-paid')?.checked;
   if (!soImportApply(x, paid)) return;
   closeModal();
-  if (x.clsId) classSheet(x.clsId);
   toast(`Đã nhập ${x.sessions.length} buổi và ${x.tasks.length} bài tập vào sổ.${paid ? ` Đã đánh dấu đóng học phí ${x.months.map(m => 'tháng ' + Number(m.slice(5))).join(', ')}.` : ''}`);
 }
 // Học phí đóng vào cuối tháng hoặc đầu tháng sau: tháng nhập từ file coi như đóng ngày 1 của tháng sau (tháng 10 → 1/11).
@@ -2213,12 +2226,10 @@ function classesSection(ks) {
   const ids = ks.map(k => k.id), list = classesList().filter(c => ids.includes(c.kid)), multi = ks.length > 1, kidAttr = `data-kid="${multi ? '' : ids[0]}"`;
   const offers = classOffers(ks);
   const item = c => { const k = CLS[c.code], st = soStats(soOf(c.code)), last = st.done[st.done.length - 1];
-    // Học phí các tháng đã qua mà bố mẹ chưa xác nhận chuyển khoản.
-    const fp = paidOf(soOf(c.code)), due = feeOf(c).off ? [] : soFees(soOf(c.code), feeOf(c)).filter(r => r.mk < key(today()).slice(0, 7) && !fp[r.mk]).reverse();
     const sub = !k || !k.loaded ? 'Đang mở sổ…' : !st.ss.length && !st.hw.length ? `Sổ còn trống${feeTxt(feeOf(c)) ? ' · ' + feeTxt(feeOf(c)) : ''}. Gửi link cho cô để cô bắt đầu ghi.`
-      : [`${st.done.length} buổi đã học`, last ? `gần nhất ${dateTxt(last.date)}` : '', st.open ? `${st.open} bài đang làm` : '', st.wait ? `${st.wait} bài chờ cô nhận` : '', soMissing(soOf(c.code)).n ? `${soMissing(soOf(c.code)).n} buổi cô chưa ghi` : '', due.length ? `chưa đóng học phí tháng ${due.map(r => Number(r.mk.slice(5))).join(', ')}` : ''].filter(Boolean).join(' · ');
+      : [`${st.done.length} buổi đã học`, last ? `gần nhất ${dateTxt(last.date)}` : '', st.open ? `${st.open} bài đang làm` : '', st.wait ? `${st.wait} bài chờ cô nhận` : '', soMissing(soOf(c.code)).n ? `${soMissing(soOf(c.code)).n} buổi cô chưa ghi` : ''].filter(Boolean).join(' · ');
     return `<button class="item nav" data-act="cls-open" data-id="${c.id}">${multi ? ava({ id: c.kid, ...S.kids[c.kid] }, 'sm') : `<span class="ico">${lessonIcon(c.name) === '📚' ? '📒' : lessonIcon(c.name)}</span>`}<span class="txt"><span class="t">${multi ? esc(kidName(c.kid)) + ' · ' : ''}${esc(classTitle(c))}</span><span class="s">${esc(sub)}</span></span>${CHEV}</button>`; };
-  return `<section class="slot tn2">${secHead('📒', 'Sổ học của cô', { cnt: list.length || '', side: list.length ? `<button class="linkbtn so-links" data-act="cls-links" ${kidAttr}>Link cho các cô</button>` : '', add: addBtn('cls-form', 'Thêm sổ học cho một cô', kidAttr) })}
+  return feeSummary(list, multi) + `<section class="slot tn2">${secHead('📒', 'Sổ học của cô', { cnt: list.length || '', side: list.length ? `<button class="linkbtn so-links" data-act="cls-links" ${kidAttr}>Link cho các cô</button>` : '', add: addBtn('cls-form', 'Thêm sổ học cho một cô', kidAttr) })}
     ${list.length ? `<div class="slot-list list">${list.map(item).join('')}</div>` : blankAdd('Mời cô ghi sổ học và giao bài: tạo sổ rồi gửi link cho cô', 'cls-form', kidAttr)}
     ${offers.length ? `<div class="row so-offers"><span class="muted small">Tạo sổ cho buổi học thêm:</span>${offers.map(o => `<button class="btn quiet sm" data-act="cls-form" data-kid="${o.kid}" data-name="${esc(o.name)}">${PLUS}${esc(o.name)}${multi ? ` · ${esc(kidName(o.kid))}` : ''}</button>`).join('')}</div>` : ''}
     ${list.length ? '' : '<p class="foot-note">Mỗi cô một link riêng, cô chỉ thấy sổ học của lớp mình. Bài cô giao tự hiện trong Bài tập của con.</p>'}</section>`;
@@ -2262,15 +2273,39 @@ function classLinksSheet(kidId) {
   ${list.length > 1 ? `<div class="row"><button class="btn quiet sm" data-act="cls-copy" data-link="${esc(all)}" data-who="">Sao chép cả ${list.length} link kèm tên cô</button></div>` : ''}
   <div class="foot"><button class="btn quiet" data-act="close">Xong</button></div>`);
 }
-function classSheet(id, keep) {
-  const c = classesList().find(x => x.id === id); if (!c) return;
+// Học phí của tất cả các cô, ở đầu mục Sổ học (Học tập › Học thêm): các tháng đã qua mà bố mẹ chưa xác nhận chuyển khoản, bấm Đã chuyển
+// ngay tại đây (kèm nút sao chép số tài khoản của cô), và học phí tháng này đến nay. Sổ tạm ẩn học phí hoặc chưa ghi học phí thì không tính.
+function feeSummary(list, multi) {
+  const mk = key(today()).slice(0, 7), due = [], cur = [];
+  for (const c of list) {
+    const f = feeOf(c); if (f.off || !(f.fee || f.on)) continue;
+    const d = soOf(c.code), fees = soFees(d, f), paid = paidOf(d), who = `${c.teacher || 'Cô'} · ${c.name}${multi ? ` · ${kidName(c.kid)}` : ''}`;
+    for (const r of fees.filter(r => r.mk < mk && !paid[r.mk]).reverse()) due.push({ c, r, who, b: bankOf(d) });
+    const now = fees.find(r => r.mk === mk); if (now) cur.push({ c, r: now, who, paid: paid[mk] });
+  }
+  if (!due.length && !cur.length) return '';
+  const ico = c => lessonIcon(c.name) === '📚' ? '📒' : lessonIcon(c.name);
+  // Số tiền nằm trong dòng mô tả, hai nút ở hàng dưới: tên cô và môn không bị ép hẹp, hai nút vừa một hàng trên điện thoại.
+  const dueRow = ({ c, r, who, b }) => `<div class="item fee-row"><span class="ico">${ico(c)}</span><div class="txt"><div class="t">${esc(who)}</div><div class="s"><span class="late">${monthTxt(r.mk)} chưa đóng</span> · <span class="num">${r.n} buổi</span> · <b class="num">${money(r.amount)}</b></div>
+    <div class="row" style="margin-top:8px">${b.number ? `<button class="btn quiet sm" data-act="cls-copy" data-link="${esc(b.number)}" data-msg="Đã sao chép số tài khoản của ${esc(c.teacher || 'cô')}.">Sao chép STK</button>` : ''}<button class="btn primary sm" data-act="fee-paid" data-id="${c.id}" data-mk="${r.mk}" data-amount="${r.amount}">Đã chuyển</button></div></div></div>`;
+  const curRow = ({ c, r, who, paid }) => `<div class="item fee-row"><span class="ico">${ico(c)}</span><div class="txt"><div class="t">${esc(who)}</div><div class="s"><span class="num">${r.n} buổi</span>${r.mins ? ` · ${durTxt(r.mins)}` : ''}${paid ? ` · <span class="fee-ok">✓ đã đóng ${dm(parse(paid.at))}</span>` : ''}</div></div><div class="acts col"><span class="delta num">${money(r.amount)}</span></div></div>`;
+  const total = cur.reduce((a, x) => a + x.r.amount, 0);
+  return `<section class="slot tn3">${secHead('💰', 'Học phí')}
+    ${due.length ? `${secHead('', 'Chưa đóng', { cnt: due.length, sub: true })}<div class="slot-list list">${due.map(dueRow).join('')}</div>` : ''}
+    ${cur.length ? `${secHead('', `${monthTxt(mk)} đến nay`, { cnt: money(total), sub: true })}<div class="slot-list list">${cur.map(curRow).join('')}</div>` : ''}
+    <p class="foot-note" style="margin:0 6px">${due.length ? 'Chuyển khoản xong thì bấm Đã chuyển, cô thấy ngay.' : 'Không có tháng nào chưa đóng.'} Học phí tính theo các buổi cô ghi là Đã học. Bấm vào một sổ bên dưới để xem từng tháng.</p></section>`;
+}
+// Trang sổ học của một cô (phần bố mẹ xem, #lich-hoc/so/<mã sổ>), mở từ Học tập › Học thêm hoặc từ màn Hôm nay. Nút quay lại ở góc trái.
+// Sửa sổ, ghi tài khoản của cô, xem bài tập mở form nổi trên trang, đóng form là về đúng trang này. In, nhập Excel, sửa sổ nằm trong menu ⋯.
+function soPage(c) {
   const k = CLS[c.code], d = soOf(c.code), st = soStats(d), free = st.hw.filter(t => !st.ss.some(s => s.id === t.session && s.state !== 'plan'));
-  openModal(`<h2>${esc(classTitle(c))}</h2>
-  <div class="row">${ava({ id: c.kid, ...S.kids[c.kid] }, 'sm')}<b>${esc(kidName(c.kid))}</b><span style="flex:1"></span><button class="btn primary sm" data-act="cls-link" data-id="${c.id}">🔗 Link cho cô</button>${st.done.length ? `<button class="btn quiet sm" data-act="cls-print" data-id="${c.id}">🖨️ In</button>` : ''}<button class="btn quiet sm" data-act="so-import" data-id="${c.id}">📥 Nhập Excel</button><button class="btn quiet sm" data-act="cls-form" data-id="${c.id}">Sửa</button></div>
+  const back = String(UI.soBack || '').startsWith('#hom-nay') ? 'Hôm nay' : 'Học thêm';
+  return `<div class="tbar"><button class="linkbtn back" data-act="so-back">${PREV}${back}</button><span style="flex:1"></span>${pillBar(moreBtn('so-menu', 'In, nhập từ Excel, sửa sổ'))}</div>
+  <div class="day-head"><h1>${esc(bookName(c))}</h1></div>
+  <div class="row">${ava({ id: c.kid, ...S.kids[c.kid] }, 'sm')}<span><b>${esc(kidName(c.kid))}</b>${c.teacher ? ` · ${esc(c.teacher)}` : ''}</span><span style="flex:1"></span><button class="btn primary sm" data-act="cls-link" data-id="${c.id}">🔗 Link cho cô</button></div>
   ${!k || !k.loaded ? '<p class="muted">Đang mở sổ…</p>' : k.err ? '<div class="note">Chưa mở được sổ học. Kiểm tra mạng rồi thử lại.</div>'
     : !st.ss.length && !st.hw.length ? `<div class="card empty"><div class="big">📒</div><h2>Sổ còn trống</h2><p class="muted">Gửi link cho ${esc(c.teacher || 'cô')}. Cô ghi buổi học và giao bài thì hiện ngay ở đây.</p></div><div class="slots">${bankSection(d, false, c.teacher, c.id)}</div>`
-    : `${soTiles(st, feeOf(c), d)}<div class="slots">${feeSection(d, feeOf(c), c)}${bankSection(d, false, c.teacher, c.id)}${free.length ? `<section class="slot tn0">${secHead('', 'Bài tập', { cnt: free.length })}<div class="slot-list list">${free.map(t => hwRow(c.code, t, d, 'view')).join('')}</div></section>` : ''}${soMonths(c.code, d, 'view')}</div>`}
-  <div class="foot"><button class="btn quiet" data-act="close">Đóng</button></div>`, true, keep);
+    : `${soTiles(st, feeOf(c), d)}<div class="slots">${feeSection(d, feeOf(c), c)}${bankSection(d, false, c.teacher, c.id)}${free.length ? `<section class="slot tn0">${secHead('', 'Bài tập', { cnt: free.length })}<div class="slot-list list">${free.map(t => hwRow(c.code, t, d, 'view')).join('')}</div></section>` : ''}${soMonths(c.code, d, 'view')}</div>`}`;
 }
 // Bài cô giao, mở từ phần Bài tập của nhà hoặc máy của con: hướng dẫn, file đính kèm, điểm và nhận xét của cô. Chỉ xem, tick xong ở ngoài danh sách.
 // Nhờ bố mẹ in file cô gửi (máy của con): tải sẵn các file khi mở bài, bấm Nhờ bố mẹ in thì mở bảng chia sẻ của điện thoại
@@ -2951,13 +2986,13 @@ function printPrices() {
 
 const inviteLink = () => location.origin + location.pathname + '?gd=' + encodeURIComponent(family);
 
-// Gia đình: cài đặt ít khi đụng tới (các con, máy của con và mã PIN, chia sẻ, sao lưu). Việc nhà và thưởng phạt nằm ở trang Quy định.
+// Gia đình: cài đặt ít khi đụng tới (các con, các con ở đâu, máy của con và mã PIN, chia sẻ, sao lưu). Việc nhà và thưởng phạt nằm ở trang Quy định.
 function viewFamily() {
   const kids = kidsList();
   let h = `<div class="day-head tools"><h1>Gia đình</h1>${pillBar(plusBtn('Thêm con'))}</div><div class="slots">
   <section class="slot tn0">${secHead('👪', 'Các con', { cnt: kids.length || '', add: addBtn('kid-form', 'Thêm con') })}${kids.length
     ? `<div class="slot-list list">${kids.map(k => `<div class="item">${ava(k, 'sm')}<div class="txt"><div class="t">${esc(k.name)}</div><div class="s">${ageOf(k) !== null ? `${ageOf(k)} tuổi (sinh ${dm(parse(k.birthday))}/${parse(k.birthday).getFullYear()}) · ` : ''}${modeLabel(k)}</div></div><div class="acts">${editBtn('kid-form', k.id, k.name)}</div></div>`).join('')}</div>`
-    : blankAdd('Thêm tên và hình đại diện cho từng con', 'kid-form')}</section></div>`;
+    : blankAdd('Thêm tên và hình đại diện cho từng con', 'kid-form')}</section>${kids.length ? staysCard(today().getDay()) : ''}</div>`;
   if (kids.length) h += `<p class="foot-note">Việc nhà, thưởng, phạt và phiếu thưởng nằm ở trang <a href="#quy-dinh">Quy định</a>.</p>`;
   h += roleSection();
   h += `<section class="slot">${secHead('🔐', 'Chia sẻ và sao lưu')}<div class="card stack">`;
@@ -3116,8 +3151,8 @@ function drawKidMode() {
   el.classList.toggle('plain', tab !== 'today');
   if (tab !== 'today') {
     // Tab Học tập của con nhớ tab riêng (UI.kmLearn), mở ở Sắp tới, không theo tab bố mẹ xem lần cuối trên cùng máy.
-    const parentLearn = UI.learn; RO = true; UI.learn = UI.kmLearn || 'sap-toi';
-    try { el.innerHTML = `<div class="wrap">${top}${tab === 'learn' ? learnPage([k], false) : kidAcct(k)}</div>`; } finally { RO = false; UI.learn = parentLearn; }
+    const parent = [UI.learn, UI.truong]; RO = true; UI.learn = UI.kmLearn || 'sap-toi'; UI.truong = UI.kmTruong || 'tkb';
+    try { el.innerHTML = `<div class="wrap">${top}${tab === 'learn' ? learnPage([k], false) : kidAcct(k)}</div>`; } finally { RO = false; [UI.learn, UI.truong] = parent; }
     return;
   }
   const list = mustFor(k.id, t), n = list.filter(c => isDone(t, k.id, c.id)).length, plan = dayPlan(k.id, t), cur = slotAt(nowMin());
@@ -3715,11 +3750,11 @@ document.addEventListener('click', e => {
     setDone(key(d), kid, cid + '~s', mask);
     return;
   }
-  if (a === 'tkb-go' && !$('#km').hidden) { e.preventDefault(); UI.kmTab = 'learn'; if (b.dataset.tab) UI.kmLearn = b.dataset.tab; UI.tkbDay = b.dataset.wd ? Number(b.dataset.wd) : null; $('#km').scrollTop = 0; return render(); }
-  if (a === 'tkb-go') { UI.tkbKid = b.dataset.kid; if (b.dataset.tab) UI.learn = b.dataset.tab; UI.tkbDay = b.dataset.wd ? Number(b.dataset.wd) : null; return; } // link tự chuyển sang #lich-hoc
+  if (a === 'tkb-go' && !$('#km').hidden) { e.preventDefault(); UI.kmTab = 'learn'; if (b.dataset.tab) setLearn(b.dataset.tab, true); UI.tkbDay = b.dataset.wd ? Number(b.dataset.wd) : null; $('#km').scrollTop = 0; return render(); }
+  if (a === 'tkb-go') { UI.tkbKid = b.dataset.kid; if (b.dataset.tab) setLearn(b.dataset.tab); UI.tkbDay = b.dataset.wd ? Number(b.dataset.wd) : null; return; } // link tự chuyển sang #lich-hoc
   if (a === 'grid-week') { const n = Number(b.dataset.n); UI.gridWs = n ? addDays(UI.gridWs || weekStart(today()), n) : null; return render(); }
   if (a === 'grid-tick') { const d = parse(b.dataset.d), cid = b.dataset.chore; if (!S.chores[cid] || d > today()) return; return markChore(d, b.dataset.kid, cid, !isDone(d, b.dataset.kid, cid)); }
-  if (a === 'learn-tab') { if ($('#km').hidden) UI.learn = b.dataset.v; else UI.kmLearn = b.dataset.v; UI.histAll = false; UI.tkbDay = null; return render(); }
+  if (a === 'learn-tab') { setLearn(b.dataset.v, !$('#km').hidden); UI.histAll = false; UI.tkbDay = null; return render(); }
   if (a === 'tkb-day') {
     UI.tkbDay = Number(b.dataset.d); render();
     // Bấm ở bản cả tuần thì cuộn lên thẻ của ngày vừa chọn.
@@ -3889,14 +3924,22 @@ document.addEventListener('click', e => {
   }
   if (a === 'so-print') { const info = soOf(TEACH).info.lop || {}; return printSo(TEACH, bookName(info), info.student || '', info.teacher || '', feeOf(info)); }
   if (a === 'cls-form') return classForm(id, b.dataset.kid, b.dataset.name);
-  if (a === 'cls-open') return classSheet(id);
+  // Mở trang sổ học của một cô. Nhớ trang đang đứng để nút quay lại về đúng chỗ (Hôm nay hoặc Học thêm).
+  if (a === 'cls-open') { closeModal(); UI.soBack = location.hash || '#hom-nay'; location.hash = '#lich-hoc/so/' + encodeURIComponent(id); return; }
+  if (a === 'so-back') { if (UI.soBack) return history.back(); UI.learn = 'hoc-them'; location.hash = '#lich-hoc'; return; }
+  if (a === 'so-menu') {
+    const c = classesList().find(x => x.id === UI.so); if (!c) return;
+    return menuSheet(esc(bookName(c)), [menuRow(`data-act="cls-print" data-id="${c.id}"`, '🖨️', 'In sổ học', 'Số buổi, học phí và nội dung từng buổi, khổ ngang', !soStats(soOf(c.code)).done.length),
+      menuRow(`data-act="so-import" data-id="${c.id}"`, '📥', 'Nhập từ file Excel', 'Chép các buổi từ file theo dõi tiến độ vào sổ'),
+      menuRow(`data-act="cls-form" data-id="${c.id}"`, '✏️', 'Sửa sổ', 'Môn, tên cô, học phí, xoá sổ')]);
+  }
   if (a === 'cls-link') return classLinkSheet(id);
-  if (a === 'cls-print') { const c = classesList().find(x => x.id === id); return c && printSo(c.code, bookName(c), kidName(c.kid), c.teacher || '', feeOf(c)); }
+  if (a === 'cls-print') { closeModal(); const c = classesList().find(x => x.id === id); return c && printSo(c.code, bookName(c), kidName(c.kid), c.teacher || '', feeOf(c)); }
   if (a === 'bank-form') return bankForm(TEACH ? '' : id);
   if (a === 'bank-save') {
     const v = (i, n) => $('#' + i).value.trim().slice(0, n), data = { bank: v('bbank', 40), number: v('bnumber', 30).replace(/[^\dA-Za-z .-]/g, ''), holder: v('bholder', 60), note: v('bnote', 200), at: new Date().toISOString() };
     const code = TEACH || classesList().find(x => x.id === id)?.code; if (!code || !clsPut(code, 'info', 'bank', data)) return;
-    closeModal(); if (!TEACH) { classSheet(id); return toast('Đã lưu tài khoản của cô. Cô cũng thấy ở tab Báo cáo.'); }
+    closeModal(); if (!TEACH) return toast('Đã lưu tài khoản của cô. Cô cũng thấy ở tab Báo cáo.');
     return toast('Đã lưu tài khoản. Phụ huynh thấy ngay khi xem sổ.');
   }
   // Bố mẹ xác nhận đã chuyển khoản học phí của một tháng (hoặc huỷ khi bấm nhầm). Ghi cả danh sách các tháng trong một tài liệu của sổ.
@@ -3905,8 +3948,7 @@ document.addEventListener('click', e => {
     const cur = paidOf(soOf(c.code)), next = { ...cur };
     if (a === 'fee-paid') next[mk] = { at: key(today()), amount: Math.max(0, Number(b.dataset.amount) || 0) }; else delete next[mk];
     if (!clsPut(c.code, 'info', 'paid', next)) return;
-    classSheet(id, true);
-    return a === 'fee-paid' ? toast(`Đã xác nhận đóng học phí ${monthTxt(mk).toLowerCase()} cho ${c.teacher || 'cô'}.`, () => { clsPut(c.code, 'info', 'paid', cur); if (!$('#modal').hidden) classSheet(id, true); }) : toast('Đã huỷ xác nhận.');
+    return a === 'fee-paid' ? toast(`Đã xác nhận đóng học phí ${monthTxt(mk).toLowerCase()} cho ${c.teacher || 'cô'}.`, () => clsPut(c.code, 'info', 'paid', cur)) : toast('Đã huỷ xác nhận.');
   }
   if (a === 'cls-links') return classLinksSheet(b.dataset.kid);
   if (a === 'cls-copy') {
@@ -4348,6 +4390,7 @@ document.addEventListener('change', e => {
   if (e.target.id === 'day-pick' && e.target.value) { UI.date = parse(e.target.value); render(); }
   if (e.target.id === 'ag-pick' && e.target.value) { UI.agDate = parse(e.target.value); render(); }
   if (e.target.name === 'kmtab') { UI.kmTab = e.target.value; UI.histAll = false; $('#km').scrollTop = 0; render(); }
+  if (e.target.name === 'truong') { if ($('#km').hidden) UI.truong = e.target.value; else UI.kmTruong = e.target.value; UI.tkbDay = null; render(); }
   if (e.target.name === 'tview') { UI.taskDone = e.target.value === '1'; UI.histAll = false; render(); }
   if (e.target.id === 'ckind') {
     const kind = e.target.value;
@@ -4432,7 +4475,13 @@ const cancelHold = () => { clearTimeout(holdT); document.querySelectorAll('.hold
 
 // Điều hướng bằng #hash
 const viewOf = h => { h = NAV_ALIAS[h] || h; return NAV.some(n => n.id === h) ? h : 'hom-nay'; };
-function route() { UI.view = viewOf(location.hash.slice(1)); if (UI.view !== 'lich-hoc') UI.tkbDay = null; render(); window.scrollTo(0, 0); }
+// Địa chỉ trong app: #<tab>; riêng trang sổ học của một cô là #lich-hoc/so/<mã sổ>.
+function parseHash() {
+  const [v, sub, arg] = location.hash.slice(1).split('/'), view = viewOf(v);
+  let so = null; if (view === 'lich-hoc' && sub === 'so' && arg) try { so = decodeURIComponent(arg); } catch (e) {}
+  return { view, so };
+}
+function route() { const r = parseHash(); UI.view = r.view; UI.so = r.so; if (!r.so) UI.soBack = null; if (UI.view !== 'lich-hoc') UI.tkbDay = null; render(); window.scrollTo(0, 0); }
 window.addEventListener('hashchange', route);
 window.addEventListener('online', render);
 window.addEventListener('offline', render);
@@ -4531,7 +4580,7 @@ async function startFirebase() {
 const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 if (!IOS) document.head.appendChild(Object.assign(document.createElement('link'), { rel: 'manifest', href: 'manifest.webmanifest' }));
 autoIcons(); // emoji có hình trong js/icons.js được thay bằng hình vẽ 3D ở mọi chỗ app vẽ ra
-UI.view = viewOf(location.hash.slice(1));
+{ const r = parseHash(); UI.view = r.view; UI.so = r.so; }
 // Link riêng của cô (…?lop=<mã lớp>): máy này chỉ mở sổ học của lớp đó, không mở phần của gia đình.
 // Máy nhớ mã lớp để biểu tượng trên màn hình chính (mở không kèm ?lop=) vẫn vào đúng sổ, trừ khi máy này cũng là máy của nhà.
 const QS = new URLSearchParams(location.search), qLop = cleanCode(QS.get('lop')), okLop = v => /^[a-z0-9]{5}(-[a-z0-9]{5}){3}$/.test(v || '');
