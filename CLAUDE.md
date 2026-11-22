@@ -10,14 +10,14 @@ Năm tab của bố mẹ, mỗi tab trả lời một câu hỏi:
 
 | Tab | Câu hỏi | Gồm |
 | --- | --- | --- |
-| Hôm nay (`#hom-nay`) | Hôm nay con cần làm gì? | Theo từng con. Thông báo cần bố mẹ chú ý ở đầu màn (chờ duyệt, sổ học của cô), tiến độ và số dư, khối nhắc, bài cần nộp, các buổi trong ngày, việc làm thêm. Menu ⋯: Xem cả tuần, Chế độ cho bé, In kế hoạch tuần, Sửa danh sách việc nhà (mở Quy định). |
+| Hôm nay (`#hom-nay`) | Hôm nay con cần làm gì? | Theo từng con. Thông báo cần bố mẹ chú ý ở đầu màn (chờ duyệt, sổ học của cô), tiến độ và số dư, khối nhắc, bài cần nộp, các buổi trong ngày, việc làm thêm. Menu ⋯: Xem cả tuần, Chế độ cho bé, In kế hoạch tuần, Sửa danh sách việc nhà (mở Quy định). Máy bố mẹ: bấm vào việc hay buổi học thêm để sửa. Máy tính màn rộng chia hai cột (các buổi bên trái, thông báo và nhắc bên phải). |
 | Học tập (`#lich-hoc`) | Các con học gì, nộp gì, ai đưa đón? | Cả nhà hoặc từng con. Bốn tab chia theo nguồn: Sắp tới (lịch gộp từng ngày, kèm các con ở đâu hôm đó), Bài tập, Ở trường (thanh gạt Thời khoá biểu / Mốc năm học), Học thêm (lịch học thêm và đưa đón, Học phí của tất cả các cô, Sổ học của cô). Mỗi sổ học là một trang riêng `#lich-hoc/so/<mã sổ>` có nút quay lại. |
 | Tài khoản (`#tai-khoan`) | Con có bao nhiêu tiền, vì sao? | Theo từng con. Số dư, chờ duyệt thành tích, Ghi cho con (Phạt, Thưởng thêm, Chi tiêu), mục tiêu tiết kiệm, lịch sử. |
 | Quy định (`#quy-dinh`, link cũ `#bang-gia`) | Nhà mình có việc gì, thưởng phạt thế nào? | Nơi duy nhất thêm, sửa, xoá việc nhà (bốn loại) và mục giá (thành tích, phạt, phí sử dụng, phiếu thưởng). Menu ⋯: in bảng giá, phiếu thưởng, kế hoạch tuần. |
-| Gia đình (`#gia-dinh`) | Cài đặt của cả nhà | Các con, các con ở đâu, máy của con và mã PIN, link mời, sao lưu. |
+| Gia đình (`#gia-dinh`) | Cài đặt của cả nhà | Các con, các con ở đâu, Chia sẻ và máy của con (link mời người nhà, mã PIN, link riêng cho máy của từng con), Sao lưu. |
 
 - Máy của con (nhà có mã PIN) và Chế độ cho bé dùng chung một màn với ba tab: Hôm nay, Học tập (bốn tab như bố mẹ, chỉ xem, không có sổ học và học phí, nhớ tab riêng), Tài khoản (chỉ xem). Báo thành tích có ở cả tab Hôm nay và tab Tài khoản của con.
-- Màn của cô (`?lop=<mã lớp>`): ba tab Buổi học, Bài tập, Báo cáo; chỉ đọc và ghi được sổ của lớp đó.
+- Màn của cô (`?lop=<mã lớp>`): ba tab Buổi học, Bài tập, Báo cáo (menu ⋯: In báo cáo, Nhập từ file Excel); chỉ đọc và ghi được sổ của lớp đó.
 
 ## Quy tắc đặt chỗ
 
@@ -55,4 +55,6 @@ Trong mã, bốn loại việc nằm ở `CHORE_KINDS` (`week`, `each`, `extra`,
 - `js/store.js`: mô tả dữ liệu (đầu file) và nơi lưu (trình duyệt hoặc Firestore). Thêm nhóm dữ liệu mới thì thêm vào `COLS` và `firestore.rules`.
 - Sửa dữ liệu một lần cho cả nhà: làm trong `autoAdds()`, đánh dấu bằng một cờ trong `paid/caidat` để không chạy lại.
 - Việc mới ghi `since` (ngày thêm); đổi mức thưởng ghi vào `wbLog`, `dbLog`; để tiền của các ngày đã qua không đổi.
+- Kiểm tra cú pháp bằng `node --input-type=module --check < js/app.js`; lệnh `node --check js/app.js` không báo lỗi trong file này (ví dụ khai báo trùng tên biến). Sau đó chạy thử trên trình duyệt.
+- Đặt tên lớp CSS mới thì tìm trước trong `styles.css` cho khỏi trùng: ví dụ `.today` đã là ô hôm nay của dải 7 ngày và thanh chọn thứ.
 - Chữ trên giao diện: tiếng Việt có dấu, câu ngắn, gọi đúng tên ở bảng trên. Đổi tính năng thì sửa luôn README.md và, nếu đổi chỗ hay đổi tên, sửa file này.

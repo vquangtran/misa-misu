@@ -450,6 +450,21 @@ textarea.hw-in{resize:none;overflow:hidden;min-height:44px}
 /* mỗi buổi: một tiêu đề to (bấm để gập, mở), danh sách việc bên dưới; buổi chưa có việc là khối nền nhạt có dấu +.
    Các nhóm cách nhau rộng hơn hẳn khoảng cách trong một nhóm để nhìn ra từng khối. */
 .slots{display:flex;flex-direction:column;gap:30px}
+/* Màn Hôm nay: điện thoại một cột, các khối xếp theo order như cũ; máy tính rộng chia hai cột: các buổi bên trái,
+   thông báo, khối nhắc, bài cần nộp, sổ học của cô bên phải (khung trang rộng hơn, xem .wrap.wide). */
+.day-cols{display:flex;flex-direction:column;gap:16px}
+.day-cols>.dc-main,.day-cols>.dc-side{display:contents}
+.day-cols .dcb.after{margin-top:14px}
+/* Máy bố mẹ: bấm vào việc hay buổi học thêm ở màn Hôm nay để sửa (nút ngôi sao vẫn là đóng dấu). */
+.item.edit-row{cursor:pointer}
+@media (min-width:1200px){
+  .wrap.wide{max-width:1040px}
+  .day-cols.two{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;align-items:start}
+  .day-cols.two>.dc-main,.day-cols.two>.dc-side{display:flex;flex-direction:column;gap:16px;min-width:0;grid-row:1}
+  .day-cols.two>.dc-main{grid-column:1}
+  .day-cols.two>.dc-side{grid-column:2}
+  .day-cols.two .dcb.after{margin-top:0}
+}
 .slot{display:flex;flex-direction:column;gap:10px}
 .slot-h{display:flex;align-items:center;gap:8px;min-height:38px}
 .slot-pill{display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:4px 2px;border:0;background:none;color:var(--ink);
