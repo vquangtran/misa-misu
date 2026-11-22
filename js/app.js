@@ -1426,9 +1426,11 @@ const FIXED_SCHED = [
   { kids: ['sa', 'misa'], subj: 'toán', dur: [0, 0, 120, 0, 120, 0, 0], mode: ['', '', 'on', '', 'off', '', ''], time: { 2: ['17:30', '19:30'], 4: ['18:00', '20:00'] } },
 ];
 const fixedFor = (kidNm, subj) => FIXED_SCHED.find(f => f.kids.includes(norm(kidNm)) && norm(subj) === f.subj) || null;
-// Thứ có lịch học của sổ: theo lịch học thêm nhà đã ghi, chưa có thì theo lịch cố định.
-const schedSlots = info => { if (info?.days?.length) return info.days; const f = fixedFor(info?.student, info?.name);
-  return (f?.dur || []).map((m, day) => m ? { day, s: f.time?.[day]?.[0] || '', e: f.time?.[day]?.[1] || '' } : null).filter(Boolean); };
+// Thứ và giờ học của sổ: lịch cố định có ghi giờ thì theo lịch cố định (giờ cô dạy do nhà báo, đúng nhất);
+// không thì theo lịch học thêm nhà đã ghi; chưa có nữa thì theo các thứ trong lịch cố định.
+const schedSlots = info => { const f = fixedFor(info?.student, info?.name);
+  const fixed = (f?.dur || []).map((m, day) => m ? { day, s: f.time?.[day]?.[0] || '', e: f.time?.[day]?.[1] || '' } : null).filter(Boolean);
+  return f?.time ? fixed : info?.days?.length ? info.days : fixed; };
 // Màn của cô đọc thông tin lớp (có student): sổ chưa được máy bố mẹ ghi dur thì vẫn dùng thời lượng theo lịch cố định.
 const durOf = x => Array.isArray(x?.dur) ? [0, 1, 2, 3, 4, 5, 6].map(i => Math.max(0, Math.round(Number(x.dur[i]) || 0)))
   : x?.student && fixedFor(x.student, x.name) ? fixedFor(x.student, x.name).dur.slice() : [0, 0, 0, 0, 0, 0, 0];
@@ -1918,7 +1920,7 @@ let suAutoBusy = false;
 async function suAutoImport(code) {
   if (suAutoBusy || TEACH || !loaded || stale || deviceRole() !== 'parent') return;
   const c = classesList().find(x => x.code === code), k = CLS[code];
-  if (!c || (c.xlAuto && k && SU_FIXES.every(f => suFixDone(c, k.data, f))) || !isSuTV(kidName(c.kid), c.name) || !k || !k.loaded || k.stale || k.err || !k.st) return;
+  if (!c || (c.xlAuto && k && SU_FIXES.every(f => k.data.info?.fixes?.[f])) || !isSuTV(kidName(c.kid), c.name) || !k || !k.loaded || k.stale || k.err || !k.st) return;
   if (c.xlAuto) return suFixes(code, c, k);
   suAutoBusy = true;
   try {
@@ -1942,7 +1944,9 @@ const SU_FIXES = ['paidFix', 'fix1711', 'fill1'];
 const suFixDone = (c, d, f) => !!((c && c[f]) || d.info?.fixes?.[f]);
 let suFixBusy = false;
 function suFixes(code, c, k) {
-  if (suFixBusy || SU_FIXES.every(f => suFixDone(c, k.data, f))) return;
+  // Chạy khi trong sổ còn thiếu cờ: sửa phần chưa làm, rồi ghi đủ cờ vào sổ (kể cả phần đã làm theo cờ cũ ở sổ của nhà),
+  // để máy của cô không bao giờ chạy lại phần đã làm (ví dụ không xoá xác nhận đã đóng học phí tháng 11 bố mẹ bấm sau này).
+  if (suFixBusy || SU_FIXES.every(f => k.data.info?.fixes?.[f])) return;
   suFixBusy = true;
   try { suFixesRun(code, c, k); } finally { suFixBusy = false; }
 }
@@ -1981,34 +1985,47 @@ function suFixesRun(code, c, k) {
     for (const id of ['xl-11']) if (raw[id] && raw[id].state === 'done' && !raw[id].fill) clsPut(code, 'sessions', id, { ...raw[id], fill: 1 });
     flags.fill1 = 1;
   }
+  clsPut(code, 'info', 'fixes', { ...(k.data.info?.fixes || {}), ...Object.fromEntries(SU_FIXES.filter(f => done(f)).map(f => [f, 1])), ...flags });
   if (!Object.keys(flags).length) return;
-  clsPut(code, 'info', 'fixes', { ...(k.data.info?.fixes || {}), ...flags });
   if (c && !TEACH) { const { id, ...o } = classesList().find(x => x.code === code) || c; put('paid', id, { ...o, ...flags }); }
 }
-// Kế hoạch dạy Toán học kì 1 của cô Trang (data/ke-hoach-toan-su.json, chép từ file Word cô gửi): nhập một lần vào sổ Toán của Su,
-// trên máy của bố mẹ hoặc máy của cô (máy nào mở trước). Ngày đã có buổi trong sổ thì giữ nguyên buổi cô đã ghi. Cờ planToan1 lưu trong sổ.
+// Dữ liệu các cô gửi (file Word, Excel) đã chép sẵn vào data/…json: nhập một lần vào đúng sổ, trên máy của bố mẹ hoặc máy của cô
+// (máy nào mở trước). Ngày đã có buổi trong sổ thì giữ nguyên buổi cô đã ghi. Cờ đã nhập lưu trong sổ (info/fixes).
+// Mỗi buổi: { date, state: done|plan, topic?, content?, note?, task?: { title, got, review } }. Hình thức, thời lượng theo lịch cố định của cô.
+// Bài nhập từ file không có tình trạng tick (chk) nên không bị trừ tiền Thiếu BTVN.
+const DATA_IMPORTS = [
+  { flag: 'planToan1', file: 'data/ke-hoach-toan-su.json', kids: ['su', 'misu'], subj: 'toán', label: 'kế hoạch Toán của cô Trang' },
+  { flag: 'nganTV1', file: 'data/so-tieng-viet-sa.json', kids: ['sa', 'misa'], subj: 'tiếng việt', label: 'sổ Tiếng Việt của cô Ngân' },
+];
 let planBusy = false;
 async function planAuto(code) {
-  const k = CLS[code]; if (planBusy || !k || !k.loaded || k.stale || k.err || !k.st || k.data.info?.fixes?.planToan1) return;
+  const k = CLS[code]; if (planBusy || !k || !k.loaded || k.stale || k.err || !k.st) return;
   let kidNm, subj;
   if (TEACH) { if (code !== TEACH) return; kidNm = k.data.info?.lop?.student; subj = k.data.info?.lop?.name; }
   else { if (!loaded || stale || deviceRole() !== 'parent') return; const c = classesList().find(x => x.code === code); if (!c) return; kidNm = kidName(c.kid); subj = c.name; }
-  if (!['su', 'misu'].includes(norm(kidNm)) || norm(subj) !== 'toán') return;
+  const cfg = DATA_IMPORTS.find(x => x.kids.includes(norm(kidNm)) && norm(subj) === x.subj && !k.data.info?.fixes?.[x.flag]); if (!cfg) return;
   planBusy = true;
   try {
-    const r = await fetch('data/ke-hoach-toan-su.json', { cache: 'no-cache' }); if (!r.ok) return;
-    const list = (await r.json()).sessions || [];
-    if (CLS[code] !== k || k.data.info?.fixes?.planToan1) return;
-    const have = new Set(sessList(k.data).map(x => x.date).filter(Boolean)), t0 = Date.now(); let n = 0;
+    const r = await fetch(cfg.file, { cache: 'no-cache' }); if (!r.ok) return;
+    const list = ((await r.json()).sessions || []).filter(x => okDate(x.date)).sort((a, b) => a.date.localeCompare(b.date));
+    if (CLS[code] !== k || k.data.info?.fixes?.[cfg.flag]) return;
+    const have = new Set(sessList(k.data).map(x => x.date).filter(Boolean)), allDates = [...new Set([...have, ...list.map(x => x.date)])].sort(), f = fixedFor(kidNm, subj), t0 = Date.now();
+    let n = 0, m = 0;
     list.forEach((x, i) => {
-      const date = okDate(x.date); if (!date || have.has(date)) return;
-      const wd = parse(date).getDay(), f = fixedFor(kidNm, subj);
-      if (!clsPut(code, 'sessions', 'kh-' + date, { date, state: x.state === 'done' ? 'done' : 'plan', mode: f?.mode[wd] || 'off', mins: f?.dur[wd] || 120, topic: String(x.topic || '').slice(0, 300),
-        content: String(x.content || '').slice(0, 2000), src: '', note: '', next: '', links: [], files: [], at: new Date(t0 + i).toISOString(), xl: 1 })) return;
+      const date = x.date; if (have.has(date)) return;
+      const wd = parse(date).getDay(), sid = 'kh-' + date;
+      if (!clsPut(code, 'sessions', sid, { date, state: x.state === 'done' ? 'done' : 'plan', mode: f?.mode[wd] || 'off', mins: f?.dur[wd] || 120, topic: String(x.topic || '').slice(0, 300),
+        content: String(x.content || '').slice(0, 2000), src: '', note: String(x.note || '').slice(0, 2000), next: '', links: [], files: [], at: new Date(t0 + i).toISOString(), xl: 1 })) return;
       n++;
+      if (x.task?.title && !k.data.tasks?.['kh-h-' + date]) {
+        const due = allDates.find(dk => dk > date) || '';
+        clsPut(code, 'tasks', 'kh-h-' + date, { title: String(x.task.title).slice(0, 300), notes: '', due, session: sid, steps: [], links: [], files: [], at: new Date(t0 + i).toISOString(),
+          ...(x.task.got ? { got: true, gotAt: due || date } : {}), review: String(x.task.review || '').slice(0, 2000) });
+        m++;
+      }
     });
-    clsPut(code, 'info', 'fixes', { ...(k.data.info?.fixes || {}), planToan1: 1 });
-    if (n) toast(`Đã nhập kế hoạch Toán của cô Trang: ${n} buổi.`);
+    clsPut(code, 'info', 'fixes', { ...(k.data.info?.fixes || {}), [cfg.flag]: 1 });
+    if (n) toast(`Đã nhập ${cfg.label}: ${n} buổi${m ? `, ${m} bài tập` : ''}.`);
   } catch (e) { console.error(e); } finally { planBusy = false; }
 }
 // Máy của cô: sổ Tiếng Việt của Su đã có dữ liệu nhập từ file (xl-…) thì tự sửa luôn, không phải chờ máy của bố mẹ mở app.
@@ -2658,6 +2675,11 @@ function autoAdds() {
   if (!set.book) {
     for (const c of classesList()) if (['su', 'misu'].includes(norm(kidName(c.kid))) && norm(c.name) === 'tiếng việt' && !String(c.book || '').trim()) { const { id, ...o } = c; put('paid', id, { ...o, book: SU_TV_BOOK }); }
     flags.book = 1;
+  }
+  // Sổ Tiếng Việt của Sa (cô Ngân): bài cũ nhập từ file có hạn trước 22/11/2026 không hiện quá hạn trên máy của con (một lần).
+  if (!set.hwfromSa) {
+    for (const c of classesList()) if (['sa', 'misa'].includes(norm(kidName(c.kid))) && norm(c.name) === 'tiếng việt' && !c.hwFrom) { const { id, ...o } = c; put('paid', id, { ...o, hwFrom: '2026-11-22' }); }
+    flags.hwfromSa = 1;
   }
   // Sổ Tiếng Việt của Su: bài tập có hạn trước 22/11/2026 không hiện quá hạn trên máy của con (một lần).
   if (!set.hwfrom) {
