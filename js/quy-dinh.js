@@ -80,7 +80,7 @@ const SAMPLE_PRICES = [
   { name: 'Một ngày không làm việc nhà', icon: '🧹', kind: 'gift', price: 20000, skip: true, note: 'Nghỉ hết việc phải làm trong một ngày, không làm đứt chuỗi ngày' },
 ];
 // Thành tích học tập (ở trường và ở lớp học thêm tính như nhau): con tự báo khi có (nút + ở màn của con), nằm chờ tới khi bố mẹ duyệt mới cộng tiền.
-// Nhà nào cũng có sẵn 5 mục này (xem autoAdds), sửa hay thêm bớt ở trang Quy định.
+// Nhà nào cũng có sẵn 5 mục này (xem autoAdds trong mot-lan.js), sửa hay thêm bớt ở trang Quy định.
 export const SAMPLE_MERITS = [
   { name: 'Được cô khen', icon: '👏', price: 5000 },
   { name: 'Được 9', icon: '⭐', price: 10000 },
@@ -89,7 +89,7 @@ export const SAMPLE_MERITS = [
   { name: 'Thi được 10', icon: '🏆', price: 50000 },
 ];
 // Bản của bảng mẫu. Con chưa ghi bản này (k.tableVer) thì trang Quy định gợi ý cập nhật một lần.
-// k.tableFull: nhà này đã được thêm đủ việc và mục giá của bản đó (xem autoFill).
+// k.tableFull: nhà này đã được thêm đủ việc và mục giá của bản đó (xem autoFill trong mot-lan.js).
 export const TABLE_VER = 2;
 
 // ---------- mục thành tích, tóm tắt một việc, nhãn giá ----------

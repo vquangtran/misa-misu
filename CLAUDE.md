@@ -2,7 +2,7 @@
 
 App web tĩnh (HTML, CSS, JavaScript thuần, không có bước build) cho một gia đình: việc nhà, tiền tiêu vặt, lịch học của các con, sổ học của các cô dạy thêm. Giao diện, dữ liệu và chú thích trong mã đều bằng tiếng Việt. Xem README.md để biết chi tiết từng tính năng.
 
-Chạy thử: `python3 -m http.server 8000`. `js/config.js` đang trỏ tới Firebase thật của gia đình: khi chạy thử để kiểm tra, cho `js/config.js` trả về `export const firebaseConfig = null;` (app lưu trên trình duyệt) để không ghi vào dữ liệu thật.
+Chạy thử: `python3 -m http.server 8000`. `js/config.js` đang trỏ tới Firebase thật của gia đình: khi chạy thử để kiểm tra, cho `js/config.js` trả về `export const firebaseConfig = null;` (app lưu trên trình duyệt) để không ghi vào dữ liệu thật. Bộ kiểm tra `tools/kiem-tra/` đã tự làm việc này (xem mục Kiểm tra).
 
 ## Sơ đồ màn
 
@@ -51,10 +51,53 @@ Trong mã, bốn loại việc nằm ở `CHORE_KINDS` (`week`, `each`, `extra`,
 
 ## Mã
 
-- `js/app.js`: toàn bộ màn hình và thao tác, mỗi phần mở đầu bằng dòng `// ---------- tên phần ----------`. Mọi nút bấm đi qua một bộ xử lý theo `data-act`; máy của con chỉ được làm các thao tác trong `KID_ACTS`, màn của cô trong `TEACH_ACTS`.
-- `js/store.js`: mô tả dữ liệu (đầu file) và nơi lưu (trình duyệt hoặc Firestore). Thêm nhóm dữ liệu mới thì thêm vào `COLS` và `firestore.rules`.
-- Sửa dữ liệu một lần cho cả nhà: làm trong `autoAdds()`, đánh dấu bằng một cờ trong `paid/caidat` để không chạy lại.
+Mỗi màn một module ES trong `js/`, không có bước build (GitHub Pages phục vụ file nguyên trạng). `index.html` nạp `js/app.js`, các module khác được import từ đó. Trong mỗi file, các phần mở đầu bằng dòng `// ---------- tên phần ----------`.
+
+| File | Gồm |
+| --- | --- |
+| `js/app.js` | Điểm vào: vẽ khung (`draw`), thanh điều hướng, điều hướng bằng `#hash`, mở gia đình (Firebase hoặc trình duyệt), màn mở đầu, khởi động, màn của cô |
+| `js/chung.js` | Hàm dùng chung không cần dữ liệu: ngày giờ (`key`, `parse`, `today`…), tiền (`money`), `esc`, `norm`, `slug`, `uid`, hình SVG nhỏ, `toast`, `confetti`, `printHtml` |
+| `js/nha-minh.js` | Dữ liệu riêng của nhà mình: tên các con (`SU`, `SA`, `isSu`, `isSa`), thời khoá biểu, lịch năm học, các nơi ở, các cô (`FIXED_SCHED`, `SAMPLE_CLASSES`, `SU_TV_…`), ngày hwFrom, số dư lúc chốt bảng |
+| `js/du-lieu.js` | Lõi: trạng thái (`S`, `UI`, `store`…), ghi dữ liệu (`put`, `del`, `setDone`), máy của ai (`deviceRole`), tính tiền, thưởng, chuỗi ngày, phần dữ liệu của lịch (thời khoá biểu, mốc, học thêm, các con ở đâu, buổi), `render` |
+| `js/giao-dien.js` | Mảnh giao diện dùng chung: hình của con, `secHead`, thanh tiến độ, `kidTabs`, nút ⋯ và +, ô trống để thêm |
+| `js/form.js` | `openModal`, `closeModal`, các dòng của form (`frow`, `pillSel`, `titleCard`, `kidRow`…), `menuSheet` |
+| `js/hom-nay.js` | Màn Hôm nay (các buổi, `dayPlan`), thêm việc nhanh, xem cả tuần, in kế hoạch tuần, đóng dấu việc (`markChore`) |
+| `js/hoc-tap.js` | Màn Học tập: Sắp tới, Bài tập, Ở trường (thời khoá biểu, mốc năm học), Học thêm; form thời khoá biểu, buổi học thêm, bài tập, mốc |
+| `js/so-hoc.js` | Sổ học của cô: danh sách sổ, trang sổ, học phí, bài cô giao (`classTasks`), tự trừ tiền Thiếu BTVN, màn của cô (`drawTeacher`), file đính kèm, nhập Excel |
+| `js/tai-khoan.js` | Màn Tài khoản, chờ duyệt, việc thích làm con xin, mục tiêu tiết kiệm |
+| `js/quy-dinh.js` | Màn Quy định, bảng mẫu (`SAMPLE_CHORES`, `SAMPLE_PRICES`…), cập nhật theo bảng mẫu, form việc nhà (`CHORE_KINDS`) và mục giá |
+| `js/gia-dinh.js` | Màn Gia đình: các con (form, ảnh, hình đại diện), các con ở đâu, mã PIN, máy của con, sao lưu, lịch mã hoá |
+| `js/man-con.js` | Màn của con (`drawKidMode`): máy của con và Chế độ cho bé |
+| `js/mot-lan.js` | Sửa dữ liệu một lần: `autoFill`, `autoAdds` (cờ trong `paid/caidat`), tự nhập và tự sửa sổ từ `data/*.json`; đầu file ghi bước nào bỏ được sau |
+| `js/thao-tac.js` | Bộ xử lý nút bấm theo `data-act`, `KID_ACTS`, `TEACH_ACTS`, nút + (`pageAdd`), các sự kiện change, input, phím, vuốt, giữ nút |
+| `js/store.js` | Mô tả dữ liệu (đầu file) và nơi lưu (trình duyệt hoặc Firestore) |
+
+Lớp dưới không import lớp trên: `chung`, `nha-minh` ← `du-lieu` ← `giao-dien` ← `form` ← các màn ← `thao-tac` ← `app`. Hiện không có vòng import. Lớp dưới cần gọi lên trên thì lớp trên đăng ký: `setDraw` (app.js đặt hàm vẽ cho `render`), `onCloseModal` (việc làm khi đóng form), `onSoData` (việc làm mỗi khi một sổ có dữ liệu). Nếu buộc phải có vòng import thì mã ở cấp file (ngoài hàm) không được dùng tên của module cùng vòng.
+
+- Biến trạng thái là `export let`: module khác đọc được giá trị mới nhất nhưng không gán lại được. Đổi bằng hàm của module chủ: `setData` (S), `setStore`, `setLoaded`, `setStale`, `setFamilyCode`, `setRO`, `setTeach`, `clearMemo` (du-lieu.js); `setModalDirty` (form.js); `setPhotoEdit`, `setSeedChecked` (gia-dinh.js); `attClear` (so-hoc.js). `UI` và `CLS` là đối tượng dùng chung, sửa thuộc tính trực tiếp.
+- Dùng tên của module khác thì thêm vào dòng `import` đầu file; `tools/kiem-tra/module.mjs` báo tên chưa import, import thừa, import sai tên.
+- Mọi nút bấm đi qua một bộ xử lý theo `data-act` (thao-tac.js); máy của con chỉ được làm các thao tác trong `KID_ACTS`, màn của cô trong `TEACH_ACTS`. Thao tác mới mà con hay cô cũng được làm thì thêm vào đó.
+- Thêm nhóm dữ liệu mới thì thêm vào `COLS` (store.js) và `firestore.rules`.
+- Dữ liệu chỉ đúng với nhà mình (tên các con, các cô, lịch, ngày cụ thể) ghi ở `js/nha-minh.js`; chỗ khác dùng `SU`, `SA`, `isSu`, `isSa`, không ghi tên trực tiếp.
+- Sửa dữ liệu một lần cho cả nhà: làm trong `autoAdds()` (mot-lan.js), đánh dấu bằng một cờ trong `paid/caidat` để không chạy lại; sửa một lần cho một sổ thì dùng cờ trong `info/fixes` của sổ. Ghi vào danh sách bỏ được sau ở đầu mot-lan.js.
 - Việc mới ghi `since` (ngày thêm); đổi mức thưởng ghi vào `wbLog`, `dbLog`; để tiền của các ngày đã qua không đổi.
-- Kiểm tra cú pháp bằng `node --input-type=module --check < js/app.js`; lệnh `node --check js/app.js` không báo lỗi trong file này (ví dụ khai báo trùng tên biến). Sau đó chạy thử trên trình duyệt.
+- Kiểm tra cú pháp từng file bằng `node --input-type=module --check < js/ten-file.js`; lệnh `node --check` thường không bắt được lỗi trong các file này (ví dụ khai báo trùng tên biến).
 - Đặt tên lớp CSS mới thì tìm trước trong `styles.css` cho khỏi trùng: ví dụ `.today` đã là ô hôm nay của dải 7 ngày và thanh chọn thứ.
 - Chữ trên giao diện: tiếng Việt có dấu, câu ngắn, gọi đúng tên ở bảng trên. Đổi tính năng thì sửa luôn README.md và, nếu đổi chỗ hay đổi tên, sửa file này.
+
+## Kiểm tra
+
+`tools/kiem-tra/` mở app trong Chromium (Playwright có sẵn) với dữ liệu thử Su, Sa, đi qua mọi màn ở khổ 390×844 và 1280×860, ghi innerHTML của `#app`, `#km`, `#modal` và localStorage sau từng bước, rồi so hai lần chạy. Nó tự chặn `js/config.js` (trả về `null`) và mọi request ra ngoài, cố định giờ, múi giờ và số ngẫu nhiên. Trước khi sửa, chạy để làm mốc; sửa xong chạy lại và so:
+
+```bash
+node tools/kiem-tra/chay.mjs chay --ra /tmp/truoc.json
+```
+
+```bash
+node tools/kiem-tra/chay.mjs chay --ra /tmp/sau.json --so /tmp/truoc.json
+```
+
+- Dọn mã (không đổi giao diện, dữ liệu) thì phải giống hệt và không có lỗi. Đổi giao diện có chủ ý thì các chỗ khác phải đúng chỗ đã đổi.
+- Thêm tính năng thì thêm bước vào `tools/kiem-tra/canh.mjs` (`node tools/kiem-tra/chay.mjs liet-ke '#màn'` liệt kê các nút của một màn).
+- Mọi lần chạy bắt đầu từ `diem-xuat-phat.json` (localStorage sau lần mở đầu với `du-lieu-thu.mjs`). Đổi dữ liệu thử hay đổi các bước trong mot-lan.js thì tạo lại bằng `node tools/kiem-tra/chay.mjs tao-diem-xuat-phat` (chạy trên bản cũ trước nếu muốn so).
+- Dữ liệu thử không ghi ngày sinh hay thông tin riêng nào chưa có trong repo.

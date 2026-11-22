@@ -17,6 +17,8 @@
 //
 // Mỗi lần chạy bắt đầu từ diem-xuat-phat.json: localStorage chụp sau lần mở đầu tiên với dữ liệu thử (du-lieu-thu.mjs).
 // Riêng cảnh "mo-dau" chạy lại lần mở đầu từ dữ liệu thử, để kiểm tra phần app tự thêm và tự sửa dữ liệu (js/mot-lan.js).
+// Trước khi mở trình duyệt, chay còn kiểm tra tĩnh các module trong js/ (module.mjs): import, tên chưa khai báo, vòng import.
+// Các bước của từng cảnh nằm trong canh.mjs.
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';

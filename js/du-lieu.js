@@ -358,7 +358,7 @@ export function deviceRole() {
 
 // iPhone/iPad: app trên màn hình chính có bộ nhớ riêng, tách khỏi Safari, nên phải mang mã gia đình (và mã của con,
 // nếu là máy của con) theo địa chỉ mở app. Giữ ?gd=...&con=... trên thanh địa chỉ; iOS không được nạp manifest
-// (xem phần boot) nên "Thêm vào MH chính" lưu đúng địa chỉ đang hiện và biểu tượng mở thẳng vào gia đình, đúng phần của con.
+// (xem phần khởi động trong app.js) nên "Thêm vào MH chính" lưu đúng địa chỉ đang hiện và biểu tượng mở thẳng vào gia đình, đúng phần của con.
 export function keepFamilyInUrl() {
   if (!family) return;
   const r = getRole(), url = location.origin + location.pathname + '?gd=' + encodeURIComponent(family) + (r && r !== 'parent' ? '&con=' + encodeURIComponent(r) : '');
