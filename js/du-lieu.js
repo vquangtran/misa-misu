@@ -5,6 +5,7 @@ import { COLS } from './store.js';
 import { addDays, dm, key, money, nowMin, parse, toast, today, toMin, WDN, WEEK_ORDER, weekStart } from './chung.js';
 import { PLACE_ALIAS, PLACE_NAMES } from './nha-minh.js';
 
+// ---------- mức thưởng ----------
 // Thưởng mỗi ngày con làm đủ mọi việc phải làm (con mới thêm, hoặc khi chuyển từ thưởng đủ tuần sang).
 export const DAY_BONUS = 15000;
 // Cách cũ: thưởng khi làm đủ mọi việc phải làm cả một tuần (Thứ Hai đến Chủ nhật). Con chưa chuyển sang thưởng theo ngày vẫn tính như vậy.
@@ -14,7 +15,7 @@ const WEEK_BONUS_OLD = 25000;
 // Trước đây app tính bằng sao. Dữ liệu cũ (sao) được quy đổi: 1 sao = 5.000đ.
 const STAR_VND = 5000;
 
-// ---------- state ----------
+// ---------- trạng thái ----------
 export let S = Object.fromEntries(COLS.map(c => [c, {}]));
 export const UI = { view: 'hom-nay', date: today(), acctKid: null, acctKind: 'penalty', histAll: false, slotOpen: {}, learn: 'sap-toi', todayMode: 'day', todayKid: null, secOpen: {}, gridWs: null, planNext: false, agDate: null, taskDone: false, tkbKid: null, tkbDay: null, km: { on: false, kid: null }, sheet: false };
 export let store = null, loaded = false, stale = false, family = null;
@@ -47,7 +48,7 @@ export const put = (col, id, data) => { Promise.resolve(store.put(col, id, data)
 export const del = (col, id) => { Promise.resolve(store.del(col, id)).catch(writeErr); };
 export const setDone = (d, kid, chore, val) => { Promise.resolve(store.setDone(d, kid, chore, val)).catch(writeErr); };
 
-// ---------- derived ----------
+// ---------- việc nhà, tiền, thưởng, chuỗi ngày ----------
 export const kidsList = () => Object.entries(S.kids).map(([id, k]) => ({ id, ...k })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || String(a.name).localeCompare(String(b.name), 'vi'));
 export const choresList = () => Object.entries(S.chores).map(([id, c]) => ({ id, ...c })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || String(a.name).localeCompare(String(b.name), 'vi'));
 // Mục giá (trang Quy định): { name, icon, kind: 'merit' | 'gift' | 'penalty' | 'fee', price (đồng; phí sử dụng là đồng/giờ; phiếu thưởng giá 0 là miễn phí),
@@ -251,6 +252,8 @@ export function ageOf(k, at = today()) {
   return a >= 0 ? a : null;
 }
 export const isBirthday = (k, d) => { if (!k.birthday) return false; const b = parse(k.birthday); return b.getDate() === d.getDate() && b.getMonth() === d.getMonth(); };
+
+// ---------- thời khoá biểu và mốc năm học ----------
 export const tkbOf = kidId => { const t = S.timetables[kidId]; return t && Array.isArray(t.rows) ? t : null; };
 export const tkbDays = t => (Array.isArray(t.days) && t.days.length ? t.days : [1, 2, 3, 4, 5]).map(Number).sort();
 // Các tiết có môn trong một thứ, kèm giờ vào và giờ tan.
@@ -274,6 +277,7 @@ const forKid = (e, kidId) => !(e.kids || []).length || e.kids.includes(kidId);
 export const eventsOf = kidId => eventsList().filter(e => forKid(e, kidId));
 export const holidayOn = (kidId, d) => { const dk = key(d); return eventsOf(kidId).find(e => e.kind === 'holiday' && e.from <= dk && dk <= e.to) || null; };
 export const schoolOn = (kidId, d) => holidayOn(kidId, d) ? null : schoolDay(tkbOf(kidId), d.getDay());
+
 // ---------- học thêm ----------
 // Mỗi buổi học thêm là một mục riêng: { kid, day: 0..6, s, e, name }.
 export const lessonsList = () => Object.entries(S.lessons || {}).map(([id, l]) => ({ id, ...l, day: Number(l.day) }))
@@ -323,7 +327,7 @@ export const SLOTS = [['sang', 'Buổi sáng', '🌅'], ['chieu', 'Buổi chiề
 export const slotAt = m => m < 12 * 60 ? 'sang' : m < 18 * 60 ? 'chieu' : 'toi';
 export const choreSlot = c => toMin(c.time) !== null ? slotAt(toMin(c.time)) : (c.slot || '');
 
-// ---------- rendering ----------
+// ---------- vẽ lại màn hình, con đang xem ----------
 let raf = 0;
 // Hàm vẽ cả màn hình do phần khởi động đặt (setDraw), để phần lõi không phải import các màn.
 let drawFn = () => {};

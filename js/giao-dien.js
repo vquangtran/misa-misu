@@ -5,8 +5,10 @@ import { CHEV, DOTS, DOWN, esc, money, PLUS, STAR } from './chung.js';
 import { AV_DEFAULT } from './nha-minh.js';
 import { balance, RO, UI } from './du-lieu.js';
 
+// ---------- nút sửa, số dư, hình của con ----------
 // Mũi tên ở cuối dòng: bấm vào bất kỳ chỗ nào trên dòng là mở form sửa (kiểu danh sách iOS).
 export const editBtn = (act, id, name = '') => RO ? '' : `<button class="edit" data-act="${act}" data-id="${id}" aria-label="Sửa${name ? ': ' + esc(name) : ''}">${CHEV}</button>`;
+// Số dư của con, đỏ khi âm.
 export const moneyChip = (k, style = '') => `<span class="stars num ${balance(k.id) < 0 ? 'neg' : ''}" title="Số tiền trong tài khoản" ${style ? `style="${style}"` : ''}>${money(balance(k.id))}</span>`;
 // Màu nền thẻ của con: theo bộ hình (Su vàng, Sa be) nếu dùng bộ gà, ngựa; không thì theo màu đã chọn.
 export const tintOf = k => { const p = avatarPick(avatarOf(k)); return p ? `var(--tint-${p.set})` : 'var(--t' + ((Number(k.tint) || 0) % 6) + ')'; };
@@ -21,12 +23,17 @@ export const ava = (k, cls = '') => {
   return p ? `<span class="ava svg ${cls}" style="background:${tintOf(k)}" title="${esc(p.name)}">${p.svg}</span>` : `<span class="ava ${cls}" style="background:${tintOf(k)}">${esc(avatarOf(k))}</span>`;
 };
 export const mini = k => photoOf(k) ? `<img class="mini" src="${photoOf(k)}" alt="">` : avatarPick(avatarOf(k)) ? `<span class="mini">${avInner(avatarOf(k))}</span>` : esc(avatarOf(k));
+
+// ---------- màu môn học, biểu tượng học thêm ----------
 // Màu cố định cho mỗi môn, để cùng một môn luôn cùng một màu.
 export const subjTint = name => { let h = 0; for (const ch of String(name).toLowerCase().trim()) h = (h * 31 + ch.codePointAt(0)) >>> 0; return h % 6; };
+export const subjDot = s => s ? `<i class="dot sj${subjTint(s)}"></i>` : '';
 export const subjChips = list => list.map(s => `<span class="sj-chip sj${subjTint(s)}">${esc(s)}</span>`).join('');
 const LESSON_ICONS = [[/bóng rổ/, '🏀'], [/bóng đá/, '⚽'], [/bơi/, '🏊'], [/nhảy|múa|dance/, '💃'], [/piano|đàn|nhạc/, '🎹'], [/vẽ|mĩ thuật|mỹ thuật/, '🎨'],
   [/võ|karate|taekwondo/, '🥋'], [/cờ/, '♟️'], [/nhật/, '🗾'], [/anh|english/, '🔤'], [/toán/, '➗'], [/việt|văn/, '📖']];
 export const lessonIcon = name => { const n = String(name).toLowerCase(); return (LESSON_ICONS.find(([re]) => re.test(n)) || [0, '📚'])[1]; };
+
+// ---------- logo, đang tải, chưa có con ----------
 export const brand = () => `<div class="brand"><span class="brand-mark">${STAR}</span>Misa Misu</div>`;
 export const loading = () => `<div class="card empty"><div class="big">⏳</div><h2>Đang mở bảng việc nhà…</h2><p class="muted">Danh sách các con, việc nhà và phần thưởng sẽ hiện ở đây.</p></div>`;
 export function noKids() {
@@ -34,6 +41,7 @@ export function noKids() {
   <p class="muted">Thêm tên và hình đại diện cho từng con, sau đó giao việc nhà cho các con. Nếu có file sao lưu, vào mục Gia đình để nhập.</p>
   <div class="row" style="justify-content:center;margin-top:10px"><button class="btn primary" data-act="kid-form">Thêm con</button><button class="btn ghost" data-act="seed-form">Nạp lịch gia đình</button></div></div>`;
 }
+
 // ---------- phần dùng chung của các màn ----------
 // Hàng chọn con: mỗi con một viên (kèm một con số nhỏ nếu có), all = thêm viên "Cả nhà".
 export const kidTabs = (kids, cur, act, badge, all) => `<div class="kid-tabs">${all ? `<button class="kid-tab all ${cur === 'all' ? 'on' : ''}" data-act="${act}" data-kid="all" ${cur === 'all' ? 'aria-current="true"' : ''}>${icon('👪')}<b>Cả nhà</b></button>` : ''}${kids.map(k => `<button class="kid-tab ${k.id === cur ? 'on' : ''}" data-act="${act}" data-kid="${k.id}" ${k.id === cur ? 'aria-current="true"' : ''}>${ava(k, 'sm')}<b>${esc(k.name)}</b>${badge ? badge(k) : ''}</button>`).join('')}</div>`;
@@ -62,4 +70,3 @@ export const barCount = (n, total) => bar(n, total, `role="progressbar" aria-val
 export const suggest = (title, text, btn, act) => `<section class="suggest"><div><b>${title}</b><span>${text}</span></div><button class="btn primary sm" data-act="${act}">${btn}</button></section>`;
 // Tên của một con làm tiêu đề nhỏ (khi xem cả nhà).
 export const kidChip = k => `<div class="slot-h"><span class="kid-chip">${ava(k, 'sm')}${esc(k.name)}</span></div>`;
-export const subjDot = s => s ? `<i class="dot sj${subjTint(s)}"></i>` : '';

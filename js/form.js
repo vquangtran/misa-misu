@@ -4,8 +4,6 @@ import { $, CHEV, esc, toast } from './chung.js';
 import { kidsList, UI } from './du-lieu.js';
 import { mini } from './giao-dien.js';
 
-// Công tắc bật/tắt cho một lựa chọn đơn.
-export const toggle = (id, label, on, cls = '', attr = '') => `<label class="toggle ${cls}" ${attr}><span>${label}</span><input type="checkbox" id="${id}" ${on ? 'checked' : ''}></label>`;
 // ---------- form dạng nhóm thẻ: mỗi dòng một nhãn bên trái và giá trị bên phải ----------
 // Một dòng: nhãn (kèm dòng giải thích nhỏ) bên trái, giá trị bên phải. cls 'col': giá trị nằm dưới nhãn, rộng hết dòng.
 export const frow = (label, right, { sub = '', id = '', cls = '', hidden = false, subId = '' } = {}) => `<div class="fr ${cls}" ${hidden ? 'hidden' : ''}><div class="fl">${id ? `<label for="${id}">${label}</label>` : `<span class="lbl">${label}</span>`}${sub || subId ? `<span class="fs" ${subId ? `id="${subId}"` : ''}>${sub}</span>` : ''}</div>${right}</div>`;
@@ -23,12 +21,16 @@ export const titleCard = (id, val, ph, { max = 40, icoName = '', icons = [], ico
 // Dòng chọn con: một con (radio) hoặc nhiều con (checkbox). Nhà đông con thì các viên xuống dòng dưới nhãn.
 export const kidRow = (label, name, type, sel, sub = '') => { const kids = kidsList();
   return frow(label, `<div class="seg kids">${kids.map(k => `<label><input type="${type}" name="${name}" value="${k.id}" ${sel.includes(k.id) ? 'checked' : ''}><span>${mini(k)} ${esc(k.name)}</span></label>`).join('')}</div>`, { sub, cls: kids.length > 2 ? 'col' : '' }); };
+// Công tắc bật/tắt cho một lựa chọn đơn.
+export const toggle = (id, label, on, cls = '', attr = '') => `<label class="toggle ${cls}" ${attr}><span>${label}</span><input type="checkbox" id="${id}" ${on ? 'checked' : ''}></label>`;
 export const formFoot = (delAct, id, saveAct, saveLabel = 'Lưu', delLabel = 'Xoá') => `<div class="foot">${delAct ? `<button class="btn danger left" data-act="${delAct}" data-id="${id}">${delLabel}</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="${saveAct}" data-id="${id || ''}">${saveLabel}</button></div>`;
+
+// ---------- sheet: menu ⋯ và nút + ----------
 // Sheet liệt kê vài lựa chọn (menu ⋯ và nút + của các màn).
 export const menuRow = (attr, ic, t, sub = '', off = false) => `<button class="item nav" ${attr} ${off ? 'disabled' : ''}><span class="ico">${ic}</span><span class="txt"><span class="t">${t}</span>${sub ? `<span class="s">${sub}</span>` : ''}</span>${CHEV}</button>`;
 export const menuSheet = (title, rows) => openModal(`<h2>${title}</h2><div class="fg"><div class="list menu">${rows.join('')}</div></div><div class="foot"><button class="btn quiet" data-act="close">Đóng</button></div>`);
 
-// ---------- modal ----------
+// ---------- modal: mở, đóng form ----------
 export function openModal(html, wide, keep) {
   const m = $('#modal');
   // keep: vẽ lại form đang mở (ví dụ đổi ngày), giữ nguyên vị trí cuộn và không nhảy con trỏ.
@@ -63,10 +65,15 @@ export function dismissModal() {
   if (modalDirty && !UI.sheet && !$('#modal .qa')) return toast('Chưa lưu. Bấm Lưu để giữ, hoặc Huỷ để bỏ.');
   closeModal();
 }
+
+// ---------- ô chọn trong form ----------
 export const pickGrid = (name, list, val) => `<div class="pick" role="radiogroup">${list.map((e, i) => `<label><input type="radio" name="${name}" value="${e}" ${(val ? val === e : i === 0) ? 'checked' : ''} aria-label="${e}"><span>${e}</span></label>`).join('')}</div>`;
 export const radioVal = n => { const r = document.querySelector(`#modal input[name="${n}"]:checked, #app input[name="${n}"]:checked`); return r ? r.value : null; };
+// Nhóm ngày chọn sẵn ở ô Lặp lại (form việc nhà, form việc thích làm con xin).
 export const DAY_SETS = [['0,1,2,3,4,5,6', 'Mỗi ngày'], ['1,2,3,4,5', 'Ngày thường'], ['0,6', 'Cuối tuần']];
 export const daySet = days => { const k = [...days].map(Number).sort().join(); return DAY_SETS.some(x => x[0] === k) ? k : 'custom'; };
+
+// Bấm ra ngoài form thì đóng (xem dismissModal); gõ hoặc bấm trong form thì coi là đã sửa.
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') dismissModal(); else if (e.target.closest('button:not([data-act=close])')) modalDirty = true; });
 $('#modal').addEventListener('input', () => { modalDirty = true; });
 $('#modal').addEventListener('change', () => { modalDirty = true; });

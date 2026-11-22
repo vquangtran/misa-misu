@@ -9,6 +9,7 @@ import { addBtn, ava, barCount, blankAdd, editBtn, kidChip, kidTabs, lessonIcon,
 import { formFoot, frow, kidRow, openModal, pillSel, radioVal, titleCard, toggle } from './form.js';
 import { classesList, classesSection, classTasks, hwState, linkList, soPage } from './so-hoc.js';
 
+// ---------- thời khoá biểu có sẵn ----------
 // Môn học gợi ý khi nhập thời khoá biểu (tiểu học và THCS).
 const SUBJECTS = ['Toán', 'Tiếng Việt', 'Ngữ văn', 'Tiếng Anh', 'Khoa học', 'KHTN', 'Lịch sử và Địa lí', 'Đạo đức', 'GDCD', 'Âm nhạc', 'Mĩ thuật',
   'Tin học', 'Công nghệ', 'Giáo dục thể chất', 'Bơi', 'Hoạt động trải nghiệm', 'Sinh hoạt dưới cờ', 'Sinh hoạt lớp', 'Tự học'];
@@ -86,6 +87,8 @@ export function yearForm() {
   <div class="fg"><div class="list">${miss.map(e => `<div class="item"><span class="ico">${e.icon}</span><div class="txt"><div class="t">${esc(e.name)}</div><div class="s num">${esc(eventRange({ ...e, to: e.to || e.from }))}</div></div></div>`).join('')}</div></div>
   <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="year-add">Thêm ${miss.length} mốc</button></div>`);
 }
+
+// ---------- thời khoá biểu: một ngày, cả tuần, bản in ----------
 // Bảng lưới cả tuần, chỉ dùng khi in.
 function tkbTable(t) {
   const days = tkbDays(t), lunch = Number(t.lunch) || 0;
@@ -150,6 +153,8 @@ function tkbStats(t) {
   }
   return { periods, inClass, atSchool, subjects: Object.entries(count).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'vi')) };
 }
+
+// ---------- học thêm: đi lại, đưa đón ----------
 const LESSON_NAMES = ['Tiếng Anh', 'Toán', 'Gia sư Toán', 'Gia sư Tiếng Việt', 'Bóng đá', 'Bóng rổ', 'Nhảy', 'Bơi', 'Piano', 'Vẽ', 'Võ', 'Cờ vua'];
 // Đi lại: l.home = true (học ở nhà) | false (đi học bên ngoài) | không có (chưa ghi).
 // l.go / l.back: ai đưa đi, ai đón về ("Bố", "Mẹ", "Grab", "Tự đi"...).
@@ -186,9 +191,10 @@ function tripWarnings(trips) {
 }
 export const placeTxt = l => l.home === true ? `🏠 ${esc(placeName(l.at) || 'Ở nhà')}` : l.home === false
   ? `${l.at ? '📍 ' + esc(placeName(l.at)) + ' · ' : ''}${l.go ? whoIcon(l.go) + ' Đi: ' + esc(l.go) : '⚠️ Chưa có người đưa'} · ${l.back ? 'Về: ' + esc(l.back) : '⚠️ chưa có người đón'}` : (l.at ? '📍 ' + esc(placeName(l.at)) : '');
-
+// Các buổi học thêm trong ngày, dạng viên có giờ và đi lại.
 const lessonChips = list => list.map(l => `<span class="sj-chip sj${subjTint(l.name)}">${lessonIcon(l.name)} ${esc(l.s)} ${esc(l.name)}${l.home === true ? ` · ${esc(l.at ? placeLow(l.at) : 'ở nhà')}` : l.home === false && l.go ? ` · ${whoIcon(l.go)} ${esc(/^tự/i.test(l.go) ? 'tự đi' : isRide(l.go) ? 'đi ' + l.go : l.go + ' đưa')}` : ''}</span>`).join('');
 
+// ---------- màn Học tập: bốn tab ----------
 // Bốn tab, chia theo nguồn: Sắp tới (lịch gộp theo ngày), Bài tập, Ở trường (thời khoá biểu và mốc năm học), Học thêm (lịch, đưa đón, sổ học của cô, học phí).
 const LEARN_TABS = [['sap-toi', 'Sắp tới'], ['bai-tap', 'Bài tập'], ['truong', 'Ở trường'], ['hoc-them', 'Học thêm']];
 // Mở một tab của Học tập. Link cũ trỏ tới Thời khoá biểu hay Mốc năm học thì mở tab Ở trường, đúng phần đó. kid: màn của con (nhớ tab riêng).
@@ -427,6 +433,8 @@ function lessonItem(l, who = false) {
   return `<div class="item">${who && k ? ava(k, 'sm') : `<span class="ico">${lessonIcon(l.name)}</span>`}<div class="txt"><div class="t">${who && k ? `${esc(k.name)} · ` : ''}${esc(l.name)}</div><div class="s num">${esc(l.s)} – ${esc(l.e)} · ${durTxt(lessonMin(l))}</div>${placeTxt(l) ? `<div class="s">${placeTxt(l)}</div>` : ''}</div>
     <div class="acts">${editBtn('lesson-form', l.id, l.name)}</div></div>`;
 }
+
+// ---------- in thời khoá biểu, form thời khoá biểu và buổi học thêm ----------
 export function printTkb(kidId) {
   const k = S.kids[kidId], t = tkbOf(kidId); if (!k || !t) return;
   const st = tkbStats(t);

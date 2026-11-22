@@ -153,12 +153,8 @@ export function sampleAdds() {
   }
   return ops;
 }
-// Những thứ app tự thêm một lần cho mỗi nhà, từ máy của bố mẹ (đánh dấu ở cài đặt của gia đình để không thêm lại sau khi bố mẹ sửa, xoá).
-// Mã mục cố định nên hai máy cùng thêm cũng không bị trùng. Cờ ghi chung một lần để lần ghi sau không đè mất cờ trước.
-//   merit: 5 mục thành tích học tập trong trang Quy định.
-//   bottle: mục con "Đã tráng bình nước" trong các checklist đang có được gắn "(mai đi học)", để tối trước ngày nghỉ không phải tick.
-//   nodone: bỏ mục con "Việc ngày hôm nay đã hoàn thành" khỏi các checklist đang có (dòng tự soát, app không kiểm tra được).
-//   hw: hai việc quan trọng về bài tập về nhà (hôm sau có học thêm, hôm sau đi học) và mục phạt Thiếu BTVN (lần 2 trong tuần phạt nặng hơn).
+// Hai việc quan trọng về bài tập về nhà và mục phạt Thiếu BTVN: app thêm sẵn một lần cho mỗi nhà (autoAdds trong mot-lan.js), máy bố mẹ
+// cũng dùng mục phạt này để tự trừ tiền khi cô báo thiếu BTVN (hwPenSync trong so-hoc.js).
 export const HW_CHORES = [
   ['hw-lesson', { name: 'Nộp BTVN cho buổi học thêm hôm sau', icon: '📝', prep: true }],
   ['hw-school', { name: 'Hoàn thành BTVN trên lớp', icon: '📚', prep: 'school' }],

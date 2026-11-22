@@ -23,6 +23,7 @@ export const getLop = () => { try { return localStorage.getItem(LOP_KEY); } catc
 export const setLop = v => { try { localStorage.setItem(LOP_KEY, v); } catch (e) {} };
 const emptySo = () => ({ info: {}, sessions: {}, tasks: {} });
 export const soOf = code => CLS[code]?.data || emptySo();
+// Lịch cố định của sổ theo tên con và môn (FIXED_SCHED ở nha-minh.js), không có thì null.
 export const fixedFor = (kidNm, subj) => FIXED_SCHED.find(f => f.kids.includes(norm(kidNm)) && norm(subj) === f.subj) || null;
 // Thứ và giờ học của sổ: lịch cố định có ghi giờ thì theo lịch cố định (giờ cô dạy do nhà báo, đúng nhất);
 // không thì theo lịch học thêm nhà đã ghi; chưa có nữa thì theo các thứ trong lịch cố định.
@@ -271,6 +272,7 @@ function attCancel() {
   const a = ATT; ATT = null; if (!a) return;
   for (const f of a.added) Promise.resolve(CLS[a.code]?.st?.delFile(f.id, f.n)).catch(() => {});
 }
+onCloseModal(attCancel);
 export const delFiles = (code, files) => { for (const f of cleanFiles(files)) Promise.resolve(CLS[code]?.st?.delFile(f.id, f.n)).catch(() => {}); };
 
 // ----- hiển thị sổ: dùng chung cho màn của cô và phần bố mẹ xem -----
@@ -852,4 +854,3 @@ export function hwView(tid) {
   ${subSection(tid, c.code, w)}
   <div class="foot"><button class="btn quiet" data-act="close">Đóng</button>${w.got ? '' : `<button class="btn primary" data-act="task-done" data-id="${esc(tid)}" data-close="1">${t.done ? 'Chưa xong' : 'Đã làm xong'}</button>`}</div>`);
 }
-onCloseModal(attCancel);
