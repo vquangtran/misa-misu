@@ -1379,7 +1379,7 @@ const emptySo = () => ({ info: {}, sessions: {}, tasks: {} });
 const soOf = code => CLS[code]?.data || emptySo();
 // Các cô dạy thêm của nhà mình và học phí: app tự tạo sẵn sổ học một lần trên máy của bố mẹ (xem autoAdds), mỗi con chỉ nhận sổ của mình.
 // Cô Ngân: buổi Offline 140.000đ, buổi Online một tiếng 65.000đ. Cô Hải chưa có học phí nên tạm ẩn phần học phí (feeOff), bật lại ở Sửa sổ.
-// Tên sổ (book): để trống thì sổ gọi là "Sổ học <môn>". Sổ Tiếng Việt của Su gọi là Nhật ký học Tiếng Việt.
+// Tên sổ (book): để trống thì sổ gọi là "Nhật ký học <môn>".
 const SU_TV_BOOK = 'Nhật ký học Tiếng Việt';
 // Thời lượng mỗi buổi theo thứ (dur: 7 số, CN = 0 … T7 = 6; 0 = theo lịch học thêm). Cô Thảo: thứ 3 học 60 phút, chủ nhật 120 phút.
 const SU_TV_DUR = [120, 0, 60, 0, 0, 0, 0];
@@ -1387,12 +1387,24 @@ const SU_TV_HW_FROM = '2026-11-22';
 // Hình thức theo thứ của sổ Tiếng Việt của Su: chủ nhật học Offline (2 tiếng), thứ 3 học Online (1 tiếng).
 const SU_TV_MODE = ['off', '', 'on', '', '', '', ''];
 const isSuTV = (kidNm, subj) => ['su', 'misu'].includes(norm(kidNm)) && norm(subj) === 'tiếng việt';
-// Màn của cô đọc thông tin lớp (có student): sổ Tiếng Việt của Su chưa được máy bố mẹ ghi dur thì vẫn dùng thời lượng của cô Thảo.
+// Lịch cố định theo thứ của các cô nhà mình (CN = 0 … T7 = 6): thời lượng (phút) và hình thức. Cô Thảo (Tiếng Việt của Su): CN Offline 2 tiếng,
+// T3 Online 1 tiếng. Cô Trang (Toán của Su): T2 và T5 Offline 2 tiếng. Cô Ngân (Tiếng Việt của Sa): T4 Online 18:30–19:30, CN Offline 9:00–11:00.
+// Dùng để điền sẵn form ghi buổi, tính ngày cần điền và hạn nộp bài. time: giờ học theo thứ (nếu biết).
+const FIXED_SCHED = [
+  { kids: ['su', 'misu'], subj: 'tiếng việt', dur: SU_TV_DUR, mode: SU_TV_MODE },
+  { kids: ['su', 'misu'], subj: 'toán', dur: [0, 120, 0, 0, 120, 0, 0], mode: ['', 'off', '', '', 'off', '', ''] },
+  { kids: ['sa', 'misa'], subj: 'tiếng việt', dur: [120, 0, 0, 60, 0, 0, 0], mode: ['off', '', '', 'on', '', '', ''], time: { 0: ['09:00', '11:00'], 3: ['18:30', '19:30'] } },
+];
+const fixedFor = (kidNm, subj) => FIXED_SCHED.find(f => f.kids.includes(norm(kidNm)) && norm(subj) === f.subj) || null;
+// Thứ có lịch học của sổ: theo lịch học thêm nhà đã ghi, chưa có thì theo lịch cố định.
+const schedSlots = info => { if (info?.days?.length) return info.days; const f = fixedFor(info?.student, info?.name);
+  return (f?.dur || []).map((m, day) => m ? { day, s: f.time?.[day]?.[0] || '', e: f.time?.[day]?.[1] || '' } : null).filter(Boolean); };
+// Màn của cô đọc thông tin lớp (có student): sổ chưa được máy bố mẹ ghi dur thì vẫn dùng thời lượng theo lịch cố định.
 const durOf = x => Array.isArray(x?.dur) ? [0, 1, 2, 3, 4, 5, 6].map(i => Math.max(0, Math.round(Number(x.dur[i]) || 0)))
-  : x?.student && isSuTV(x.student, x.name) ? SU_TV_DUR.slice() : [0, 0, 0, 0, 0, 0, 0];
+  : x?.student && fixedFor(x.student, x.name) ? fixedFor(x.student, x.name).dur.slice() : [0, 0, 0, 0, 0, 0, 0];
 const SAMPLE_CLASSES = [
-  { kids: ['su', 'misu'], name: 'Tiếng Việt', book: SU_TV_BOOK, dur: SU_TV_DUR, teacher: 'Cô Thảo', fee: 200000 }, { kids: ['su', 'misu'], name: 'Toán', teacher: 'Cô Trang', fee: 220000 },
-  { kids: ['sa', 'misa'], name: 'Tiếng Việt', teacher: 'Cô Ngân', fee: 140000, feeOn: 65000 }, { kids: ['sa', 'misa'], name: 'Toán', teacher: 'Cô Hải', feeOff: true },
+  { kids: ['su', 'misu'], name: 'Tiếng Việt', book: SU_TV_BOOK, dur: SU_TV_DUR, teacher: 'Cô Thảo', fee: 200000 }, { kids: ['su', 'misu'], name: 'Toán', dur: [0, 120, 0, 0, 120, 0, 0], teacher: 'Cô Trang', fee: 220000 },
+  { kids: ['sa', 'misa'], name: 'Tiếng Việt', dur: [120, 0, 0, 60, 0, 0, 0], teacher: 'Cô Ngân', fee: 140000, feeOn: 65000 }, { kids: ['sa', 'misa'], name: 'Toán', teacher: 'Cô Hải', feeOff: true },
 ];
 // Những sổ mẫu nhà chưa có (so theo con và môn). id cố định theo con và thứ tự mẫu: hai máy cùng tạo thì vẫn chỉ ra một sổ.
 const classSamples = () => kidsList().flatMap(k => SAMPLE_CLASSES.map((sp, i) => ({ sp, i })).filter(({ sp }) => sp.kids.includes(norm(k.name)) && !classesOf(k.id).some(c => norm(c.name) === norm(sp.name)))
@@ -1408,7 +1420,7 @@ const classSubj = c => classLessons(c)[0]?.name || c.name;
 const classOffers = ks => ks.flatMap(k => [...new Set(lessonsOf(k.id).map(l => String(l.name || '').trim()).filter(Boolean))]
   .filter(n => !classesOf(k.id).some(c => classLessons(c).some(l => norm(l.name) === norm(n)))).map(n => ({ kid: k.id, name: n }))).slice(0, 8);
 // Màn của cô đọc thông tin lớp (có student). Sổ Tiếng Việt của Su chưa được máy bố mẹ ghi tên sổ (book chưa có) thì vẫn hiện tên mới.
-const bookName = c => String(c?.book || '').trim() || (c?.book === undefined && c?.student && ['su', 'misu'].includes(norm(c.student)) && norm(c.name) === 'tiếng việt' ? SU_TV_BOOK : `Sổ học ${c?.name || ''}`.trim());
+const bookName = c => String(c?.book || '').trim() || (c?.book === undefined && c?.student && ['su', 'misu'].includes(norm(c.student)) && norm(c.name) === 'tiếng việt' ? SU_TV_BOOK : `Nhật ký học ${c?.name || ''}`.trim());
 const classTitle = c => `${String(c.book || '').trim() || c.name}${c.teacher ? ' · ' + c.teacher : ''}`;
 const teacherLink = code => location.origin + location.pathname + '?lop=' + encodeURIComponent(code);
 // Học phí do bố mẹ ghi ở sổ: fee (đồng), feeBy 'buoi' = mỗi buổi, 'gio' = mỗi giờ; feeOn: mức riêng cho buổi Online (0 = như buổi thường).
@@ -1526,12 +1538,12 @@ function hwState(t) {
 // Ngày học tới của lớp: theo lịch học thêm nhà đã ghi, không có thì lấy buổi kế hoạch gần nhất đã có ngày.
 // Hạn nộp bài giao trong buổi ngày dk: buổi học tới sau ngày đó theo lịch học thêm; đã qua thì lấy buổi học tới tính từ hôm nay.
 function hwDueAfter(d, dk) {
-  const days = (d.info.lop?.days || []).map(x => Number(x.day)), base = dk ? parse(dk) : today();
+  const days = schedSlots(d.info.lop).map(x => Number(x.day)), base = dk ? parse(dk) : today();
   for (let i = 1; days.length && i <= 14; i++) { const x = addDays(base, i); if (days.includes(x.getDay())) return key(x) > key(today()) ? x : nextClassDay(d); }
   return nextClassDay(d);
 }
 function nextClassDay(d) {
-  const days = (d.info.lop?.days || []).map(x => Number(x.day)), t = today();
+  const days = schedSlots(d.info.lop).map(x => Number(x.day)), t = today();
   for (let i = 1; days.length && i <= 14; i++) if (days.includes(addDays(t, i).getDay())) return addDays(t, i);
   const nx = sessList(d).find(s => s.date && s.date > key(t));
   return nx ? parse(nx.date) : null;
@@ -1731,7 +1743,7 @@ const soTiles = (st, f, d) => { const cur = soFees(d, f).find(r => r.mk === key(
 // Buổi học ngoài lịch (đổi lịch, học bù) bù cho ngày có lịch gần nhất trong vòng 3 ngày. Ngày cô bấm Nghỉ (info/off) thì không nhắc nữa.
 const offOf = d => Object.fromEntries(Object.entries(d.info?.off || {}).filter(([k, v]) => okDate(k) && v));
 function soMissing(d) {
-  const info = d.info?.lop || {}, slots = info.days || [], wds = [...new Set(slots.map(x => Number(x.day)))], ss = sessList(d), tk = key(today());
+  const info = d.info?.lop || {}, slots = schedSlots(info), wds = [...new Set(slots.map(x => Number(x.day)))], ss = sessList(d), tk = key(today());
   const stale = ss.filter(s => s.state === 'plan' && s.date && s.date < tk);
   // Buổi đã học trong 14 ngày gần đây mà cô chưa ghi nhận xét học sinh.
   // Buổi nhập từ file (xl) coi như đã ghi xong, trừ buổi cần cô ghi thêm (fill: buổi kế hoạch trong file mà thật ra đã học).
@@ -1759,7 +1771,7 @@ function soMonths(code, d, mode) {
   const all = sessList(d), hws = hwList(d), edit = mode === 'edit', ss = all.filter(s => s.state !== 'plan'), plan = edit ? all.filter(s => s.state === 'plan') : [];
   const row = s => sessRow(code, s, hws.filter(t => t.session === s.id), mode), months = sessMonths(ss);
   const mi = edit ? soMissing(d) : { miss: [], stale: [] }, staleIds = new Set(mi.stale.map(x => x.id));
-  const slotTxt = dk => (d.info?.lop?.days || []).filter(x => Number(x.day) === parse(dk).getDay()).map(x => [x.s, x.e].filter(Boolean).join(' – ')).join(', ');
+  const slotTxt = dk => schedSlots(d.info?.lop).filter(x => Number(x.day) === parse(dk).getDay()).map(x => [x.s, x.e].filter(Boolean).join(' – ')).join(', ');
   const missRow = dk => `<div class="item tap" data-act="sess-form" data-d="${dk}" role="button" tabindex="0"><span class="ico">📝</span><div class="txt"><div class="t">${esc(dateTxt(dk))} · chưa ghi buổi học</div><div class="s">${esc(slotTxt(dk) ? 'lịch học ' + slotTxt(dk) : '')}</div><div class="s need-txt">Cần ghi: nội dung học, nhận xét học sinh, bài tập về nhà. Hôm đó nghỉ thì bấm Nghỉ.</div></div>
     <div class="acts"><button class="btn quiet sm" data-act="so-off" data-d="${dk}">Nghỉ</button><span class="badge owe">Cần điền</span></div></div>`;
   const need = edit && (mi.miss.length || mi.stale.length) ? `<section class="slot so-need">${secHead('⚠️', 'Cần điền', { cnt: mi.miss.length + mi.stale.length })}<div class="slot-list list">${[...mi.miss.map(dk => ({ dk, h: missRow(dk) })), ...mi.stale.map(s => ({ dk: s.date, h: sessRow(code, s, hws.filter(t => t.session === s.id), mode, true) }))].sort((a, b) => b.dk.localeCompare(a.dk)).map(x => x.h).join('')}</div>
@@ -2007,7 +2019,7 @@ function drawTeacher() {
       <p class="muted">${c.err || c.stale ? 'Kiểm tra mạng rồi mở lại link.' : 'Link có thể đã cũ hoặc sổ đã bị xoá. Cô nhờ phụ huynh gửi lại link nhé.'}</p></div>`);
   document.title = `${bookName(info)} · ${info.student}`;
   const st = soStats(d), tab = T_TABS.some(x => x[0] === UI.tTab) ? UI.tTab : 'buoi', need = soMissing(d).n;
-  const days = (info.days || []).map(x => `${WDS[x.day]} ${x.s}`).join(', ');
+  const days = schedSlots(info).map(x => `${WDS[x.day]}${x.s ? ' ' + x.s : ''}`).join(', ');
   const nav = cls => T_TABS.map(([v, l, ic]) => `<a href="#${v}" class="${cls} ${v === tab ? 'on' : ''}" data-act="t-tab" data-v="${v}" ${v === tab ? 'aria-current="page"' : ''}>${iconSvg(ic)}<span>${l}${v === 'bai' && st.wait ? ` <i class="cnt num">${st.wait}</i>` : v === 'buoi' && need ? ` <i class="cnt num late">${need}</i>` : ''}</span></a>`).join('');
   const add = tab === 'buoi' ? `<button class="add" data-act="sess-form" aria-label="Ghi buổi học">${PLUS}</button>` : tab === 'bai' ? `<button class="add" data-act="sess-form" aria-label="Ghi buổi học và giao bài tập">${PLUS}</button>`
     : st.done.length ? `<button data-act="so-print" aria-label="In báo cáo" title="In báo cáo">🖨️</button>` : '';
@@ -2046,9 +2058,9 @@ const segPick = (name, opts, val) => `<div class="seg">${opts.map(([v, l]) => `<
 // rồi như buổi gần nhất cùng thứ, rồi như buổi trước. Hình thức như buổi gần nhất cùng thứ (lớp có buổi Online, Offline cố định theo thứ), rồi như buổi trước.
 function sessDefaults(d, dk) {
   const info = d.info.lop || {}, wd = parse(dk || key(today())).getDay(), ss = sessList(d).filter(x => x.state !== 'plan' && x.date), last = ss[ss.length - 1];
-  const same = ss.filter(x => parse(x.date).getDay() === wd), slot = (info.days || []).find(x => Number(x.day) === wd);
+  const same = ss.filter(x => parse(x.date).getDay() === wd), slot = schedSlots(info).find(x => Number(x.day) === wd);
   const slotMin = slot && slot.s && slot.e ? Math.max(0, toMin(slot.e) - toMin(slot.s)) : 0;
-  const fixed = info.student && isSuTV(info.student, info.name) ? SU_TV_MODE[wd] : '';
+  const fixed = info.student ? fixedFor(info.student, info.name)?.mode[wd] || '' : '';
   return { mins: durOf(info)[wd] || slotMin || Number(same[same.length - 1]?.mins) || Number(last?.mins) || 90, mode: fixed || (same.filter(x => x.mode).pop() || last)?.mode || 'off', sure: !!fixed || same.some(x => x.mode) };
 }
 function sessForm(id, preDate) {
@@ -2136,7 +2148,7 @@ function classForm(id, kidPre, namePre) {
   <div class="fg">
     ${kids.length > 1 ? kidRow('Con', 'clkid', 'radio', [kid]) : `<input type="hidden" name="clkid" value="${kid}">`}
     ${frow('Tên cô', `<input id="clteacher" class="pillin txt" maxlength="30" value="${esc(c?.teacher || '')}" placeholder="Cô Lan">`, { id: 'clteacher' })}
-    ${frow('Tên sổ', `<input id="clbook" class="pillin txt" maxlength="40" value="${esc(c?.book || '')}" placeholder="Sổ học ${esc(c?.name || namePre || 'Toán')}">`, { id: 'clbook', sub: 'Không bắt buộc. Để trống thì gọi là Sổ học và tên môn.' })}
+    ${frow('Tên sổ', `<input id="clbook" class="pillin txt" maxlength="40" value="${esc(c?.book || '')}" placeholder="Nhật ký học ${esc(c?.name || namePre || 'Toán')}">`, { id: 'clbook', sub: 'Không bắt buộc. Để trống thì gọi là Nhật ký học và tên môn.' })}
   </div>
   <div class="fg">
     ${frow('Học phí', pillNum('clfee', feeOf(c).fee || '', { step: 10000, ph: '0' }), { id: 'clfee', sub: 'Không bắt buộc. App đếm số buổi cô đã dạy mỗi tháng rồi nhân ra học phí; cô cũng thấy con số này.' })}
@@ -2555,6 +2567,11 @@ function autoAdds() {
   if (!set.hwfrom) {
     for (const c of classesList()) if (isSuTV(kidName(c.kid), c.name) && !c.hwFrom) { const { id, ...o } = c; put('paid', id, { ...o, hwFrom: SU_TV_HW_FROM }); }
     flags.hwfrom = 1;
+  }
+  // Sổ có lịch cố định (Toán của Su: T2, T5 120 phút; Tiếng Việt của Sa: CN 120 phút, T4 60 phút): ghi thời lượng theo thứ (một lần; sổ đã có thì giữ nguyên).
+  if (!set.dur2) {
+    for (const c of classesList()) { const f = fixedFor(kidName(c.kid), c.name); if (f && !isSuTV(kidName(c.kid), c.name) && !Array.isArray(c.dur)) { const { id, ...o } = c; put('paid', id, { ...o, dur: f.dur.slice() }); } }
+    flags.dur2 = 1;
   }
   // Sổ Tiếng Việt của Su: thứ 3 học 60 phút, chủ nhật 120 phút (một lần; sổ đã có thời lượng riêng thì giữ nguyên).
   if (!set.dur) {
