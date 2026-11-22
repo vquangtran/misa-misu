@@ -10,6 +10,8 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const WD = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
 const WDS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
+// Mọi ngày trong tuần (CN = 0 … T7 = 6).
+const DAILY = [0, 1, 2, 3, 4, 5, 6];
 const pad = n => String(n).padStart(2, '0');
 const key = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 const parse = k => { const [y, m, d] = String(k).split('-').map(Number); return new Date(y, (m || 1) - 1, d || 1); };
@@ -72,7 +74,6 @@ const NAV_ALIAS = { 'bang-gia': 'quy-dinh', 'phan-thuong': 'quy-dinh', 'tien-tie
 // kind 'must': việc phải làm mỗi ngày. kind 'extra': việc làm thêm, làm thì được tiền, không bắt buộc.
 // Việc mỗi ngày (kind 'must') có money = 0 là việc BẮT BUỘC: không cộng tiền từng lần, ngày nào làm đủ hết thì ngày đó được thưởng.
 // Việc được thưởng (việc mỗi ngày có money > 0): làm lần nào cộng tiền lần đó, không tính vào thưởng làm đủ việc.
-const DAILY = [0, 1, 2, 3, 4, 5, 6];
 // Việc thích làm mặc định của mỗi con.
 const FUN_DEFAULT = 'Chơi game hoặc dùng iPad/điện thoại 15 phút';
 const SAMPLE_CHORES = [
