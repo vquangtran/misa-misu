@@ -5,7 +5,7 @@ import { firebaseClass, localClass } from './store.js';
 import { excelDate, readXlsx } from './xlsx.js';
 import { $, addDays, CHEV, dateTxt, daysBetween, daysTo, dm, DOWN, dueLabel, durTxt, esc, key, money, monthTxt, norm, pad2, parse, PLUS, PREV,
   printHtml, toast, today, toMin, uid, WDS } from './chung.js';
-import { FIXED_SCHED, SU_TV_BOOK } from './nha-minh.js';
+import { FIXED_SCHED, isSuTV, SU_TV_BOOK } from './nha-minh.js';
 import { againVnd, del, deviceRole, kidName, kidsList, lessonsList, lessonsOf, loaded, penaltyTimes, pricesList, priceVnd, put, render, RO, S, stale,
   TEACH, UI, writeErr } from './du-lieu.js';
 import { addBtn, ava, barCount, blankAdd, brand, lessonIcon, moreBtn, pillBar, secHead, secIsOpen, subjDot } from './giao-dien.js';
@@ -43,7 +43,7 @@ const classSubj = c => classLessons(c)[0]?.name || c.name;
 const classOffers = ks => ks.flatMap(k => [...new Set(lessonsOf(k.id).map(l => String(l.name || '').trim()).filter(Boolean))]
   .filter(n => !classesOf(k.id).some(c => classLessons(c).some(l => norm(l.name) === norm(n)))).map(n => ({ kid: k.id, name: n }))).slice(0, 8);
 // Màn của cô đọc thông tin lớp (có student). Sổ Tiếng Việt của Su chưa được máy bố mẹ ghi tên sổ (book chưa có) thì vẫn hiện tên mới.
-export const bookName = c => String(c?.book || '').trim() || (c?.book === undefined && c?.student && ['su', 'misu'].includes(norm(c.student)) && norm(c.name) === 'tiếng việt' ? SU_TV_BOOK : `Nhật ký học ${c?.name || ''}`.trim());
+export const bookName = c => String(c?.book || '').trim() || (c?.book === undefined && c?.student && isSuTV(c.student, c.name) ? SU_TV_BOOK : `Nhật ký học ${c?.name || ''}`.trim());
 export const classTitle = c => `${bookName(c)}${c.teacher ? ' · ' + c.teacher : ''}`;
 const teacherLink = code => location.origin + location.pathname + '?lop=' + encodeURIComponent(code);
 // Học phí do bố mẹ ghi ở sổ: fee (đồng), feeBy 'buoi' = mỗi buổi, 'gio' = mỗi giờ; feeOn: mức riêng cho buổi Online (0 = như buổi thường).

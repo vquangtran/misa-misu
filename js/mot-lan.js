@@ -1,6 +1,6 @@
 // Sửa dữ liệu một lần cho cả nhà: thêm sẵn mục, đổi tên, đổi lịch, tạo và tự nhập sổ học từ data/*.json.
 import { addDays, DAILY, key, newFamilyCode, norm, parse, slug, toast, today } from './chung.js';
-import { isSuTV, SAMPLE_CLASSES, SU_TV_BOOK, SU_TV_DUR, SU_TV_HW_FROM, SU_TV_MODE } from './nha-minh.js';
+import { isSa, isSu, isSuTV, SA, SA_TV_HW_FROM, SAMPLE_CLASSES, SU, SU_TV_BOOK, SU_TV_DUR, SU_TV_HW_FROM, SU_TV_MODE } from './nha-minh.js';
 import { choresList, del, deviceRole, isDaily, isDone, isFun, kidName, kidsList, lessonsList, loaded, placeName, pricesList, put, S, setDone,
   SETTINGS_ID, stale, stepMask, stepText, TEACH } from './du-lieu.js';
 import { classesList, classesOf, classLessons, classTitle, CLS, clsPut, fixedFor, okDate, onSoData, paidOf, parseSoRows, sessList, soImportApply,
@@ -90,8 +90,8 @@ function suFixesRun(code, c, k) {
 // Mỗi buổi: { date, state: done|plan, topic?, content?, note?, task?: { title, got, review } }. Hình thức, thời lượng theo lịch cố định của cô.
 // Bài nhập từ file không có tình trạng tick (chk) nên không bị trừ tiền Thiếu BTVN.
 const DATA_IMPORTS = [
-  { flag: 'planToan1', file: 'data/ke-hoach-toan-su.json', kids: ['su', 'misu'], subj: 'toán', label: 'kế hoạch Toán của cô Trang' },
-  { flag: 'nganTV1', file: 'data/so-tieng-viet-sa.json', kids: ['sa', 'misa'], subj: 'tiếng việt', label: 'sổ Tiếng Việt của cô Ngân' },
+  { flag: 'planToan1', file: 'data/ke-hoach-toan-su.json', kids: SU, subj: 'toán', label: 'kế hoạch Toán của cô Trang' },
+  { flag: 'nganTV1', file: 'data/so-tieng-viet-sa.json', kids: SA, subj: 'tiếng việt', label: 'sổ Tiếng Việt của cô Ngân' },
 ];
 let planBusy = false;
 async function planAuto(code) {
@@ -232,12 +232,12 @@ export function autoAdds() {
   }
   // Sổ Tiếng Việt của Su đã tạo từ trước: đổi tên một lần thành Nhật ký học Tiếng Việt (sổ đã có tên riêng thì giữ nguyên).
   if (!set.book) {
-    for (const c of classesList()) if (['su', 'misu'].includes(norm(kidName(c.kid))) && norm(c.name) === 'tiếng việt' && !String(c.book || '').trim()) { const { id, ...o } = c; put('paid', id, { ...o, book: SU_TV_BOOK }); }
+    for (const c of classesList()) if (isSu(kidName(c.kid)) && norm(c.name) === 'tiếng việt' && !String(c.book || '').trim()) { const { id, ...o } = c; put('paid', id, { ...o, book: SU_TV_BOOK }); }
     flags.book = 1;
   }
   // Sổ Tiếng Việt của Sa (cô Ngân): bài cũ nhập từ file có hạn trước 22/11/2026 không hiện quá hạn trên máy của con (một lần).
   if (!set.hwfromSa) {
-    for (const c of classesList()) if (['sa', 'misa'].includes(norm(kidName(c.kid))) && norm(c.name) === 'tiếng việt' && !c.hwFrom) { const { id, ...o } = c; put('paid', id, { ...o, hwFrom: '2026-11-22' }); }
+    for (const c of classesList()) if (isSa(kidName(c.kid)) && norm(c.name) === 'tiếng việt' && !c.hwFrom) { const { id, ...o } = c; put('paid', id, { ...o, hwFrom: SA_TV_HW_FROM }); }
     flags.hwfromSa = 1;
   }
   // Sổ Tiếng Việt của Su: bài tập có hạn trước 22/11/2026 không hiện quá hạn trên máy của con (một lần).
@@ -252,13 +252,13 @@ export function autoAdds() {
   }
   // Cô Trang đổi giờ dạy: buổi học thêm Toán của Su vào thứ 2 và thứ 5 thành 17:45–19:45 (một lần).
   if (!set.trang1745) {
-    const c = classesList().find(x => ['su', 'misu'].includes(norm(kidName(x.kid))) && norm(x.name) === 'toán');
+    const c = classesList().find(x => isSu(kidName(x.kid)) && norm(x.name) === 'toán');
     if (c) for (const l of classLessons(c)) if ([1, 4].includes(l.day) && (l.s !== '17:45' || l.e !== '19:45')) { const { id, ...o } = l; put('lessons', id, { ...S.lessons[id], s: '17:45', e: '19:45' }); }
     flags.trang1745 = 1;
   }
   // Gia sư Toán của Su (cô Trang) học tại nhà, không cần đưa đón: bỏ người đưa, người đón và nơi học bên ngoài (một lần).
   if (!set.trangHome) {
-    const c = classesList().find(x => ['su', 'misu'].includes(norm(kidName(x.kid))) && norm(x.name) === 'toán');
+    const c = classesList().find(x => isSu(kidName(x.kid)) && norm(x.name) === 'toán');
     if (c) for (const l of classLessons(c)) if (l.home !== true || l.go || l.back || l.at) { const { go, back, at, ...o } = S.lessons[l.id] || {}; put('lessons', l.id, { ...o, home: true }); }
     flags.trangHome = 1;
   }
@@ -266,7 +266,7 @@ export function autoAdds() {
   // còn lại đều học tại nhà.
   const isSport = l => /bóng rổ|bóng đá|nhảy|dance/i.test(String(l.name || ''));
   if (!set.homeAll) {
-    const saMath = classesList().find(x => ['sa', 'misa'].includes(norm(kidName(x.kid))) && norm(x.name) === 'toán');
+    const saMath = classesList().find(x => isSa(kidName(x.kid)) && norm(x.name) === 'toán');
     const outIds = new Set(saMath ? classLessons(saMath).filter(l => l.day === 4).map(l => l.id) : []);
     for (const l of lessonsList()) {
       const cur = S.lessons[l.id] || {};

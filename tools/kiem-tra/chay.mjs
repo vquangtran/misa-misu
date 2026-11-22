@@ -26,6 +26,7 @@ import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { duLieuThu } from './du-lieu-thu.mjs';
 import { CANH } from './canh.mjs';
+import { kiemTraModule } from './module.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '../..');
@@ -206,6 +207,10 @@ async function runAll() {
   const goc = resolve(opt('--goc') || ROOT), out = opt('--ra');
   const khos = opt('--kho') ? [Number(opt('--kho'))] : [390, 1280], only = opt('--canh');
   const diem = diemXuatPhat();
+  // Kiểm tra tĩnh các module trước (import, biến chưa khai báo, vòng import), xem module.mjs.
+  const mk = kiemTraModule(join(goc, 'js'));
+  if (mk.skip) console.log(mk.skip);
+  else console.log(`Kiểm tra module: ${mk.files} file, ${mk.errors.length} lỗi, ${mk.warns.length} cảnh báo.` + [...mk.errors.map(e => '\n  LỖI: ' + e), ...mk.warns.map(w => '\n  Cảnh báo: ' + w)].join(''));
   const srv = await startServer(goc), browser = await chromium.launch();
   const run = { blobs: {}, steps: [], blob(v) { const h = sha(v); this.blobs[h] = v; return h; } };
   const t0 = Date.now();
@@ -229,7 +234,7 @@ async function runAll() {
   console.log(`Xong ${run.steps.length} bước trong ${Math.round((Date.now() - t0) / 1000)} giây, ${loi} lỗi.`);
   const res = { goc, gio: GIO_CHAY, diem: sha(JSON.stringify(diem.ls)), steps: run.steps, blobs: run.blobs };
   if (out) { mkdirSync(dirname(resolve(out)), { recursive: true }); writeFileSync(out, JSON.stringify(res)); console.log('Đã ghi ' + out); }
-  let bad = loi > 0;
+  let bad = loi > 0 || mk.errors.length > 0;
   if (opt('--so')) bad = compare(JSON.parse(readFileSync(opt('--so'), 'utf8')), res) || bad;
   process.exitCode = bad ? 1 : 0;
 }

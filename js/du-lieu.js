@@ -282,6 +282,9 @@ export const lessonsList = () => Object.entries(S.lessons || {}).map(([id, l]) =
 export const lessonsOf = kidId => lessonsList().filter(l => l.kid === kidId);
 export const lessonsOn = (kidId, wd) => lessonsOf(kidId).filter(l => l.day === wd);
 export const lessonMin = l => Math.max(0, toMin(l.e) - toMin(l.s));
+
+// ---------- các con ở đâu ----------
+// stays: id = thứ ("0".."6"), { day: ban ngày ở đâu (bỏ trống = đi học / như buổi tối), night: tối ngủ ở đâu }.
 export const placeName = p => { const v = String(p || '').normalize('NFC').trim().replace(/\s+/g, ' '); return (PLACE_ALIAS.find(([re]) => re.test(v)) || [, v])[1]; };
 // Viết thường chữ "nhà" ở giữa câu, giữ nguyên tên riêng ("6th Element").
 export const placeLow = p => placeName(p).replace(/^nhà(?=\s)/i, 'nhà');
