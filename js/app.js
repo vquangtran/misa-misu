@@ -1,6 +1,6 @@
 // Điểm vào của app (index.html nạp file này): vẽ khung và các màn, điều hướng bằng #hash, mở dữ liệu của gia đình
 // (Firebase hoặc trên trình duyệt), màn mở đầu khi chưa có gia đình, màn của cô.
-import { AVATAR_SETS, avatarPick, isSvgAvatar } from './avatars.js';
+import { AVATAR_SETS } from './avatars.js';
 import { firebaseConfig } from './config.js';
 import { autoIcons, icon, iconify, iconSvg } from './icons.js';
 import { firebaseClass, firebaseStore, localClass, localStore } from './store.js';
@@ -8,7 +8,7 @@ import { excelDate, readXlsx } from './xlsx.js';
 import { $, addDays, CHEV, confetti, DAILY, dateTxt, daysBetween, daysLabel, daysTo, dm, dmy, DOTS, DOWN, dueLabel, durTxt, esc, hm, key, money,
   monthTxt, newFamilyCode, NEXT, norm, nowMin, pad, pad2, parse, PLUS, PREV, printHtml, signed, slug, STAR, toast, today, toMin, uid, WD, WDN, WDS,
   WEEK_ORDER, weekStart } from './chung.js';
-import { AV_DEFAULT, FIXED_SCHED, isSuTV, SAMPLE_CLASSES, SAMPLE_PERIODS, SAMPLE_TKBS, SAMPLE_YEAR, SU_TV_BOOK, SU_TV_DUR, SU_TV_HW_FROM, SU_TV_MODE,
+import { FIXED_SCHED, isSuTV, SAMPLE_CLASSES, SAMPLE_PERIODS, SAMPLE_TKBS, SAMPLE_YEAR, SU_TV_BOOK, SU_TV_DUR, SU_TV_HW_FROM, SU_TV_MODE,
   TABLE_BAL_DATE, TABLE_BALANCES } from './nha-minh.js';
 import { againVnd, ageOf, balance, bonusRules, choresFor, choresList, choreSlot, choreVnd, claimers, claimVal, clearMemo, DAY_BONUS, dayBonusAt,
   dayBonuses, dayBonusIn, dayBonusOf, dayFull, del, deviceRole, doneVal, doneVnd, earned, eventsList, eventsOf, family, FAMILY_KEY, getFamily, getRole,
@@ -18,29 +18,11 @@ import { againVnd, ageOf, balance, bonusRules, choresFor, choresList, choreSlot,
   setFamily, setFamilyCode, setLoaded, setRO, setRole, setStale, setStore, setTeach, SETTINGS_ID, shortPlace, skipEntry, skipOn, slotAt, slotName,
   SLOTS, stale, stayInfo, stayLine, stayNow, stepMask, stepsAll, stepsOf, stepText, store, streakOf, takenBy, TEACH, tkbDays, tkbOf, TODAY_KID,
   todayKid, UI, variantOf, WEEK_BONUS, weekBonusAt, weekBonuses, weekBonusOf, weekCount, weekGain, weekStats, writeErr } from './du-lieu.js';
+import { addBtn, ava, avatarOf, avInner, bar, barCount, blankAdd, brand, editBtn, kidChip, kidTabs, lessonIcon, loading, mini, moneyChip, moreBtn,
+  noKids, photoOf, pillBar, plusBtn, secHead, secIsOpen, subjChips, subjDot, subjTint, suggest, tintOf } from './giao-dien.js';
+import { closeModal, DAY_SETS, daySet, dismissModal, formFoot, frow, kidRow, menuRow, menuSheet, onCloseModal, openModal, pickGrid, pillNum, pillSel,
+  radioVal, setModalDirty, titleCard, toggle } from './form.js';
 
-// Mũi tên ở cuối dòng: bấm vào bất kỳ chỗ nào trên dòng là mở form sửa (kiểu danh sách iOS).
-const editBtn = (act, id, name = '') => RO ? '' : `<button class="edit" data-act="${act}" data-id="${id}" aria-label="Sửa${name ? ': ' + esc(name) : ''}">${CHEV}</button>`;
-// Công tắc bật/tắt cho một lựa chọn đơn.
-const toggle = (id, label, on, cls = '', attr = '') => `<label class="toggle ${cls}" ${attr}><span>${label}</span><input type="checkbox" id="${id}" ${on ? 'checked' : ''}></label>`;
-// ---------- form dạng nhóm thẻ: mỗi dòng một nhãn bên trái và giá trị bên phải ----------
-// Một dòng: nhãn (kèm dòng giải thích nhỏ) bên trái, giá trị bên phải. cls 'col': giá trị nằm dưới nhãn, rộng hết dòng.
-const frow = (label, right, { sub = '', id = '', cls = '', hidden = false, subId = '' } = {}) => `<div class="fr ${cls}" ${hidden ? 'hidden' : ''}><div class="fl">${id ? `<label for="${id}">${label}</label>` : `<span class="lbl">${label}</span>`}${sub || subId ? `<span class="fs" ${subId ? `id="${subId}"` : ''}>${sub}</span>` : ''}</div>${right}</div>`;
-// Giá trị dạng viên: bấm vào là mở danh sách chọn của máy.
-const pillSel = (id, opts, val, cls = '') => `<select id="${id}" class="pillsel ${cls}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(val) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
-// Ô số dạng viên, có đơn vị; step > 0 thì thêm nút − và +.
-const pillNum = (id, val, { step = 0, unit = 'đ', attr = '', ph = '' } = {}) => `<div class="pillnum">${step ? `<button data-act="num-step" data-t="${id}" data-n="${-step}" data-min="0" aria-label="Bớt ${step.toLocaleString('vi-VN')}">−</button>` : ''}<input id="${id}" class="num" type="number" inputmode="numeric" value="${val}" placeholder="${ph}" ${attr}><span>${unit}</span>${step ? `<button data-act="num-step" data-t="${id}" data-n="${step}" data-min="0" aria-label="Thêm ${step.toLocaleString('vi-VN')}">+</button>` : ''}</div>`;
-// Thẻ trên cùng của form: tên thật to; nếu có bộ biểu tượng thì hình đang chọn nằm bên phải, bấm để đổi.
-const titleCard = (id, val, ph, { max = 40, icoName = '', icons = [], ico = '', attr = '' } = {}) => {
-  const cur = ico || icons[0] || '';
-  return `<div class="fg f-title"><div class="ft"><input id="${id}" class="input ft-input" maxlength="${max}" value="${esc(val || '')}" placeholder="${ph}" aria-label="${ph}" autocomplete="off" ${attr}>
-    ${icoName ? `<button class="ico-btn" data-act="ico-toggle" aria-expanded="false" aria-label="Chọn biểu tượng"><span class="ico-now">${icon(cur)}</span></button>` : ''}</div>
-    ${icoName ? `<div class="ico-pick" hidden>${pickGrid(icoName, icons.includes(cur) ? icons : [cur, ...icons], cur)}</div>` : ''}</div>`;
-};
-// Dòng chọn con: một con (radio) hoặc nhiều con (checkbox). Nhà đông con thì các viên xuống dòng dưới nhãn.
-const kidRow = (label, name, type, sel, sub = '') => { const kids = kidsList();
-  return frow(label, `<div class="seg kids">${kids.map(k => `<label><input type="${type}" name="${name}" value="${k.id}" ${sel.includes(k.id) ? 'checked' : ''}><span>${mini(k)} ${esc(k.name)}</span></label>`).join('')}</div>`, { sub, cls: kids.length > 2 ? 'col' : '' }); };
-const formFoot = (delAct, id, saveAct, saveLabel = 'Lưu', delLabel = 'Xoá') => `<div class="foot">${delAct ? `<button class="btn danger left" data-act="${delAct}" data-id="${id}">${delLabel}</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="${saveAct}" data-id="${id || ''}">${saveLabel}</button></div>`;
 const AVATARS = ['🐔', '🐓', '🐣', '🐤', '🐥', '🐴', '🐎', '🦓', '🎠', '🦊', '🐯', '🐼', '🐨', '🦁', '🐸', '🐵', '🦄', '🐲', '🦖', '🐰', '🐱', '🐶', '🐧', '🐳', '🦋'];
 const CHORE_ICONS = ['🛏️', '🪥', '🧸', '🍽️', '🪴', '📚', '🎒', '👕', '🧹', '🧽', '🗑️', '📦', '🛋️', '🧦', '👟', '🧺', '🛁', '🥢', '🐶', '🐟', '🍚', '✏️', '🎹', '🏃', '🪢', '🏫', '🎧', '🪑', '🤝', '🌙', '🎬', '🎮', '📺', '🧩', '🗣️'];
 const PRICE_ICONS = {
@@ -160,21 +142,7 @@ function funDiff(x) {
   return p;
 }
 const pendingList = kidId => Object.entries(S.ledger).filter(([, l]) => l.pending && S.kids[l.kid] && (!kidId || l.kid === kidId)).map(([id, l]) => ({ id, ...l })).sort((a, b) => String(a.at).localeCompare(String(b.at)));
-const moneyChip = (k, style = '') => `<span class="stars num ${balance(k.id) < 0 ? 'neg' : ''}" title="Số tiền trong tài khoản" ${style ? `style="${style}"` : ''}>${money(balance(k.id))}</span>`;
 const streakChip = k => { const n = streakOf(k.id); return n ? `<span class="streak" title="Số ngày liên tiếp làm đủ việc phải làm">🔥 ${n} ngày liên tiếp</span>` : ''; };
-// Màu nền thẻ của con: theo bộ hình (Su vàng, Sa be) nếu dùng bộ gà, ngựa; không thì theo màu đã chọn.
-const tintOf = k => { const p = avatarPick(avatarOf(k)); return p ? `var(--tint-${p.set})` : 'var(--t' + ((Number(k.tint) || 0) % 6) + ')'; };
-// Ảnh của con (data URL nhỏ, lưu trong dữ liệu của gia đình), không có thì dùng emoji.
-const photoOf = k => /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(k?.photo || '') ? k.photo : '';
-const avatarOf = k => k?.avatarChosen || isSvgAvatar(k?.avatar) ? (k.avatar || '🙂') : AV_DEFAULT[String(k?.name || '').trim().toLowerCase()] || k?.avatar || '🙂';
-// Nội dung bên trong khung tròn cho một giá trị hình đại diện (SVG hoặc emoji).
-const avInner = v => { const p = avatarPick(v); return p ? p.svg : esc(v || '🙂'); };
-const ava = (k, cls = '') => {
-  if (photoOf(k)) return `<span class="ava photo ${cls}" style="background:${tintOf(k)}"><img src="${photoOf(k)}" alt=""></span>`;
-  const p = avatarPick(avatarOf(k));
-  return p ? `<span class="ava svg ${cls}" style="background:${tintOf(k)}" title="${esc(p.name)}">${p.svg}</span>` : `<span class="ava ${cls}" style="background:${tintOf(k)}">${esc(avatarOf(k))}</span>`;
-};
-const mini = k => photoOf(k) ? `<img class="mini" src="${photoOf(k)}" alt="">` : avatarPick(avatarOf(k)) ? `<span class="mini">${avInner(avatarOf(k))}</span>` : esc(avatarOf(k));
 // Tóm tắt một việc ở trang Quy định: giao cho ai, ngày nào, buổi hoặc giờ, các tuỳ chọn. Số tiền ghi riêng ở đầu dòng.
 function choreSummary(c) {
   const sl = SLOTS.find(x => x[0] === choreSlot(c));
@@ -260,9 +228,6 @@ function yearForm() {
   <div class="fg"><div class="list">${miss.map(e => `<div class="item"><span class="ico">${e.icon}</span><div class="txt"><div class="t">${esc(e.name)}</div><div class="s num">${esc(eventRange({ ...e, to: e.to || e.from }))}</div></div></div>`).join('')}</div></div>
   <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="year-add">Thêm ${miss.length} mốc</button></div>`);
 }
-// Màu cố định cho mỗi môn, để cùng một môn luôn cùng một màu.
-const subjTint = name => { let h = 0; for (const ch of String(name).toLowerCase().trim()) h = (h * 31 + ch.codePointAt(0)) >>> 0; return h % 6; };
-const subjChips = list => list.map(s => `<span class="sj-chip sj${subjTint(s)}">${esc(s)}</span>`).join('');
 // Bảng lưới cả tuần, chỉ dùng khi in.
 function tkbTable(t) {
   const days = tkbDays(t), lunch = Number(t.lunch) || 0;
@@ -327,9 +292,6 @@ function tkbStats(t) {
   }
   return { periods, inClass, atSchool, subjects: Object.entries(count).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'vi')) };
 }
-const LESSON_ICONS = [[/bóng rổ/, '🏀'], [/bóng đá/, '⚽'], [/bơi/, '🏊'], [/nhảy|múa|dance/, '💃'], [/piano|đàn|nhạc/, '🎹'], [/vẽ|mĩ thuật|mỹ thuật/, '🎨'],
-  [/võ|karate|taekwondo/, '🥋'], [/cờ/, '♟️'], [/nhật/, '🗾'], [/anh|english/, '🔤'], [/toán/, '➗'], [/việt|văn/, '📖']];
-const lessonIcon = name => { const n = String(name).toLowerCase(); return (LESSON_ICONS.find(([re]) => re.test(n)) || [0, '📚'])[1]; };
 const LESSON_NAMES = ['Tiếng Anh', 'Toán', 'Gia sư Toán', 'Gia sư Tiếng Việt', 'Bóng đá', 'Bóng rổ', 'Nhảy', 'Bơi', 'Piano', 'Vẽ', 'Võ', 'Cờ vua'];
 // Đi lại: l.home = true (học ở nhà) | false (đi học bên ngoài) | không có (chưa ghi).
 // l.go / l.back: ai đưa đi, ai đón về ("Bố", "Mẹ", "Grab", "Tự đi"...).
@@ -508,7 +470,6 @@ function draw() {
   if (UI.sheet) drawSheet();
   const tb = $('#app .tabbar .on') || $('#km .tabbar .on'); if (tb) tb.parentElement.scrollLeft = Math.max(0, tb.offsetLeft - 60);
 }
-const brand = () => `<div class="brand"><span class="brand-mark">${STAR}</span>Misa Misu</div>`;
 function topbar() {
   let s;
   // Chỉ hiện khi có điều cần báo (đang tải, mất mạng). Bình thường không chiếm chỗ; trạng thái lưu nằm ở mục Gia đình.
@@ -516,12 +477,6 @@ function topbar() {
   else if (store.kind !== 'local' && (stale || !navigator.onLine)) s = 'Đang offline, sẽ đồng bộ sau';
   else return '';
   return `<div class="topbar"><span class="sync wait"><i></i>${s}</span></div>`;
-}
-const loading = () => `<div class="card empty"><div class="big">⏳</div><h2>Đang mở bảng việc nhà…</h2><p class="muted">Danh sách các con, việc nhà và phần thưởng sẽ hiện ở đây.</p></div>`;
-function noKids() {
-  return `<div class="card empty"><div class="big">👧🧒</div><h2>Bắt đầu với các con</h2>
-  <p class="muted">Thêm tên và hình đại diện cho từng con, sau đó giao việc nhà cho các con. Nếu có file sao lưu, vào mục Gia đình để nhập.</p>
-  <div class="row" style="justify-content:center;margin-top:10px"><button class="btn primary" data-act="kid-form">Thêm con</button><button class="btn ghost" data-act="seed-form">Nạp lịch gia đình</button></div></div>`;
 }
 const skipNote = (k, d) => { const e = skipEntry(k.id, d); return e ? `<div class="skip-note">🎟️ ${key(d) === key(today()) ? 'Hôm nay' : 'Ngày này'} ${esc(k.name)} dùng phiếu “Một ngày không làm việc nhà”: việc phải làm được miễn, làm thì vẫn được thưởng.</div>` : ''; };
 function viewWeekGrid() {
@@ -581,37 +536,6 @@ function weekStrip(sel, kid) {
   }).join('');
   return `<div class="wk-row"><button class="wk-arrow" data-act="day" data-n="-7" aria-label="Tuần trước">${PREV}</button><div class="wk" data-swipe="week">${cells}</div><button class="wk-arrow" data-act="day" data-n="7" aria-label="Tuần sau">${NEXT}</button></div>`;
 }
-// ---------- phần dùng chung của các màn ----------
-// Hàng chọn con: mỗi con một viên (kèm một con số nhỏ nếu có), all = thêm viên "Cả nhà".
-const kidTabs = (kids, cur, act, badge, all) => `<div class="kid-tabs">${all ? `<button class="kid-tab all ${cur === 'all' ? 'on' : ''}" data-act="${act}" data-kid="all" ${cur === 'all' ? 'aria-current="true"' : ''}>${icon('👪')}<b>Cả nhà</b></button>` : ''}${kids.map(k => `<button class="kid-tab ${k.id === cur ? 'on' : ''}" data-act="${act}" data-kid="${k.id}" ${k.id === cur ? 'aria-current="true"' : ''}>${ava(k, 'sm')}<b>${esc(k.name)}</b>${badge ? badge(k) : ''}</button>`).join('')}</div>`;
-// Cụm nút góc phải: ⋯ (những việc ít dùng) và + (thêm mới).
-const pillBar = (...btns) => `<div class="pillbar">${btns.join('')}</div>`;
-const moreBtn = (act, label) => `<button data-act="${act}" aria-label="${label}">${DOTS}</button>`;
-const plusBtn = (label, off) => `<button class="add" data-act="page-add" aria-label="${label}" ${off ? 'disabled' : ''}>${PLUS}</button>`;
-// Tiêu đề nhóm. key: bấm tiêu đề để gập, mở (máy nhớ trong UI.secOpen; closed = mặc định gập). add, side: nút bên phải.
-// sub: nhóm con nằm dưới một tiêu đề lớn (các tháng của Buổi học, các trạng thái của Bài tập) thì là nhãn nhỏ viết hoa, không tranh chỗ với tiêu đề lớn.
-const secIsOpen = (key, closed) => !key || (UI.secOpen[key] ?? !closed);
-function secHead(ic, label, { cnt = '', key = '', closed = false, add = '', side = '', sub = false } = {}) {
-  const inner = `${ic}<span>${label}</span>${cnt !== '' ? `<i class="num">${cnt}</i>` : ''}`;
-  return `<div class="slot-h ${sub ? 'sub' : ''}">${key ? `<button class="slot-pill" data-act="sec-toggle" data-key="${key}" aria-expanded="${secIsOpen(key, closed)}">${inner}${DOWN}</button>` : `<span class="slot-pill">${inner}</span>`}${side}${add}</div>`;
-}
-const addBtn = (act, label, attr = '') => RO ? '' : `<button class="mini-add" data-act="${act}" ${attr} aria-label="${label}">${PLUS}</button>`;
-// Chỗ chưa có gì: ô nét đứt, bấm để thêm ngay tại chỗ. ro: câu hiện cho con (chỉ xem, không có nút thêm).
-const blankAdd = (text, act, attr = '', ro = '') => RO ? `<div class="slot-blank ro"><span>${ro || text}</span></div>` : `<button class="slot-blank" data-act="${act}" ${attr}><span>${text}</span>${PLUS}</button>`;
-// Thanh tiến độ có mốc. Đếm việc (tới 12 việc): mỗi việc một nét rời, xong việc nào sáng nét đó. Số lớn hơn hoặc phần trăm: thanh liền có khe mảnh ở 25, 50, 75%.
-function bar(done, total, attr = '') {
-  const seg = Number.isInteger(total) && total > 1 && total <= 12, p = total > 0 ? Math.max(0, Math.min(1, done / total)) : 0;
-  if (seg) return `<div class="bar seg" ${attr}>${Array.from({ length: total }, (_, i) => `<i${i < done ? ' class="on"' : ''}></i>`).join('')}</div>`;
-  return `<div class="bar ${total > 12 ? 'q' : ''}" ${attr}><b style="width:${+(p * 100).toFixed(2)}%"></b></div>`;
-}
-const barCount = (n, total) => bar(n, total, `role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${n}"`);
-// Một dòng gợi ý có nút bấm (bảng mẫu, mốc năm học mẫu...).
-const suggest = (title, text, btn, act) => `<section class="suggest"><div><b>${title}</b><span>${text}</span></div><button class="btn primary sm" data-act="${act}">${btn}</button></section>`;
-// Tên của một con làm tiêu đề nhỏ (khi xem cả nhà).
-const kidChip = k => `<div class="slot-h"><span class="kid-chip">${ava(k, 'sm')}${esc(k.name)}</span></div>`;
-// Sheet liệt kê vài lựa chọn (menu ⋯ và nút + của các màn).
-const menuRow = (attr, ic, t, sub = '', off = false) => `<button class="item nav" ${attr} ${off ? 'disabled' : ''}><span class="ico">${ic}</span><span class="txt"><span class="t">${t}</span>${sub ? `<span class="s">${sub}</span>` : ''}</span>${CHEV}</button>`;
-const menuSheet = (title, rows) => openModal(`<h2>${title}</h2><div class="fg"><div class="list menu">${rows.join('')}</div></div><div class="foot"><button class="btn quiet" data-act="close">Đóng</button></div>`);
 
 // Hàng trên cùng của màn Hôm nay: các con (kèm số việc đã xong trong ngày đang xem) bên trái, nút ⋯ và + bên phải.
 function todayTop(kids, cur, d) {
@@ -822,7 +746,6 @@ function nextSubjectDay(kidId, subj, from = today()) {
   }
   return null;
 }
-const subjDot = s => s ? `<i class="dot sj${subjTint(s)}"></i>` : '';
 function taskRow(t, showKid, mode = '') {
   const big = mode === 'big', bare = big || mode === 'mini';
   const nd = t.steps.filter(x => x.done).length, over = !t.done && t.due && daysTo(t.due) < 0, kind = TASK_KINDS.find(x => x[0] === t.kind) || TASK_KINDS[0];
@@ -2814,45 +2737,7 @@ function printTkb(kidId) {
     ${st.periods ? `<div style="margin-top:10px;font-size:13px">Mỗi tuần ${st.periods} tiết, ngồi trong lớp ${durTxt(st.inClass)}, ở trường ${durTxt(st.atSchool)}.</div>` : ''}
     ${lessonsOf(kidId).length ? `<h2 style="font-family:var(--display);margin:14px 0 6px;font-size:20px">Học thêm</h2><div class="print-lessons">${WEEK_ORDER.filter(d => lessonsOn(kidId, d).length).map(d => `<div><b>${WDN(d)}</b>${lessonsOn(kidId, d).map(l => `<div>${lessonIcon(l.name)} ${esc(l.s)} – ${esc(l.e)} ${esc(l.name)}</div>`).join('')}</div>`).join('')}</div>` : ''}`, 'landscape');
 }
-
-// ---------- modal ----------
-function openModal(html, wide, keep) {
-  const m = $('#modal');
-  // keep: vẽ lại form đang mở (ví dụ đổi ngày), giữ nguyên vị trí cuộn và không nhảy con trỏ.
-  const top = keep && !m.hidden ? m.querySelector('.dialog')?.scrollTop || 0 : 0;
-  m.innerHTML = `<div class="dialog ${wide ? 'wide' : ''}" role="dialog" aria-modal="true" tabindex="-1">${html}</div>`;
-  const dlg = m.querySelector('.dialog'), h2 = dlg.querySelector(':scope > h2'), foot = dlg.querySelector(':scope > .foot');
-  // Thanh trên cùng như sheet của iOS: Huỷ bên trái, tên form ở giữa, nút chính (Lưu) bên phải, luôn trong tầm mắt dù form dài.
-  // Nút Xoá ở lại cuối form.
-  if (h2 && foot) {
-    const bar = document.createElement('div'); bar.className = 'sheet-bar';
-    const side = b => b || document.createElement('span');
-    bar.append(side(foot.querySelector('[data-act=close]')), h2, side(foot.querySelector('.btn.primary')));
-    dlg.prepend(bar);
-    if (!foot.children.length) foot.remove();
-  }
-  m.hidden = false;
-  if (keep) { dlg.scrollTop = top; return; }
-  modalDirty = false;
-  // Form thêm mới thì đặt con trỏ vào ô đầu tiên. Form sửa không bật bàn phím che mất nội dung.
-  const f = dlg.querySelector('input.input:not([type=date]):not([type=time]):not([type=number])');
-  if (f && !f.value && !wide) f.focus(); else dlg.focus();
-  dlg.querySelectorAll('.pick input:checked').forEach(x => { const sp = x.nextElementSibling, box = x.closest('.pick'); if (sp && box.scrollWidth > box.clientWidth) box.scrollLeft = Math.max(0, sp.offsetLeft - box.clientWidth / 2); });
-}
-// Việc cần làm trước khi đóng form, do module khác thêm vào bằng onCloseModal (sổ học: xoá file vừa tải lên mà chưa lưu).
-const modalClosers = [];
-const onCloseModal = f => { modalClosers.push(f); };
-function closeModal() { for (const f of modalClosers) f(); $('#modal').hidden = true; $('#modal').innerHTML = ''; UI.sheet = false; modalDirty = false; }
-// Form đã gõ hoặc chọn gì đó thì bấm ra ngoài / phím Esc không đóng, tránh mất công nhập. Muốn bỏ thì bấm Huỷ.
-let modalDirty = false;
-const setModalDirty = v => { modalDirty = v; };
 onCloseModal(attCancel);
-function dismissModal() {
-  if (modalDirty && !UI.sheet && !$('#modal .qa')) return toast('Chưa lưu. Bấm Lưu để giữ, hoặc Huỷ để bỏ.');
-  closeModal();
-}
-const pickGrid = (name, list, val) => `<div class="pick" role="radiogroup">${list.map((e, i) => `<label><input type="radio" name="${name}" value="${e}" ${(val ? val === e : i === 0) ? 'checked' : ''} aria-label="${e}"><span>${e}</span></label>`).join('')}</div>`;
-const radioVal = n => { const r = document.querySelector(`#modal input[name="${n}"]:checked, #app input[name="${n}"]:checked`); return r ? r.value : null; };
 
 // Cắt ảnh vuông theo mức phóng to và vị trí đã chọn, thu về 320px JPEG (khoảng 20–40KB).
 let photoEdit = { img: null, out: undefined };
@@ -2914,8 +2799,6 @@ const kindHelp = (kind, wbs) => ({
   extra: 'Không bắt buộc, không xếp vào buổi nào, làm lúc nào được tiền lúc đó',
   fun: 'Không có tiền, mở khoá khi xong việc phải làm của buổi và việc mở khoá (đọc sách 30 phút)',
 }[kind] || '');
-const DAY_SETS = [['0,1,2,3,4,5,6', 'Mỗi ngày'], ['1,2,3,4,5', 'Ngày thường'], ['0,6', 'Cuối tuần']];
-const daySet = days => { const k = [...days].map(Number).sort().join(); return DAY_SETS.some(x => x[0] === k) ? k : 'custom'; };
 // pre: những gì đã gõ và chọn ở ô thêm nhanh ({ name, slot, days, kids, money }), điền sẵn vào form thêm mới.
 function choreForm(id, kindPre, pre) {
   const c = id ? S.chores[id] : null, kids = kidsList();
@@ -3983,9 +3866,6 @@ document.addEventListener('input', e => {
     if (r && !r.checked) { r.checked = true; $('#modal .ico-now').innerHTML = icon(g); }
   }
 });
-$('#modal').addEventListener('click', e => { if (e.target.id === 'modal') dismissModal(); else if (e.target.closest('button:not([data-act=close])')) modalDirty = true; });
-$('#modal').addEventListener('input', () => { modalDirty = true; });
-$('#modal').addEventListener('change', () => { modalDirty = true; });
 // Ô thêm nhanh: Enter là thêm. Bấm các lựa chọn thì con trỏ vẫn ở ô gõ, bàn phím không bị đóng.
 document.addEventListener('mousedown', e => { if (e.target.closest('.qa-chip, .qa-go') && document.activeElement?.id === 'qname') e.preventDefault(); });
 // Bấm vào ngày tháng ở đầu màn Hôm nay thì mở ô chọn ngày của máy.
