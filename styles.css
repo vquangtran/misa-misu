@@ -346,6 +346,8 @@ textarea.hw-in{resize:none;overflow:hidden;min-height:44px}
 .cnt.late{color:var(--bad);opacity:1;font-weight:700}
 .so-need .slot-pill{color:var(--bad)}
 .item.tap:active{opacity:.6}
+.print-ask{gap:8px;flex-wrap:wrap}
+.print-ask .btn{flex:1 1 140px;justify-content:center}
 .fg-cap{margin:4px 6px -6px;font-size:13px;font-weight:600;color:var(--muted)}
 @media (min-width:600px){.overlay{align-items:center;padding:24px}.dialog{border-radius:26px;box-shadow:var(--shadow-float)}.sheet-bar::before{display:none}.sheet-bar{padding-top:6px}}
 

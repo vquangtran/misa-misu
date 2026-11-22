@@ -2261,9 +2261,49 @@ function classSheet(id, keep) {
   <div class="foot"><button class="btn quiet" data-act="close">Đóng</button></div>`, true, keep);
 }
 // Bài cô giao, mở từ phần Bài tập của nhà hoặc máy của con: hướng dẫn, file đính kèm, điểm và nhận xét của cô. Chỉ xem, tick xong ở ngoài danh sách.
+// Nhờ bố mẹ in file cô gửi (máy của con): tải sẵn các file khi mở bài, bấm Nhờ bố mẹ in thì mở bảng chia sẻ của điện thoại
+// (có file và lời nhắn sẵn) để con chọn Zalo rồi chọn bố hoặc mẹ. Trang web không mở thẳng được khung chat Zalo của một người kèm file.
+// File phải tải xong trước khi bấm: điện thoại chỉ mở bảng chia sẻ ngay trong lúc bấm.
+const PRINT_FILES = {};   // mã bài → { files: [File], at } hoặc { busy: true }
+async function printPrefetch(tid, code, files) {
+  if (PRINT_FILES[tid]?.files || PRINT_FILES[tid]?.busy) return;
+  const st = CLS[code]?.st; if (!st) return;
+  PRINT_FILES[tid] = { busy: true };
+  try {
+    const out = [];
+    for (const f of cleanFiles(files)) out.push(new File(await st.getFile(f.id, f.n), f.name, { type: f.type || 'application/octet-stream' }));
+    PRINT_FILES[tid] = { files: out };
+  } catch (e) { console.error(e); delete PRINT_FILES[tid]; }
+}
+function printAsk(tid, who = 'bố mẹ') {
+  const t = tasksList().find(x => x.id === tid); if (!t || !t.cls) return;
+  const w = t.hw, c = t.cls, got = PRINT_FILES[tid]?.files;
+  const Who = who.charAt(0).toUpperCase() + who.slice(1), links = linkList(w.links);
+  // Máy của bố mẹ (Gửi file in): lời nhắn chỉ ghi bài gì, bố mẹ tự chọn người nhận.
+  if (who === 'send') {
+    const txt = `In giúp bài “${w.title}” của ${kidName(t.kid)} (${c.name}${c.teacher ? ' · ' + c.teacher : ''}${w.due ? `, hạn ${dateTxt(w.due)}` : ''}).${links.length ? '\n' + links.join('\n') : ''}`;
+    if (!got) { printPrefetch(tid, c.code, w.files); return toast('Đang tải file, bấm lại sau vài giây nhé.'); }
+    if (navigator.canShare && navigator.canShare({ files: got })) { navigator.share({ files: got, title: w.title, text: txt }).then(() => toast('Đã gửi file.'), e => { if (e?.name !== 'AbortError') printFallback(got, txt, 'người nhận'); }); return; }
+    return printFallback(got, txt, 'người nhận');
+  }
+  const text = `${Who} ơi, in giúp con ${cleanFiles(w.files).length > 1 ? `${cleanFiles(w.files).length} file` : 'file'} bài “${w.title}” (${c.name}${c.teacher ? ' · ' + c.teacher : ''}${w.due ? `, hạn ${dateTxt(w.due)}` : ''}) nhé! Con cảm ơn ${who} ạ.${links.length ? '\n' + links.join('\n') : ''}\n— ${kidName(t.kid)}`;
+  if (!got) { printPrefetch(tid, c.code, w.files); return toast('Đang tải file, bấm lại sau vài giây nhé.'); }
+  if (navigator.canShare && navigator.canShare({ files: got })) {
+    navigator.share({ files: got, title: w.title, text }).then(() => toast(`Đã gửi cho ${who}.`), e => { if (e?.name !== 'AbortError') printFallback(got, text, who); });
+    return;
+  }
+  printFallback(got, text, who);
+}
+// Máy không chia sẻ được file (máy tính): tải file về và chép sẵn lời nhắn để con dán vào Zalo.
+function printFallback(files, text, who) {
+  for (const f of files) { const u = URL.createObjectURL(f), a = Object.assign(document.createElement('a'), { href: u, download: f.name }); document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 60000); }
+  const done = () => toast(`Đã tải file về máy và chép lời nhắn. Mở Zalo, gửi file và dán lời nhắn cho ${who} nhé.`);
+  if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, () => toast(`Đã tải file về máy. Mở Zalo gửi file cho ${who} nhé.`)); else done();
+}
 function hwView(tid) {
   const t = tasksList().find(x => x.id === tid); if (!t || !t.cls) return;
   const w = t.hw, c = t.cls, st = hwState(w);
+  if (cleanFiles(w.files).length) printPrefetch(tid, c.code, w.files);
   openModal(`<h2>Bài cô giao</h2>
   <div class="fg f-title"><div class="ft"><div class="hw-title">${esc(w.title)}</div></div></div>
   <div class="fg">${frow('Môn', `<span class="fv-val">${subjDot(t.subj)}${esc(c.name)}${c.teacher ? ' · ' + esc(c.teacher) : ''}</span>`)}
@@ -2272,7 +2312,11 @@ function hwView(tid) {
     ${w.score ? frow('Điểm', `<span class="fv-val"><b class="num">${esc(w.score)}</b></span>`) : ''}</div>
   ${w.review ? `<div class="fg">${frow('Cô nhận xét', `<div class="so-p">${esc(w.review)}</div>`, { cls: 'col' })}</div>` : ''}
   ${w.notes ? `<div class="fg">${frow('Cô dặn', `<div class="so-p">${esc(w.notes)}</div>`, { cls: 'col' })}</div>` : ''}
-  ${attView(c.code, w.files, w.links) ? `<div class="fg">${frow('Đính kèm', attView(c.code, w.files, w.links), { cls: 'col', sub: 'Bấm để mở' })}</div>` : ''}
+  ${attView(c.code, w.files, w.links) ? `<div class="fg">${frow('Đính kèm', attView(c.code, w.files, w.links), { cls: 'col', sub: 'Bấm để mở' })}
+    ${cleanFiles(w.files).length ? (deviceRole() !== 'parent' ? `<div class="fr col"><div class="fl"><span class="lbl">Cần in bài?</span><span class="fs">Bấm nút, chọn Zalo rồi chọn bố hoặc mẹ để gửi file</span></div>
+      <div class="row print-ask"><button class="btn quiet sm" data-act="print-ask" data-id="${esc(tid)}">🖨️ Nhờ bố mẹ in</button></div></div>`
+      : `<div class="fr col"><div class="fl"><span class="lbl">In bài</span><span class="fs">Bấm nút, chọn Zalo (hoặc ứng dụng khác) rồi chọn người nhận</span></div>
+      <div class="row print-ask"><button class="btn quiet sm" data-act="print-ask" data-id="${esc(tid)}" data-who="send">📤 Gửi file in</button></div></div>`) : ''}</div>` : ''}
   <div class="foot"><button class="btn quiet" data-act="close">Đóng</button>${w.got ? '' : `<button class="btn primary" data-act="task-done" data-id="${esc(tid)}" data-close="1">${t.done ? 'Chưa xong' : 'Đã làm xong'}</button>`}</div>`);
 }
 
@@ -2916,14 +2960,14 @@ const kidLink = id => inviteLink() + '&con=' + encodeURIComponent(id);
 // Việc máy của con được làm: đánh dấu việc, bài tập của chính mình, gập mở các buổi, xin thêm hoặc xin sửa việc thích làm (bố mẹ duyệt), và xin vào phần bố mẹ.
 // Thêm các nút chỉ để xem ở mục Học tập: đổi tab, chọn ngày, chọn thứ, mở nhóm đã qua.
 const KID_ACTS = new Set(['close', 'tick', 'step', 'slot-toggle', 'task-done', 'task-step', 'role-kid', 'role-kid-ok', 'role-parent', 'pin-ok',
-  'tkb-go', 'learn-tab', 'tkb-day', 'ag-day', 'ag-week', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel', 'fun-form', 'fun-ask', 'fun-cancel', 'fun-need', 'num-step', 'km-acct', 'task-form', 'task-save', 'task-del', 'task-subj', 'task-due', 'hw-view', 'file-open']);
+  'tkb-go', 'learn-tab', 'tkb-day', 'ag-day', 'ag-week', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel', 'fun-form', 'fun-ask', 'fun-cancel', 'fun-need', 'num-step', 'km-acct', 'task-form', 'task-save', 'task-del', 'task-subj', 'task-due', 'hw-view', 'file-open', 'print-ask']);
 // Việc màn của cô được làm: chỉ những gì thuộc sổ học.
 const TEACH_ACTS = new Set(['close', 't-tab', 'sess-form', 'sess-view', 'sess-toggle', 'none', 'so-plan-more', 'so-off', 'sess-save', 'hw-row-add', 'so-import', 'so-import-go', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'att-del', 'so-print', 'sec-toggle', 'num-step', 'bank-form', 'bank-save']);
 function kidMay(a, b) {
   const r = deviceRole(); if (r === 'parent') return true;
   if (!KID_ACTS.has(a)) return false;
   if (a === 'tick' || a === 'step') return b.dataset.kid === r;
-  if (a === 'task-done' || a === 'task-step' || a === 'hw-view') return taskOf(b.dataset.id)?.kid === r;
+  if (a === 'task-done' || a === 'task-step' || a === 'hw-view' || a === 'print-ask') return taskOf(b.dataset.id)?.kid === r;
   if (a === 'file-open') return classesList().some(c => c.code === b.dataset.code && c.kid === r);
   // Bài tập: con tự thêm bài cho chính mình; chỉ sửa, xoá được bài do chính con thêm (bài bố mẹ ghi thì chỉ tick).
   if (a === 'task-form' || a === 'task-save' || a === 'task-del') {
@@ -3706,6 +3750,7 @@ document.addEventListener('click', e => {
     $('#hdue').value = d ? key(d) : ''; return;
   }
   if (a === 'att-del') { if (ATT) { ATT.files = ATT.files.filter(f => f.id !== b.dataset.fid); attDraw(); } return; }
+  if (a === 'print-ask') return printAsk(id, b.dataset.who === 'send' && deviceRole() === 'parent' ? 'send' : 'bố mẹ');
   if (a === 'file-open') return okId(b.dataset.fid) && fileOpen(b.dataset.code, { id: b.dataset.fid, n: Math.min(20, Number(b.dataset.n) || 1), name: b.dataset.name || 'file', type: b.dataset.type || '', size: Number(b.dataset.size) || 0 });
   if (a === 'sess-save') {
     const state = radioVal('sstate') === 'plan' ? 'plan' : 'done', date = $('#sdate').value || '';
