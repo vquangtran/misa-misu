@@ -492,6 +492,7 @@ a.item{color:var(--ink)}
 .item.fun.locked .t,.item.fun.locked .ico{opacity:.5}
 .fun-badge{font-size:12px;font-weight:500;padding:4px 10px;border-radius:999px;background:var(--fill);color:var(--muted);white-space:nowrap}
 .fun-badge.open{background:var(--good-soft);color:var(--good)}
+button.fun-badge{border:0;font:inherit;font-size:12px;cursor:pointer}
 
 /* ----- bảng cả tuần ----- */
 .tbl-wrap{overflow-x:auto}
@@ -721,6 +722,7 @@ button.big-item:active{transform:scale(.98)}
 .big-item.done{background:var(--good-soft);border-color:transparent;box-shadow:none}
 .big-item.done .t{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--ring);text-decoration-thickness:2px}
 .big-item.fun{cursor:default}
+button.big-item.fun.locked{cursor:pointer}
 .big-item.fun.locked{background:var(--surface-2);box-shadow:none}
 .big-item.fun.locked .ico,.big-item.fun.locked .t{opacity:.5}
 .big-item.fun.open{background:var(--good-soft)}
