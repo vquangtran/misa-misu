@@ -3,7 +3,7 @@
 // Thêm tính năng mới thì thêm bước vào cảnh tương ứng; dùng `node tools/kiem-tra/chay.mjs liet-ke '#màn'` để xem các nút.
 //
 // c.go(đường dẫn), c.hash('#...'), c.click(selector, { text, nth }), c.check(selector), c.fill({ selector: giá trị }),
-// c.hold(selector), c.reload(), c.snap(tên). Con: k-su (Su), k-sa (Sa). Sổ học: lop-k-su-0 (Tiếng Việt của Su, đã nhập
+// c.hold(selector), c.files(selector, [{ name, mimeType, buffer }]), c.reload(), c.snap(tên). Con: k-su (Su), k-sa (Sa). Sổ học: lop-k-su-0 (Tiếng Việt của Su, đã nhập
 // từ data/so-tieng-viet-su.json), lop-k-su-1 (Toán của Su), lop-k-sa-2 (Tiếng Việt của Sa), lop-k-sa-3 (Toán của Sa, sổ trống).
 
 const MAIN = 'be-cham-ngoan-v1';
@@ -364,6 +364,35 @@ export const CANH = [
       await c.click(act('pin-clear'));
       await c.click(act('pin-clear'), { label: 'bấm lần nữa để bỏ mã PIN' });
       await c.hash('#hom-nay');
+    },
+  },
+
+  // Nộp bài cô giao trên máy của con: tải lên từng trang chưa phải là nộp; bấm Nộp bài mới tính, rút lại phải bấm hai lần.
+  {
+    ten: 'nop-bai',
+    sua: (ls, { pinHash, PIN }) => {
+      const d = data(ls); d.paid.caidat = { ...d.paid.caidat, pin: pinHash(PIN) }; ls[MAIN] = JSON.stringify(d); ls['be-cham-ngoan-role'] = JSON.stringify({ local: 'k-su' });
+      const k = 'misa-misu-so:lop-' + d.paid['lop-k-su-1'].code, so = JSON.parse(ls[k]);
+      so.tasks = { ...(so.tasks || {}), 'hw-thu': { title: 'Bài tập trang 12, 13', notes: 'Làm hết bài 1 đến bài 4', due: '2026-11-26', steps: [], links: [], files: [], at: '2026-11-23T03:00:00.000Z' } };
+      ls[k] = JSON.stringify(so); return ls;
+    },
+    async chay(c) {
+      const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+      const trang = n => ({ name: `trang${n}.png`, mimeType: 'image/png', buffer: png });
+      await c.go('/');
+      await c.check('#km input[name="kmtab"][value="learn"]');
+      await c.click('#km ' + act('learn-tab', { v: 'bai-tap' }));
+      await c.click('#km ' + act('hw-view'), { label: 'mở bài cô giao' });
+      await c.files('#sub-file', [trang(1), trang(2)], 'tải lên 2 trang: chưa nộp');
+      await c.click('#modal ' + act('task-done'), { label: 'Nộp bài (2 file)' });
+      await c.check('#km input[name="tview"][value="1"]');
+      await c.click('#km ' + act('hw-view'), { label: 'mở lại bài đã nộp' });
+      await c.files('#sub-file', [trang(3)], 'nộp thêm 1 trang');
+      await c.click('#modal ' + act('task-done'), { label: 'Rút lại: bấm lần đầu chỉ hỏi lại' });
+      await c.click('#modal ' + act('task-done'), { label: 'Rút lại: bấm lần nữa' });
+      await c.click('#modal ' + act('sub-del'), { label: 'bỏ một file' });
+      await c.click('#modal ' + act('sub-del'), { label: 'bấm lần nữa để bỏ file' });
+      await c.click(X);
     },
   },
 

@@ -191,6 +191,13 @@ class Canh {
     await settle(this.page, this.st);
     return this.snap(label || 'gõ ' + Object.keys(map).join(', '));
   }
+  // Chọn file cho ô <input type="file"> (ví dụ nộp bài). list: [{ name, mimeType, buffer }].
+  async files(sel, list, label) {
+    const el = await this.page.$(sel);
+    if (!el) this.st.errs.push('không thấy ô ' + sel); else await el.setInputFiles(list);
+    await settle(this.page, this.st);
+    return this.snap(label || `chọn ${list.length} file cho ${sel}`);
+  }
   // Giữ nút (chế độ cho bé: Giữ để thoát).
   async hold(sel, ms = 1400, label) {
     const ok = await this.page.evaluate(sel => { const el = document.querySelector(sel); if (!el) return false; el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); return true; }, sel);

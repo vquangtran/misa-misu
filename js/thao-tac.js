@@ -197,8 +197,12 @@ document.addEventListener('click', e => {
     // Bài cô giao: ghi vào sổ của cô, chỉ ghi phần con báo xong để không đè lên điểm và nhận xét cô đang nhập.
     if (t.cls) {
       if (t.hw.got) return toast('Cô đã nhận bài này rồi.');
-      if (!clsPatch(t.cls.code, 'tasks', t.hw.id, { done: on, doneAt: on ? key(today()) : '', steps })) return;
-      if (b.dataset.close) closeModal();
+      const subs = cleanFiles(t.hw.sub).length;
+      // Bỏ dấu bài đã làm xong (hay đã nộp file) phải bấm hai lần, để khỏi bấm nhầm.
+      if (!on && !armed(b, b.classList.contains('check') ? b.textContent : subs ? 'Bấm lần nữa để rút lại' : 'Bấm lần nữa')) return toast(subs ? 'Bài đã nộp. Bấm lần nữa để rút lại, cô sẽ thấy bài chưa nộp.' : 'Bấm lần nữa để bỏ dấu đã làm xong.');
+      if (!clsPatch(t.cls.code, 'tasks', t.hw.id, { done: on, doneAt: on ? key(today()) : '', steps, ...(on && subs ? { subAt: key(today()) } : {}) })) return;
+      if (b.dataset.close) closeModal(); else if (!on && !$('#modal').hidden) hwView(id);
+      if (on && subs) { confetti(); return toast(`Đã nộp bài “${t.title}” (${subs} file). Cô xem được ngay.`); }
     } else put('tasks', id, { ...S.tasks[id], done: on, doneAt: on ? key(today()) : '', steps });
     if (on) { const left = openTasks(t.kid).filter(x => x.id !== id && x.due && daysTo(x.due) <= 1).length; if (!left) confetti(); return toast(left ? `Xong “${t.title}”. Còn ${left} bài cần nộp sớm.` : `Xong “${t.title}”! 🎉`); }
     return;

@@ -352,6 +352,8 @@ textarea.hw-in{resize:none;overflow:hidden;min-height:44px}
 .print-ask{gap:8px;flex-wrap:wrap}
 .print-ask .btn{flex:1 1 140px;justify-content:center}
 .fg .btn.sm.sub-btn,.btn.sub-btn{align-self:flex-start;margin-top:4px;display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:var(--on-accent);border:0;font-weight:600}
+/* Đã có file: nút thêm file nhường chỗ cho nút Nộp bài. */
+.fg .btn.sm.sub-btn.quiet,.btn.sub-btn.quiet{background:none;color:var(--accent);border:1.5px solid var(--accent)}
 .s.sub-l{margin-top:6px}
 .so-new{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border-radius:var(--r);border:1px solid var(--accent);background:var(--accent-soft);color:var(--ink);text-align:left}
 .so-new .txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
@@ -999,6 +1001,8 @@ details.f-adv>summary::-webkit-details-marker{display:none}
 details.f-adv>summary .chev{width:14px;height:14px;stroke:var(--muted);transition:transform .2s;margin-right:4px}
 details.f-adv:not([open])>summary .chev{transform:rotate(-90deg)}
 .dialog:has(>.fg) .foot .btn.danger{box-shadow:none;background:none;color:var(--bad)}
+/* Nút phụ ở cuối form (ví dụ Rút lại bài đã nộp): chữ nhạt, không giống nút chính để khỏi bấm nhầm. */
+.dialog:has(>.fg) .foot .btn.quiet.left{box-shadow:none;background:none;color:var(--muted);font-weight:500;text-decoration:underline;text-underline-offset:3px}
 
 /* ----- phần dùng chung của các màn: tiêu đề kèm nút, nhãn nhóm, số liệu ----- */
 .day-head.tools{align-items:center;margin-bottom:0}
