@@ -1,14 +1,15 @@
 /* Misa Misu. Cấu trúc và cách dùng theo thói quen iOS (thanh điều hướng đáy, danh sách có mũi tên, sheet có Huỷ / Lưu, thanh gạt, công tắc).
-   Diện mạo: nền trung tính, thẻ trắng phẳng, một kiểu chữ (Be Vietnam Pro). Giao diện gần như không màu để hình vẽ 3D là thứ duy nhất nhiều màu.
+   Diện mạo: nền kem ấm, thẻ trắng phẳng, một kiểu chữ (Be Vietnam Pro). Giao diện gần như không màu để hình vẽ 3D là thứ duy nhất nhiều màu.
    Màu chỉ xuất hiện khi có nghĩa: vàng = ngôi sao, việc đã xong (--star); xanh lá = tiền được cộng (--good); đỏ = bị trừ, quá hạn (--bad).
-   Một màu nhấn duy nhất, nâu vàng (--accent): nút chính, mục đang chọn, chữ bấm được, dấu "hôm nay / bây giờ".
-   Cỡ chữ: 11 nhãn thanh điều hướng · 12 chú thích · 13 dòng phụ · 15 chữ thường, nút · 16 tên việc, ô nhập · 17 tên nhóm · 20 con số, tiêu đề thẻ · 24 tên trong form · 30 tiêu đề màn.
-   Độ đậm: 400 chữ thường và dòng phụ · 500 tên việc · 600 nút, nhãn, tên nhóm · 700 tiêu đề và con số lớn. */
+   Một màu nhấn duy nhất, xanh dương (--accent): nút chính, mục đang chọn, chữ bấm được, dấu "hôm nay / bây giờ". Xanh dương tương phản với nền ấm và không trùng màu nào đã có nghĩa.
+   Khối màu nhạt (--accent-soft) bọc buổi đang diễn ra; chỗ chưa có gì là khối nền đặc nhạt (--fill), không dùng khung nét đứt.
+   Cỡ chữ: 11 nhãn thanh điều hướng · 12 chú thích, nhãn nhóm việc (viết hoa, giãn chữ) · 13 dòng phụ · 15 chữ thường, nút · 16 tên việc, ô nhập · 20 tên nhóm, con số, tiêu đề thẻ · 24 tên trong form · 30 tiêu đề màn.
+   Độ đậm: 400 chữ thường và dòng phụ · 500 tên việc · 600 nút, nhãn · 700 tên nhóm, tiêu đề và con số lớn. */
 :root{
-  --paper:#F5F4F0; --surface:#FFFFFF; --surface-2:#F7F6F2; --fill:rgba(42,36,22,.06); --fill-2:rgba(42,36,22,.15);
-  --line:#E9E7E0; --ring:#CCC8BD; --chev:#BAB5A9;
+  --paper:#FDF8F4; --surface:#FFFFFF; --surface-2:#F9F4EF; --fill:rgba(60,40,20,.06); --fill-2:rgba(60,40,20,.15);
+  --line:#EEE8E1; --ring:#CFC8BE; --chev:#BDB5AA;
   --ink:#1E1B16; --muted:#6E685D;
-  --accent:#946410; --accent-soft:#F6ECD6; --on-accent:#FFFFFF;
+  --accent:#2558E0; --accent-soft:#E6E9F7; --on-accent:#FFFFFF;
   --star:#FFB800; --star-soft:#FFF1C2; --star-ink:#8A5A00;
   --good:#12803F; --good-fill:#1FAE57; --good-deep:#138A43; --good-soft:#DDF4E4;
   --bad:#CF3237; --bad-fill:#E5484D; --bad-soft:#FDE6E4;
@@ -25,7 +26,7 @@
   --paper:#131210; --surface:#1D1C19; --surface-2:#262521; --fill:rgba(255,250,235,.07); --fill-2:rgba(255,250,235,.17);
   --line:#2F2D28; --ring:#57534B; --chev:#5F5B52;
   --ink:#F4F2EC; --muted:#A6A195;
-  --accent:#E5B657; --accent-soft:#3A2E14; --on-accent:#241700;
+  --accent:#8FAAFF; --accent-soft:#1F2947; --on-accent:#0B1430;
   --star:#FFC933; --star-soft:#3B3114; --star-ink:#FFD866;
   --good:#4FD486; --good-fill:#22B85C; --good-deep:#127A3C; --good-soft:#1A3324;
   --bad:#FF7F7F; --bad-fill:#E5484D; --bad-soft:#3D1F1D;
@@ -37,7 +38,7 @@
   --paper:#131210; --surface:#1D1C19; --surface-2:#262521; --fill:rgba(255,250,235,.07); --fill-2:rgba(255,250,235,.17);
   --line:#2F2D28; --ring:#57534B; --chev:#5F5B52;
   --ink:#F4F2EC; --muted:#A6A195;
-  --accent:#E5B657; --accent-soft:#3A2E14; --on-accent:#241700;
+  --accent:#8FAAFF; --accent-soft:#1F2947; --on-accent:#0B1430;
   --star:#FFC933; --star-soft:#3B3114; --star-ink:#FFD866;
   --good:#4FD486; --good-fill:#22B85C; --good-deep:#127A3C; --good-soft:#1A3324;
   --bad:#FF7F7F; --bad-fill:#E5484D; --bad-soft:#3D1F1D;
@@ -426,7 +427,7 @@ textarea.hw-in{resize:none;overflow:hidden;min-height:44px}
 /* một dòng tóm tắt của con: còn mấy việc, số dư, thanh tiến độ */
 .kid-sum{display:flex;flex-direction:column;gap:8px}
 .kid-sum-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.kid-sum-t{font-family:var(--display);font-size:20px;font-weight:700;line-height:1.2;min-width:0;letter-spacing:-.01em}
+.kid-sum-t{font-family:var(--display);font-size:22px;font-weight:700;line-height:1.2;min-width:0;letter-spacing:-.01em}
 .kid-sub{display:flex;flex-wrap:wrap;gap:0 10px}
 .streak{font-size:13px;font-weight:500;white-space:nowrap}
 .acct-link{display:inline-flex;align-items:center;gap:6px;flex:none;text-decoration:none;color:var(--ink);min-height:34px;padding:2px 9px 2px 13px;border-radius:999px;background:var(--surface);border:1px solid var(--line)}
@@ -444,14 +445,15 @@ textarea.hw-in{resize:none;overflow:hidden;min-height:44px}
 .notes>a:active{opacity:.6}
 .stay-note{font-weight:500}
 .stay-note.moved{color:var(--accent)}
-/* mỗi buổi: một nhãn màu (bấm để gập, mở), danh sách việc bên dưới; buổi chưa có việc là ô nét đứt có dấu + */
-.slots{display:flex;flex-direction:column;gap:22px}
-.slot{display:flex;flex-direction:column;gap:8px}
+/* mỗi buổi: một tiêu đề to (bấm để gập, mở), danh sách việc bên dưới; buổi chưa có việc là khối nền nhạt có dấu +.
+   Các nhóm cách nhau rộng hơn hẳn khoảng cách trong một nhóm để nhìn ra từng khối. */
+.slots{display:flex;flex-direction:column;gap:30px}
+.slot{display:flex;flex-direction:column;gap:10px}
 .slot-h{display:flex;align-items:center;gap:8px;min-height:38px}
 .slot-pill{display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:4px 2px;border:0;background:none;color:var(--ink);
-  font-family:var(--body);font-size:17px;font-weight:600;line-height:1.2;letter-spacing:-.01em;text-decoration:none;text-align:left}
-.slot-pill .ic{width:22px;height:22px;vertical-align:0}
-.slot-pill i{font-style:normal;font-size:13px;font-weight:400;letter-spacing:0;color:var(--muted);white-space:nowrap}
+  font-family:var(--body);font-size:20px;font-weight:700;line-height:1.2;letter-spacing:-.02em;text-decoration:none;text-align:left}
+.slot-pill .ic{width:24px;height:24px;vertical-align:0}
+.slot-pill i{font-style:normal;font-size:15px;font-weight:400;letter-spacing:0;color:var(--muted);white-space:nowrap}
 .slot-pill .chev{width:11px;height:11px;stroke:var(--chev);transition:transform .2s}
 .slot-pill[aria-expanded="false"] .chev{transform:rotate(-90deg)}
 .slot-pill:active{opacity:.6}
@@ -465,18 +467,27 @@ textarea.hw-in{resize:none;overflow:hidden;min-height:44px}
 .linkbtn.so-more{margin:8px 6px 0;font-size:14px}
 .slot-list{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-sm);padding:0 14px}
 /* tiêu đề nhỏ của từng nhóm việc trong một buổi: quan trọng (đỏ), phải làm, có tiền, thích làm */
-.sub-h{display:flex;align-items:baseline;gap:6px;padding:0 4px;font-size:13px;font-weight:600;line-height:1.4;color:var(--muted)}
-.sub-h i{font-style:normal;font-weight:400}
+.sub-h{display:flex;align-items:baseline;gap:6px;padding:0 4px;font-size:12px;font-weight:600;line-height:1.4;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.sub-h i{font-style:normal;font-weight:400;letter-spacing:0}
 .sub-h i.full{color:var(--good);font-weight:600}
 .sub-h.imp{color:var(--bad)}
 .sub-h.imp i:not(.full){color:var(--muted)}
 .slot-list+.sub-h,.big-list+.sub-h{margin-top:8px}
-.km:not(.plain) .sub-h{font-size:15px;padding:0 6px}
-.slot-blank{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:58px;padding:8px 10px 8px 16px;border:1.5px dashed var(--ring);border-radius:var(--r);background:none;color:var(--muted);font-size:15px;font-weight:400;text-align:left}
-.slot-blank .gl{box-sizing:content-box;padding:9px;border-radius:50%;background:var(--fill)}
-.slot-blank:active{background:var(--fill)}
+.km:not(.plain) .sub-h{font-size:13px;padding:0 6px}
+.slot-blank{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:58px;padding:8px 10px 8px 16px;border:0;border-radius:var(--r);background:var(--fill);color:var(--muted);font-size:15px;font-weight:400;text-align:left}
+.slot-blank .gl{box-sizing:content-box;padding:9px;border-radius:50%;background:var(--surface);color:var(--ink)}
+.slot-blank:active{background:var(--fill-2)}
 .slot-blank.ro{padding-right:16px}
-.slot-blank.ro:active{background:none}
+.slot-blank.ro:active{background:var(--fill)}
+/* buổi đang diễn ra: cả buổi nằm trong một khối màu nhạt, thẻ trắng nổi trên đó; các buổi khác để trần */
+.slot.now{background:var(--accent-soft);border-radius:26px;margin:0 -8px;padding:8px 8px 12px}
+.slot.now>.slot-h{padding:0 8px}
+.slot.now>.sub-h{padding:0 12px}
+.slot.now .slot-list{border-color:transparent}
+.slot.now .mini-add{background:var(--surface);color:var(--ink)}
+.slot.now .slot-blank{background:var(--surface)}
+.slot.now .slot-blank .gl{background:var(--fill)}
+.slot.now .slot-blank:active{opacity:.7}
 /* thêm việc nhanh: một ô gõ, vài lựa chọn bấm để đổi */
 .overlay:has(.qa){padding-bottom:var(--kb,0px)}
 .dialog:has(.qa){padding-top:20px;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))}
