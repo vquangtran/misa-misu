@@ -1449,7 +1449,7 @@ const classOffers = ks => ks.flatMap(k => [...new Set(lessonsOf(k.id).map(l => S
   .filter(n => !classesOf(k.id).some(c => classLessons(c).some(l => norm(l.name) === norm(n)))).map(n => ({ kid: k.id, name: n }))).slice(0, 8);
 // Màn của cô đọc thông tin lớp (có student). Sổ Tiếng Việt của Su chưa được máy bố mẹ ghi tên sổ (book chưa có) thì vẫn hiện tên mới.
 const bookName = c => String(c?.book || '').trim() || (c?.book === undefined && c?.student && ['su', 'misu'].includes(norm(c.student)) && norm(c.name) === 'tiếng việt' ? SU_TV_BOOK : `Nhật ký học ${c?.name || ''}`.trim());
-const classTitle = c => `${String(c.book || '').trim() || c.name}${c.teacher ? ' · ' + c.teacher : ''}`;
+const classTitle = c => `${bookName(c)}${c.teacher ? ' · ' + c.teacher : ''}`;
 const teacherLink = code => location.origin + location.pathname + '?lop=' + encodeURIComponent(code);
 // Học phí do bố mẹ ghi ở sổ: fee (đồng), feeBy 'buoi' = mỗi buổi, 'gio' = mỗi giờ; feeOn: mức riêng cho buổi Online (0 = như buổi thường).
 // Chép sang sổ để màn của cô tính cùng một con số.
