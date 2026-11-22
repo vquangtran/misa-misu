@@ -16,7 +16,6 @@ export const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
 // Mọi ngày trong tuần (CN = 0 … T7 = 6).
 export const DAILY = [0, 1, 2, 3, 4, 5, 6];
 export const pad = n => String(n).padStart(2, '0');
-export const pad2 = n => String(n).padStart(2, '0');
 export const key = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 export const parse = k => { const [y, m, d] = String(k).split('-').map(Number); return new Date(y, (m || 1) - 1, d || 1); };
 export const addDays = (d, n) => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() + n); return x; };

@@ -22,6 +22,7 @@ import { addSamples, CHORE_KIND_SUB, CHORE_KINDS, choreForm, guessIcon, kindHelp
 import { decryptSeed, exportBackup, hashPin, importBackup, importData, kidForm, kidLink, photoEdit, photoLoad, photoRender, pinForm, roleKidForm,
   seedForm, setPhotoEdit, setSeedChecked, setSeedMem, stayForm } from './gia-dinh.js';
 
+// ---------- nút + của các màn ----------
 // Nút + ở góc phải của mỗi màn: thêm thứ thuộc về màn đó. Chỉ có một thứ thì mở thẳng form, nhiều thứ thì hỏi.
 function pageAdd() {
   const kids = kidsList(); if (!kids.length) return kidForm();
@@ -45,6 +46,8 @@ function pageAdd() {
   // Gia đình chỉ còn phần cài đặt: nút + thêm con. Việc nhà thêm ở trang Quy định.
   if (v === 'gia-dinh') return kidForm();
 }
+
+// ---------- máy của con và màn của cô được làm gì ----------
 // Việc máy của con được làm: đánh dấu việc, bài tập của chính mình, gập mở các buổi, xin thêm hoặc xin sửa việc thích làm (bố mẹ duyệt), và xin vào phần bố mẹ.
 // Thêm các nút chỉ để xem ở mục Học tập: đổi tab, chọn ngày, chọn thứ, mở nhóm đã qua.
 const KID_ACTS = new Set(['close', 'tick', 'step', 'slot-toggle', 'task-done', 'task-step', 'role-kid', 'role-kid-ok', 'role-parent', 'pin-ok',
@@ -71,6 +74,9 @@ function kidMay(a, b) {
   if (a === 'fun-cancel') return funAsks(r).some(x => x.id === b.dataset.id);
   return true;
 }
+
+// ---------- bộ xử lý data-act ----------
+// Nút xoá và các việc khó hoàn tác: bấm lần đầu thì đổi chữ trên nút, bấm lần nữa trong 4 giây mới làm.
 const confirmArm = {};
 function armed(btn, label) {
   const k = btn.dataset.act + btn.dataset.id;
@@ -766,6 +772,8 @@ document.addEventListener('click', e => {
   }
   if (a === 'ledger-undo') { if (!armed(b, 'Chắc chưa?')) return; del('ledger', id); return toast('Đã huỷ mục này.'); }
 });
+
+// ---------- ô chọn, ô gõ ----------
 document.addEventListener('change', e => {
   // Bài tập buổi trước: chọn Thiếu thì hiện mức thiếu.
   if (e.target.name?.startsWith('chk-')) { const lv = e.target.closest('.hw-chk')?.querySelector('.hw-lv'); if (lv) lv.hidden = e.target.value !== 'thieu'; }
@@ -820,6 +828,8 @@ document.addEventListener('input', e => {
     if (r && !r.checked) { r.checked = true; $('#modal .ico-now').innerHTML = icon(g); }
   }
 });
+
+// ---------- phím, vuốt, giữ nút ----------
 // Ô thêm nhanh: Enter là thêm. Bấm các lựa chọn thì con trỏ vẫn ở ô gõ, bàn phím không bị đóng.
 document.addEventListener('mousedown', e => { if (e.target.closest('.qa-chip, .qa-go') && document.activeElement?.id === 'qname') e.preventDefault(); });
 // Bấm vào ngày tháng ở đầu màn Hôm nay thì mở ô chọn ngày của máy.

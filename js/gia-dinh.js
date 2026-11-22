@@ -7,7 +7,7 @@ import { ageOf, DAY_BONUS, dayBonusOf, family, hasStays, isDaily, kidName, kidsL
 import { addBtn, ava, avatarOf, avInner, blankAdd, editBtn, photoOf, pillBar, plusBtn, secHead, subjTint, tintOf } from './giao-dien.js';
 import { formFoot, frow, menuRow, openModal, pillNum, titleCard, toggle } from './form.js';
 
-const AVATARS = ['🐔', '🐓', '🐣', '🐤', '🐥', '🐴', '🐎', '🦓', '🎠', '🦊', '🐯', '🐼', '🐨', '🦁', '🐸', '🐵', '🦄', '🐲', '🦖', '🐰', '🐱', '🐶', '🐧', '🐳', '🦋'];
+// ---------- các con ở đâu ----------
 function stayStrip() {
   const wd = today().getDay();
   return `<div class="stay-strip">${WEEK_ORDER.map(d => { const st = stayInfo(d);
@@ -33,6 +33,8 @@ function staysCard(wd) {
     : blankAdd('Ghi ngày nào các con ở nhà B4, 6th Element hay nhà ông bà', 'stay-form')}</section>`;
 }
 
+
+// ---------- màn Gia đình ----------
 const inviteLink = () => location.origin + location.pathname + '?gd=' + encodeURIComponent(family);
 
 // Gia đình: cài đặt ít khi đụng tới (các con, các con ở đâu, máy của con và mã PIN, chia sẻ, sao lưu). Việc nhà và thưởng phạt nằm ở trang Quy định.
@@ -66,6 +68,8 @@ export async function hashPin(pin) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('misa-misu:' + pin));
   return [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2, '0')).join('');
 }
+
+// ---------- mã PIN, máy của con ----------
 export const kidLink = id => inviteLink() + '&con=' + encodeURIComponent(id);
 // mode 'unlock': nhập PIN để máy này thành máy của bố mẹ. mode 'set': đặt hoặc đổi PIN (chỉ máy của bố mẹ).
 export function pinForm(mode) {
@@ -99,6 +103,8 @@ function roleRows() {
   return h;
 }
 
+
+// ---------- form thông tin của con: ảnh, hình đại diện ----------
 // Cắt ảnh vuông theo mức phóng to và vị trí đã chọn, thu về 320px JPEG (khoảng 20–40KB).
 export let photoEdit = { img: null, out: undefined };
 export const setPhotoEdit = v => { photoEdit = v; };
@@ -118,6 +124,8 @@ export function photoLoad(file) {
   img.onerror = () => { URL.revokeObjectURL(url); toast('Không mở được ảnh này. Thử ảnh JPG hoặc PNG.'); };
   img.src = url;
 }
+// Emoji chọn làm hình đại diện của con.
+const AVATARS = ['🐔', '🐓', '🐣', '🐤', '🐥', '🐴', '🐎', '🦓', '🎠', '🦊', '🐯', '🐼', '🐨', '🦁', '🐸', '🐵', '🦄', '🐲', '🦖', '🐰', '🐱', '🐶', '🐧', '🐳', '🦋'];
 // Ô chọn hình: bộ gà, bộ ngựa (mỗi ngày một kiểu hoặc một kiểu cố định), rồi tới emoji.
 function avatarGrid(val) {
   const opt = (v, inner, label, cls = '') => `<label><input type="radio" name="kava" value="${esc(v)}" ${v === val ? 'checked' : ''} aria-label="${esc(label)}"><span class="${cls}" title="${esc(label)}">${inner}</span></label>`;
@@ -147,7 +155,8 @@ export function kidForm(id) {
   ${formFoot(k ? 'kid-del' : '', id, 'kid-save')}`);
 }
 
-// ---------- backup ----------
+
+// ---------- sao lưu ----------
 export function exportBackup() {
   const data = { app: 'be-cham-ngoan', version: 1, exportedAt: new Date().toISOString(), data: S };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -199,6 +208,7 @@ export async function importData(j, quiet = false) {
     if (!quiet) toast(`Đã nhập: ${parts.join(', ') || 'không có gì mới'}.`);
   }
 }
+
 
 // ---------- lịch gia đình mã hoá ----------
 // data/gia-dinh.enc.json là một bản sao lưu đã mã hoá (AES-GCM, khoá sinh từ mật khẩu bằng PBKDF2-SHA256),

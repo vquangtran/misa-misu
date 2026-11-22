@@ -3,7 +3,7 @@ import { firebaseConfig } from './config.js';
 import { icon, iconify, iconSvg } from './icons.js';
 import { firebaseClass, localClass } from './store.js';
 import { excelDate, readXlsx } from './xlsx.js';
-import { $, addDays, CHEV, dateTxt, daysBetween, daysTo, dm, DOWN, dueLabel, durTxt, esc, key, money, monthTxt, norm, pad2, parse, PLUS, PREV,
+import { $, addDays, CHEV, dateTxt, daysBetween, daysTo, dm, DOWN, dueLabel, durTxt, esc, key, money, monthTxt, norm, pad, parse, PLUS, PREV,
   printHtml, toast, today, toMin, uid, WDS } from './chung.js';
 import { FIXED_SCHED, isSuTV, SU_TV_BOOK } from './nha-minh.js';
 import { againVnd, del, deviceRole, kidName, kidsList, lessonsList, lessonsOf, loaded, penaltyTimes, pricesList, priceVnd, put, render, RO, S, stale,
@@ -423,8 +423,8 @@ function soMonths(code, d, mode) {
 let SO_IMPORT = null;
 const cellTxt = v => v == null ? '' : String(v).replace(/\r/g, '').trim();
 function xlDay(v) {
-  if (typeof v === 'number' && v > 20000) { const d = excelDate(v); return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`; }
-  const m = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(cellTxt(v)); return m ? okDate(`${m[3]}-${pad2(m[2])}-${pad2(m[1])}`) : '';
+  if (typeof v === 'number' && v > 20000) { const d = excelDate(v); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`; }
+  const m = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(cellTxt(v)); return m ? okDate(`${m[3]}-${pad(m[2])}-${pad(m[1])}`) : '';
 }
 // Điểm "7/10" bị Excel tự đổi thành ngày 10/7 (kiểu tháng/ngày): đổi lại thành chữ như lúc gõ.
 const xlScore = v => { if (typeof v === 'number' && v > 20000) { const d = excelDate(v); return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`; } return cellTxt(v); };
@@ -495,7 +495,7 @@ export function soImportGo() {
   toast(`Đã nhập ${x.sessions.length} buổi và ${x.tasks.length} bài tập vào sổ.${paid ? ` Đã đánh dấu đóng học phí ${x.months.map(m => 'tháng ' + Number(m.slice(5))).join(', ')}.` : ''}`);
 }
 // Học phí đóng vào cuối tháng hoặc đầu tháng sau: tháng nhập từ file coi như đóng ngày 1 của tháng sau (tháng 10 → 1/11).
-const monthAfter = mk => { const [y, m] = mk.split('-').map(Number); return m === 12 ? `${y + 1}-01-01` : `${y}-${pad2(m + 1)}-01`; };
+const monthAfter = mk => { const [y, m] = mk.split('-').map(Number); return m === 12 ? `${y + 1}-01-01` : `${y}-${pad(m + 1)}-01`; };
 export function soImportApply(x, paid) {
   for (const s of x.sessions) if (!clsPut(x.code, 'sessions', s.id, s.data)) return false;
   for (const t of x.tasks) clsPut(x.code, 'tasks', t.id, t.data);

@@ -7,8 +7,7 @@ import { addBtn, bar, barCount, blankAdd, kidTabs, mini, moreBtn, noKids, pillBa
 import { DAY_SETS, formFoot, frow, kidRow, openModal, pillNum, pillSel, titleCard } from './form.js';
 import { meritList, priceTag } from './quy-dinh.js';
 
-// Thành tích con đã báo, đang chờ bố mẹ duyệt. Nằm trong sổ tài khoản với amount = 0 (chưa tính vào số dư, cả với máy chưa cập nhật app),
-// số tiền sẽ cộng ghi ở ask. Duyệt: amount = ask, bỏ pending. Không duyệt: xoá.
+// ---------- việc thích làm con xin, thành tích chờ duyệt ----------
 // Việc thích làm con xin thêm hoặc xin sửa, chờ bố mẹ duyệt. Nằm trong nhóm `paid`, id "xin-<mã>":
 //   { xin: 'fun', kid, chore: mã việc đang có (xin sửa; không có = xin thêm việc mới), name, icon, minutes, slot, days, at }.
 // Chưa duyệt thì lịch của con chưa đổi. Duyệt: thêm việc mới, hoặc sửa việc đang có cho riêng con đó. Không duyệt: xoá yêu cầu.
@@ -26,9 +25,12 @@ export function funDiff(x) {
   if (daysLabel(c.days) !== daysLabel(x.days)) p.push(`${daysLabel(c.days)} → ${daysLabel(x.days)}`);
   return p;
 }
+// Thành tích con đã báo, đang chờ bố mẹ duyệt. Nằm trong sổ tài khoản với amount = 0 (chưa tính vào số dư, cả với máy chưa cập nhật app),
+// số tiền sẽ cộng ghi ở ask. Duyệt: amount = ask, bỏ pending. Không duyệt: xoá.
 export const pendingList = kidId => Object.entries(S.ledger).filter(([, l]) => l.pending && S.kids[l.kid] && (!kidId || l.kid === kidId)).map(([id, l]) => ({ id, ...l })).sort((a, b) => String(a.at).localeCompare(String(b.at)));
 
-// ---------- tài khoản ----------
+
+// ---------- màn Tài khoản ----------
 const LEDGER_KIND = {
   bonus: ['Thưởng', '⭐'], penalty: ['Phạt', '⚠️'], fee: ['Phí sử dụng', '📱'], spend: ['Chi tiêu', '💸'],
   reward: ['Đổi phiếu thưởng', '🎁'], week: ['Thưởng đủ tuần', '🏆'], day: ['Thưởng ngày đủ việc', '⭐'], chores: ['Việc nhà', '🧹'], adjust: ['Khớp số dư', '🏦'],

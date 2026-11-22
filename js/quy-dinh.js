@@ -8,6 +8,7 @@ import { againVnd, balance, bonusRules, choresList, choreSlot, choreVnd, clearMe
 import { addBtn, blankAdd, editBtn, moreBtn, pillBar, plusBtn, secHead, secIsOpen, suggest } from './giao-dien.js';
 import { DAY_SETS, daySet, formFoot, frow, kidRow, openModal, pickGrid, pillNum, pillSel, titleCard, toggle } from './form.js';
 
+// ---------- biểu tượng, loại mục giá ----------
 const CHORE_ICONS = ['🛏️', '🪥', '🧸', '🍽️', '🪴', '📚', '🎒', '👕', '🧹', '🧽', '🗑️', '📦', '🛋️', '🧦', '👟', '🧺', '🛁', '🥢', '🐶', '🐟', '🍚', '✏️', '🎹', '🏃', '🪢', '🏫', '🎧', '🪑', '🤝', '🌙', '🎬', '🎮', '📺', '🧩', '🗣️'];
 const PRICE_ICONS = {
   gift: ['🎁', '🎟️', '🍿', '🌙', '🧹', '🥞', '👫', '🍰', '🎬', '🎮', '🍦', '🧋', '🍕', '🧁', '📖', '🎡', '🛝', '🚲', '🏊'],
@@ -17,6 +18,8 @@ const PRICE_ICONS = {
 };
 // Các loại mục giá trong trang Quy định (nhóm "rewards"): thành tích học tập, ở trường và ở lớp học thêm (con tự báo, bố mẹ duyệt), phạt, phí sử dụng theo giờ, phiếu thưởng.
 export const PRICE_KINDS = [['merit', 'Thành tích', '🏅'], ['penalty', 'Phạt', '⚠️'], ['fee', 'Phí sử dụng', '📱'], ['gift', 'Phiếu thưởng', '🎁']];
+
+// ---------- bảng mẫu ----------
 // Bảng thưởng phạt mẫu, dùng cho gia đình mới hoặc thêm vào bảng đang có. Bản 2 (11/2026) theo bảng gia đình đã chốt.
 // kind 'must': việc phải làm mỗi ngày. kind 'extra': việc làm thêm, làm thì được tiền, không bắt buộc.
 // Việc mỗi ngày (kind 'must') có money = 0 là việc BẮT BUỘC: không cộng tiền từng lần, ngày nào làm đủ hết thì ngày đó được thưởng.
@@ -88,6 +91,8 @@ export const SAMPLE_MERITS = [
 // Bản của bảng mẫu. Con chưa ghi bản này (k.tableVer) thì trang Quy định gợi ý cập nhật một lần.
 // k.tableFull: nhà này đã được thêm đủ việc và mục giá của bản đó (xem autoFill).
 export const TABLE_VER = 2;
+
+// ---------- mục thành tích, tóm tắt một việc, nhãn giá ----------
 // Các mục thành tích con được báo. Nhà chưa từng được thêm sẵn (máy bố mẹ chưa mở bản này) thì dùng tạm bảng mẫu.
 const meritSeeded = () => !!S.paid?.caidat?.merit;
 export const meritList = () => { const l = pricesList('merit'); return l.length || meritSeeded() ? l : SAMPLE_MERITS.map((m, i) => ({ id: 'merit-' + (i + 1), kind: 'merit', ...m })); };
@@ -110,13 +115,9 @@ const giftTagOf = (kind, vnd) => kind === 'gift' && !vnd ? 'miễn phí' : money
 const giftTag = r => priceVnd(r) ? money(priceVnd(r)) : 'Miễn phí';
 export const priceTag = r => priceKind(r) === 'merit' ? '+' + money(priceVnd(r)) : priceKind(r) === 'penalty' ? (r.all ? 'Mất hết tiền' : r.week ? 'Mất tiền thưởng tuần' : '−' + money(priceVnd(r)))
   : priceKind(r) === 'fee' ? money(priceVnd(r)) + '/giờ' : giftTag(r);
-export function printCoupons() {
-  const gs = pricesList('gift');
-  printHtml(`<div class="coupon-sheet"><h1>Phiếu thưởng</h1><div class="cs-sub">Cắt ra, con dùng tiền trong tài khoản để đổi</div>
-    <div class="cs-grid">${gs.map((r, i) => `<div class="coupon c${i % 3}"><span class="c-ico">${esc(r.icon || '🎁')}</span><div><div class="c-t">${esc(r.name)}</div>${r.note ? `<div class="c-n">${esc(r.note)}</div>` : ''}<div class="c-p">${giftTag(r)}</div></div></div>`).join('')}</div></div>`);
-}
 
-// ---------- quy định: việc nhà và các mục giá ----------
+
+// ---------- thêm theo bảng mẫu, cập nhật theo bảng mẫu ----------
 function missingSamples() {
   const cn = new Set(Object.values(S.chores).map(c => norm(c.name))), pn = new Set(Object.values(S.rewards).map(r => norm(r.name)));
   return { chores: SAMPLE_CHORES.filter(c => ![c.name, ...(c.also || [])].some(n => cn.has(norm(n)))), prices: SAMPLE_PRICES.filter(r => ![r.name, ...(r.also || [])].some(n => pn.has(norm(n)))) };
@@ -233,14 +234,15 @@ export function tableUpdateRun(apply, bals = []) {
   }
   return () => { for (const [col, id, old] of before) put(col, id, old); for (const [col, id] of added) del(col, id); };
 }
-// Tiêu đề nhóm kèm nút thêm ngay tại chỗ: thêm đúng loại đang xem, không phải chọn lại loại trong form.
 // Việc đang có tiền từng lần mà trùng tên với việc phải làm trong bảng mẫu (gấp chăn, không kén ăn, bài tập, cất cặp, dọn bàn học, đánh răng...).
 export function weeklyCandidates() {
   const names = new Set(SAMPLE_CHORES.filter(isWeekly).flatMap(c => [c.name, ...(c.also || [])]).map(norm));
   return choresList().filter(c => isMust(c) && !isWeekly(c) && names.has(norm(c.name)));
 }
+
+// ---------- màn Quy định ----------
 // Trang Quy định: nơi duy nhất thêm, sửa, xoá việc nhà (bốn loại) và các mục giá (thành tích, phạt, phí sử dụng, phiếu thưởng).
-// Màn khác chỉ hiện và dẫn sang đây.
+// Màn khác chỉ hiện và dẫn sang đây. Tiêu đề mỗi nhóm có nút thêm ngay tại chỗ: thêm đúng loại đang xem, không phải chọn lại loại trong form.
 export function viewPrices() {
   const kids = kidsList(), chores = choresList(), off = !kids.length;
   let h = `<div class="day-head tools"><h1>Quy định</h1>${pillBar(moreBtn('price-menu', 'In bảng giá, phiếu thưởng, kế hoạch tuần'), plusBtn('Thêm việc nhà, thành tích, phạt, phí, phiếu thưởng', off))}</div>`;
@@ -291,7 +293,13 @@ export function printPrices() {
     ${sec('Phí sử dụng', pricesList('fee').map(r => cell(r.icon, r.name, money(priceVnd(r)) + '/giờ', 'minus')))}
     ${sec('Phiếu thưởng', pricesList('gift').map(r => cell(r.icon, r.name, giftTag(r))))}</div>`);
 }
-// ---------- form việc nhà: các nhóm thẻ, mỗi dòng một nhãn bên trái và giá trị bên phải ----------
+export function printCoupons() {
+  const gs = pricesList('gift');
+  printHtml(`<div class="coupon-sheet"><h1>Phiếu thưởng</h1><div class="cs-sub">Cắt ra, con dùng tiền trong tài khoản để đổi</div>
+    <div class="cs-grid">${gs.map((r, i) => `<div class="coupon c${i % 3}"><span class="c-ico">${esc(r.icon || '🎁')}</span><div><div class="c-t">${esc(r.name)}</div>${r.note ? `<div class="c-n">${esc(r.note)}</div>` : ''}<div class="c-p">${giftTag(r)}</div></div></div>`).join('')}</div></div>`);
+}
+
+// ---------- form việc nhà và form mục giá ----------
 // Bốn loại việc nhà, cùng một tên ở mọi màn, form và bản in (bảng tên gọi trong CLAUDE.md). Dữ liệu vẫn lưu bằng kind và money:
 //   week: Việc phải làm (kind 'must', money 0) · each: Việc được thưởng (kind 'must', money > 0) · extra: Việc làm thêm · fun: Việc thích làm.
 export const CHORE_KINDS = [['week', 'Việc phải làm', '⭐'], ['each', 'Việc được thưởng', '💰'], ['extra', 'Việc làm thêm', '💪'], ['fun', 'Việc thích làm', '🎬']];

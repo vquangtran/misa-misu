@@ -17,6 +17,7 @@ import { drawKidMode } from './man-con.js';
 import { autoAdds, autoFill } from './mot-lan.js';
 import './thao-tac.js';
 
+// ---------- vẽ khung và các màn ----------
 // Năm tab, mỗi tab trả lời một câu hỏi (xem CLAUDE.md): Hôm nay con cần làm gì; các con học gì, nộp gì, ai đưa đón;
 // con có bao nhiêu tiền, vì sao; nhà mình có việc gì, thưởng phạt thế nào; cài đặt của cả nhà.
 const NAV = [
@@ -50,7 +51,7 @@ function topbar() {
   return `<div class="topbar"><span class="sync wait"><i></i>${s}</span></div>`;
 }
 
-// Điều hướng bằng #hash
+// ---------- điều hướng bằng #hash ----------
 const viewOf = h => { h = NAV_ALIAS[h] || h; return NAV.some(n => n.id === h) ? h : 'hom-nay'; };
 // Địa chỉ trong app: #<tab>; riêng trang sổ học của một cô là #lich-hoc/so/<mã sổ>.
 function parseHash() {
@@ -70,6 +71,8 @@ setInterval(() => {
   if (k !== lastDay) { if (key(UI.date) === lastDay) UI.date = today(); lastDay = k; lastSlot = sl; return render(); }
   if (sl !== lastSlot) { lastSlot = sl; if ($('#modal').hidden) render(); }
 }, 60000);
+
+// ---------- màn mở đầu, mở gia đình trên Firebase ----------
 const cleanCode = v => String(v || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
 // Tách mã gia đình và mã của con (nếu là link riêng của một con, ...?gd=...&con=...) từ thứ được dán vào: cả link hoặc chỉ mã.
 function parseInvite(v) {
@@ -134,7 +137,7 @@ async function startFirebase() {
   }
 }
 
-// ---------- boot ----------
+// ---------- khởi động ----------
 // Manifest chỉ nạp ngoài iOS. Trên iPhone/iPad, Safari đọc manifest ngay lúc mở trang và dùng start_url cố định trong đó ("./")
 // khi Thêm vào MH chính, làm rơi mất ?gd=...&con=...; không có manifest thì iOS lưu đúng địa chỉ đang hiện.
 const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);

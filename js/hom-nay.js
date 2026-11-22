@@ -13,6 +13,7 @@ import { coins, coinUnit, goalProgress, pendingCard } from './tai-khoan.js';
 import { SAMPLE_CHORES } from './quy-dinh.js';
 import { kidForm } from './gia-dinh.js';
 
+// ---------- chuỗi ngày, sinh nhật, giờ ở trường ----------
 const streakChip = k => { const n = streakOf(k.id); return n ? `<span class="streak" title="Số ngày liên tiếp làm đủ việc phải làm">🔥 ${n} ngày liên tiếp</span>` : ''; };
 const bdayChip = (k, d) => isBirthday(k, d) ? `<span class="streak">🎂 Sinh nhật ${ageOf(k, d)} tuổi</span>` : '';
 
@@ -25,6 +26,8 @@ export function schoolNow(k, d, isToday) {
   const nx = nextSchool(t, d, k.id);
   return nx ? { title: `Soạn cặp cho ${nx.label === 'Ngày mai' ? 'ngày mai' : nx.label}`, subjects: nx.info.subjects, bag: true } : null;
 }
+
+// ---------- các buổi trong ngày ----------
 // Buổi nào mở sẵn ở màn Hôm nay. Xem hôm nay (cur = buổi đang diễn ra): chỉ mở buổi đó, các buổi khác thu gọn còn nhãn và số việc;
 // "Lúc nào cũng được" mở khi còn việc chưa xong hoặc có việc thích làm; việc làm thêm mở khi đã có làm.
 // Xem ngày khác (cur = null) thì mở những buổi còn việc chưa xong. Bấm nhãn để mở, đóng; lựa chọn đó giữ tới khi sang buổi khác.
@@ -126,6 +129,8 @@ export function choreMeta(c, kidId, d, isToday) {
 export const markRow = (x, big) => x.type === 'lesson'
   ? `<div class="${big ? 'big-mark' : 'item mark'}${!big && !RO ? ` edit-row" data-act="lesson-form" data-id="${esc(x.l.id)}` : ''}"><span class="ico">${lessonIcon(x.l.name)}</span><div class="txt"><div class="t"><span class="num">${esc(x.l.s)} – ${esc(x.l.e)}</span> ${esc(x.l.name)}</div>${placeTxt(x.l) ? `<div class="s">${placeTxt(x.l)}</div>` : ''}</div></div>`
   : `<div class="${big ? 'big-mark' : 'item mark'}"><span class="ico">${x.icon}</span><div class="txt"><div class="t"><span class="num">${hm(x.t)}</span> ${esc(x.text)}</div></div></div>`;
+
+// ---------- phiếu nghỉ, xem cả tuần, dải 7 ngày ----------
 export const skipNote = (k, d) => { const e = skipEntry(k.id, d); return e ? `<div class="skip-note">🎟️ ${key(d) === key(today()) ? 'Hôm nay' : 'Ngày này'} ${esc(k.name)} dùng phiếu “Một ngày không làm việc nhà”: việc phải làm được miễn, làm thì vẫn được thưởng.</div>` : ''; };
 function viewWeekGrid() {
   const kids = kidsList(), t = today(), ws = UI.gridWs || weekStart(t), days = Array.from({ length: 7 }, (_, i) => addDays(ws, i));
@@ -185,6 +190,8 @@ function weekStrip(sel, kid) {
   return `<div class="wk-row"><button class="wk-arrow" data-act="day" data-n="-7" aria-label="Tuần trước">${PREV}</button><div class="wk" data-swipe="week">${cells}</div><button class="wk-arrow" data-act="day" data-n="7" aria-label="Tuần sau">${NEXT}</button></div>`;
 }
 
+
+// ---------- màn Hôm nay ----------
 // Hàng trên cùng của màn Hôm nay: các con (kèm số việc đã xong trong ngày đang xem) bên trái, nút ⋯ và + bên phải.
 function todayTop(kids, cur, d) {
   const badge = k => { const l = mustFor(k.id, d), n = l.filter(c => isDone(d, k.id, c.id)).length, full = l.length > 0 && n === l.length; return l.length ? `<i class="num ${full ? 'full' : ''}">${full ? '✓' : `${n}/${l.length}`}</i>` : ''; };
@@ -349,6 +356,8 @@ export function drawSheet() {
 }
 export function printSheet() { printHtml(`<div class="wp-print">${kidsList().map(weekPlan).join('')}</div>`); }
 
+
+// ---------- đánh dấu việc, màn chúc mừng ----------
 // Đánh dấu / bỏ dấu một việc. Việc chung thì tính cho mọi con được giao việc đó trong ngày.
 // Việc ai làm trước thì tính: chỉ tính cho con vừa đánh dấu; có con khác cũng đã làm thì chia đều tiền cho những con đã làm.
 // Xong việc phải làm cuối cùng của buổi thì báo mở khoá việc thích làm.

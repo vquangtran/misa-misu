@@ -8,6 +8,7 @@ import { choreMeta, dayPlan, markRow, needLine, schoolNow, SEC_LABEL, skipNote, 
 import { acctStats, coins, funSection, goalProgress, goalsCard, histSection, pendingList } from './tai-khoan.js';
 import { meritList } from './quy-dinh.js';
 
+// ---------- thành tích, tin mới, bảng phạt, tài khoản của con ----------
 // Thành tích học tập trên màn của con: những mục con đã báo đang chờ duyệt, và nút + để báo mục mới.
 function meritSection(k) {
   const pend = pendingList(k.id);
@@ -36,7 +37,8 @@ function kidRules() {
 function kidAcct(k) {
   return `<div class="day-head"><h1>Tài khoản</h1></div>${acctStats(k)}<div class="slots">${kidRules()}${meritSection(k)}${goalsCard(k.id)}${histSection(k.id)}</div>`;
 }
-// ---------- kid mode ----------
+
+// ---------- màn của con: ba tab ----------
 export function drawKidMode() {
   const el = $('#km'), role = deviceRole(), lock = role !== 'parent';
   document.body.classList.toggle('locked', lock);
