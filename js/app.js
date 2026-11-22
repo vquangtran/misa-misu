@@ -872,8 +872,9 @@ function choreMeta(c, kidId, d, isToday) {
   const busy = busyAt(kidId, d, toMin(c.time)); if (busy) p.push(`<span class="late">⚠️ lúc ${esc(c.time)} con đang ${esc(busy)}</span>`);
   return p.filter(Boolean).join(' · ');
 }
+// Màn Hôm nay của bố mẹ (big = false): bấm vào buổi học thêm là mở form sửa buổi đó. Màn của con chỉ xem.
 const markRow = (x, big) => x.type === 'lesson'
-  ? `<div class="${big ? 'big-mark' : 'item mark'}"><span class="ico">${lessonIcon(x.l.name)}</span><div class="txt"><div class="t"><span class="num">${esc(x.l.s)} – ${esc(x.l.e)}</span> ${esc(x.l.name)}</div>${placeTxt(x.l) ? `<div class="s">${placeTxt(x.l)}</div>` : ''}</div></div>`
+  ? `<div class="${big ? 'big-mark' : 'item mark'}${!big && !RO ? ` edit-row" data-act="lesson-form" data-id="${esc(x.l.id)}` : ''}"><span class="ico">${lessonIcon(x.l.name)}</span><div class="txt"><div class="t"><span class="num">${esc(x.l.s)} – ${esc(x.l.e)}</span> ${esc(x.l.name)}</div>${placeTxt(x.l) ? `<div class="s">${placeTxt(x.l)}</div>` : ''}</div></div>`
   : `<div class="${big ? 'big-mark' : 'item mark'}"><span class="ico">${x.icon}</span><div class="txt"><div class="t"><span class="num">${hm(x.t)}</span> ${esc(x.text)}</div></div></div>`;
 
 // ---------- rendering ----------
@@ -887,6 +888,7 @@ function draw() {
   const body = !loaded ? loading() : deviceRole() !== 'parent' ? '' : ({ 'hom-nay': viewToday, 'lich-hoc': viewSchedule, 'tai-khoan': viewAccount, 'quy-dinh': viewPrices, 'gia-dinh': viewFamily }[UI.view] || viewToday)();
   // Máy của con (hoặc máy chưa chọn là của ai): không vẽ phần của bố mẹ bên dưới.
   $('#app').innerHTML = deviceRole() === 'parent' ? topbar() + body : '';
+  $('#app').classList.toggle('wide', loaded && deviceRole() === 'parent' && UI.view === 'hom-nay' && UI.todayMode !== 'week' && !!UI.todayTwo);
   drawKidMode();
   if (UI.sheet) drawSheet();
   const tb = $('#app .tabbar .on') || $('#km .tabbar .on'); if (tb) tb.parentElement.scrollLeft = Math.max(0, tb.offsetLeft - 60);
@@ -1023,13 +1025,15 @@ function viewToday() {
   let h = `${todayTop(kids, k, d)}
   <div class="day-head"><h1>${isT ? 'Hôm nay' : WD[d.getDay()]}</h1><div class="day-side"><label class="day-pick"><span>${dateTxt}</span>${CHEV}<input type="date" id="day-pick" value="${key(d)}" aria-label="Chọn ngày"></label>${isT ? '' : '<button class="linkbtn" data-act="day" data-n="0">Về hôm nay</button>'}</div></div>
   ${k ? weekStrip(d, k) : ''}`;
+  UI.todayTwo = false;
   if (!k) return h + noKids();
-  h += pendingCard('', true);
-  if (future) h += `<p class="foot-note">Ngày này chưa tới nên chưa đánh dấu được.</p>`;
+  // Mỗi khối mang một thứ tự (order): điện thoại một cột, thứ tự như cũ. Máy tính rộng chia hai cột: các buổi trong ngày bên trái;
+  // thông báo cần bố mẹ chú ý, khối nhắc, bài cần nộp, sổ học của cô bên phải, vẫn ở đầu màn.
+  const blk = (o, html, cls = '') => html ? `<div class="dcb ${cls}" style="order:${o}">${html}</div>` : '';
   const list = mustFor(k.id, d), plan = dayPlan(k.id, d);
   const n = list.filter(c => isDone(d, k.id, c.id)).length, left = list.length - n;
   // Một dòng tóm tắt: còn mấy việc, chuỗi ngày, số dư (bấm sang Tài khoản).
-  h += `<section class="kid-sum" style="--tint:${tintOf(k)}"><div class="kid-sum-row"><b class="kid-sum-t">${!list.length ? 'Không có việc phải làm' : left ? `Còn ${left} việc phải làm` : 'Xong hết việc phải làm 🎉'}</b><a href="#tai-khoan" class="acct-link" data-act="acct-go" data-kid="${k.id}" aria-label="Tài khoản của ${esc(k.name)}">${moneyChip(k)}${CHEV}</a></div>
+  const sum = `<section class="kid-sum" style="--tint:${tintOf(k)}"><div class="kid-sum-row"><b class="kid-sum-t">${!list.length ? 'Không có việc phải làm' : left ? `Còn ${left} việc phải làm` : 'Xong hết việc phải làm 🎉'}</b><a href="#tai-khoan" class="acct-link" data-act="acct-go" data-kid="${k.id}" aria-label="Tài khoản của ${esc(k.name)}">${moneyChip(k)}${CHEV}</a></div>
     ${list.length ? `${barCount(n, list.length)}` : ''}
     ${streakChip(k) || bdayChip(k, d) ? `<div class="kid-sub">${streakChip(k)}${bdayChip(k, d)}</div>` : ''}</section>`;
   // Các dòng nhắc gom vào một khối: con đang ở đâu, giờ ở trường, mốc sắp tới, phiếu nghỉ.
@@ -1040,16 +1044,15 @@ function viewToday() {
   // Buổi học thêm hôm nay hoặc hôm qua cô đã ghi nhận xét: một dòng, bấm để mở sổ.
   if (isT) for (const c of classesOf(k.id)) for (const x of sessList(soOf(c.code)).filter(x => x.state !== 'plan' && x.note && x.date && daysTo(x.date) >= -1 && daysTo(x.date) <= 0))
     notes += `<button class="school-line so-line" data-act="cls-open" data-id="${c.id}"><b>📒 ${esc(c.teacher || 'Cô')} nhận xét buổi ${esc(c.name)} ${daysTo(x.date) ? 'hôm qua' : 'hôm nay'}:</b> ${esc(String(x.note).slice(0, 140))}</button>`;
-  if (notes) h += `<div class="notes">${notes}</div>`;
   // Nhà chưa có việc nào: một dòng gợi ý bảng mẫu, gọn để các ô thêm việc vẫn nằm ngay bên dưới.
-  if (!Object.keys(S.chores).length) h += `<section class="suggest"><div><b>Chưa biết bắt đầu từ đâu?</b><span>Bảng mẫu có sẵn ${SAMPLE_CHORES.length} việc, kèm mục phạt, phí sử dụng và phiếu thưởng. Thêm xong sửa lại tuỳ ý.</span></div><button class="btn primary sm" data-act="seed">Dùng bảng mẫu</button></section>`;
-  h += `<div class="slots">`;
+  const seed = Object.keys(S.chores).length ? '' : `<section class="suggest"><div><b>Chưa biết bắt đầu từ đâu?</b><span>Bảng mẫu có sẵn ${SAMPLE_CHORES.length} việc, kèm mục phạt, phí sử dụng và phiếu thưởng. Thêm xong sửa lại tuỳ ý.</span></div><button class="btn primary sm" data-act="seed">Dùng bảng mẫu</button></section>`;
   // Bài cần nộp: cùng kiểu với các buổi, nằm trước để thấy ngay.
+  let side = '', main = '';
   const ts = isT ? tasksSoon(k.id) : [];
-  if (ts.length) h += `<section class="slot s-task"><div class="slot-h"><a class="slot-pill" href="#lich-hoc" data-act="tkb-go" data-tab="bai-tap" data-kid="${k.id}">📝<span>Bài cần nộp</span><i class="num">${ts.length}</i>${CHEV}</a></div><div class="slot-list list">${ts.map(x => taskRow(x, false, 'mini')).join('')}</div></section>`;
+  if (ts.length) side += `<section class="slot s-task"><div class="slot-h"><a class="slot-pill" href="#lich-hoc" data-act="tkb-go" data-tab="bai-tap" data-kid="${k.id}">📝<span>Bài cần nộp</span><i class="num">${ts.length}</i>${CHEV}</a></div><div class="slot-list list">${ts.map(x => taskRow(x, false, 'mini')).join('')}</div></section>`;
   // Sổ học của cô: mỗi sổ một dòng tóm tắt (buổi gần nhất, nhận xét mới nhất, học phí tháng này, buổi cô chưa ghi), bấm để mở sổ.
   const cls = isT && !RO ? classesOf(k.id) : [];
-  if (cls.length) h += `<section class="slot">${secHead('📒', 'Sổ học của cô', { cnt: cls.length, key: 'today-so' })}${secIsOpen('today-so') ? `<div class="slot-list list">${cls.map(soTodayRow).join('')}</div>` : ''}</section>`;
+  if (cls.length) side += `<section class="slot">${secHead('📒', 'Sổ học của cô', { cnt: cls.length, key: 'today-so' })}${secIsOpen('today-so') ? `<div class="slot-list list">${cls.map(soTodayRow).join('')}</div>` : ''}</section>`;
   const cur = isT ? slotAt(nowMin()) : null, canAdd = d >= t;
   // Luôn đủ bốn buổi (từ hôm nay trở đi): buổi chưa có việc hiện ô trống có dấu + để thêm ngay tại chỗ.
   const groups = SLOTS.map(([id, label, icon]) => plan.find(g => !g.extra && g.id === id) || { id, label, icon, items: [], blank: true }).filter(g => !g.blank || canAdd);
@@ -1062,26 +1065,30 @@ function viewToday() {
     const cnt = sc.cnt || (g.blank ? '0' : '');
     const add = !canAdd ? '' : g.extra ? `<button class="mini-add" data-act="chore-form" data-kind="extra" aria-label="Thêm việc làm thêm">${PLUS}</button>`
       : `<button class="mini-add" data-act="quick-add" data-slot="${g.id}" aria-label="Thêm việc: ${g.label}">${PLUS}</button>`;
-    h += `<section class="slot s-${g.extra ? 'them' : g.id || 'any'} ${isNow ? 'now' : ''} ${full ? 'full' : ''}" data-slot="${sk}"><div class="slot-h"><button class="slot-pill" data-act="slot-toggle" data-slot="${sk}" aria-expanded="${!!open}">${g.icon}<span>${g.label}</span>${cnt ? `<i class="num ${slotMissed(g, cur, full, sc.n) ? 'late' : ''}">${cnt}</i>` : ''}${DOWN}</button>${isNow ? '<span class="nowpill">Bây giờ</span>' : ''}${g.blank && open ? '' : add}</div>`;
-    if (open && g.blank) h += `<button class="slot-blank" data-act="quick-add" data-slot="${g.id}"><span>${SLOT_ASK[g.id]}</span>${PLUS}</button>`;
+    main += `<section class="slot s-${g.extra ? 'them' : g.id || 'any'} ${isNow ? 'now' : ''} ${full ? 'full' : ''}" data-slot="${sk}"><div class="slot-h"><button class="slot-pill" data-act="slot-toggle" data-slot="${sk}" aria-expanded="${!!open}">${g.icon}<span>${g.label}</span>${cnt ? `<i class="num ${slotMissed(g, cur, full, sc.n) ? 'late' : ''}">${cnt}</i>` : ''}${DOWN}</button>${isNow ? '<span class="nowpill">Bây giờ</span>' : ''}${g.blank && open ? '' : add}</div>`;
+    if (open && g.blank) main += `<button class="slot-blank" data-act="quick-add" data-slot="${g.id}"><span>${SLOT_ASK[g.id]}</span>${PLUS}</button>`;
     else if (open) for (const part of slotSecs(g)) {
       // Mỗi nhóm một thẻ riêng, có tiêu đề nhỏ ở trên (mốc giờ và việc làm thêm không cần tiêu đề).
-      if (SEC_LABEL[part.sec]) h += subHead(part.sec, part.items, k.id, d);
-      h += `<div class="slot-list list">`;
+      if (SEC_LABEL[part.sec]) main += subHead(part.sec, part.items, k.id, d);
+      main += `<div class="slot-list list">`;
       for (const x of part.items) {
-        if (x.type !== 'chore') { h += markRow(x); continue; }
+        if (x.type !== 'chore') { main += markRow(x); continue; }
         const c = x.c, on = isDone(d, k.id, c.id), steps = stepsOf(c, k.id, d), mask = stepMask(d, k.id, c.id);
         const right = isFun(c) ? (x.locked ? `<button class="fun-badge" data-act="fun-need" data-kid="${k.id}" data-chore="${c.id}" data-d="${key(d)}" aria-label="Cần làm gì để mở khoá: ${esc(c.name)}">🔒 Chưa mở</button>` : '<span class="fun-badge open">Được làm</span>')
           : `<button class="stamp ${on ? 'on' : ''}" data-act="tick" data-kid="${k.id}" data-chore="${c.id}" ${future ? 'disabled' : ''} aria-pressed="${on}" aria-label="${on ? 'Bỏ dấu' : 'Đóng dấu'}: ${esc(c.name)}">${STAR}</button>`;
-        h += `<div class="item ${on ? 'done' : takenBy(c, k.id, d).length ? 'taken' : ''} ${isFun(c) ? 'fun' + (x.locked ? ' locked' : '') : ''}"><span class="ico">${esc(c.icon || '✅')}</span><div class="txt"><div class="t">${esc(c.name)}</div><div class="s">${choreMeta(c, k.id, d, isT)}</div>
+        // Bấm vào việc (ngoài nút đóng dấu và các mục con) là mở form sửa việc đó.
+        main += `<div class="item edit-row ${on ? 'done' : takenBy(c, k.id, d).length ? 'taken' : ''} ${isFun(c) ? 'fun' + (x.locked ? ' locked' : '') : ''}" data-act="chore-form" data-id="${c.id}"><span class="ico">${esc(c.icon || '✅')}</span><div class="txt"><div class="t">${esc(c.name)}</div><div class="s">${choreMeta(c, k.id, d, isT)}</div>
           ${steps.length && !isFun(c) ? `<div class="steps">${steps.map(st => { const ok = on || (mask >> st.i) & 1; return `<button class="step ${ok ? 'on' : ''}" data-act="step" data-kid="${k.id}" data-chore="${c.id}" data-i="${st.i}" ${future ? 'disabled' : ''} aria-pressed="${!!ok}">${esc(st.t)}</button>`; }).join('')}</div>` : ''}</div>${right}</div>`;
       }
-      h += `</div>`;
+      main += `</div>`;
     }
-    h += `</section>`;
+    main += `</section>`;
   }
-  h += `</div>`;
-  return h;
+  const colR = blk(1, pendingCard('', true)) + blk(4, notes ? `<div class="notes">${notes}</div>` : '') + blk(6, side ? `<div class="slots">${side}</div>` : '');
+  const colL = blk(2, future ? `<p class="foot-note">Ngày này chưa tới nên chưa đánh dấu được.</p>` : '') + blk(3, sum) + blk(5, seed) + blk(7, `<div class="slots">${main}</div>`, side ? 'after' : '');
+  UI.todayTwo = !!colR;
+  // Cột thông báo đứng trước trong mã trang, để trình đọc màn hình và phím Tab đi qua thông báo trước, như thứ tự nhìn thấy trên điện thoại.
+  return h + `<div class="day-cols ${colR ? 'two' : ''}"><div class="dc-side">${colR}</div><div class="dc-main">${colL}</div></div>`;
 }
 function soTodayRow(c) {
   const k = CLS[c.code], d = soOf(c.code), st = soStats(d), last = st.done[st.done.length - 1], f = feeOf(c), mk = key(today()).slice(0, 7);
@@ -2116,7 +2123,7 @@ function drawTeacher() {
   const days = schedSlots(info).map(x => `${WDS[x.day]}${x.s ? ' ' + x.s : ''}`).join(', ');
   const nav = cls => T_TABS.map(([v, l, ic]) => `<a href="#${v}" class="${cls} ${v === tab ? 'on' : ''}" data-act="t-tab" data-v="${v}" ${v === tab ? 'aria-current="page"' : ''}>${iconSvg(ic)}<span>${l}${v === 'bai' && st.wait ? ` <i class="cnt num">${st.wait}</i>` : v === 'buoi' && need ? ` <i class="cnt num late">${need}</i>` : ''}</span></a>`).join('');
   const add = tab === 'buoi' ? `<button class="add" data-act="sess-form" aria-label="Ghi buổi học">${PLUS}</button>` : tab === 'bai' ? `<button class="add" data-act="sess-form" aria-label="Ghi buổi học và giao bài tập">${PLUS}</button>`
-    : st.done.length ? `<button data-act="so-print" aria-label="In báo cáo" title="In báo cáo">🖨️</button>` : '';
+    : moreBtn('t-menu', 'In báo cáo, nhập từ file Excel');
   // Bài con mới nộp (có ảnh, file) mà cô chưa nhận: thẻ báo ở đầu mọi tab, bấm sang tab Bài tập.
   const fresh = st.hw.filter(t => !t.got && t.sub.length);
   const newCard = fresh.length && tab !== 'bai' ? `<button class="so-new" data-act="t-tab" data-v="bai"><span class="ico">📥</span><span class="txt"><b>Có ${fresh.length} bài mới nộp</b><span>${esc(fresh.slice(0, 3).map(t => `${t.title} (${t.sub.length} file)`).join(', '))}${fresh.length > 3 ? '…' : ''}</span></span>${CHEV}</button>` : '';
@@ -2134,7 +2141,6 @@ function drawTeacher() {
       : `<p class="foot-note" style="margin-top:0">Bài cô giao hiện ngay trong mục Bài tập trên máy của ${esc(info.student)}, kèm file cô đính kèm. Con tick làm xong thì cô thấy ở đây.</p>`;
   } else {
     h += (st.done.length ? `<div class="slots">${feeSection(d, feeOf(info), null)}${bankSection(d, true)}${soMonths(TEACH, d, 'view')}</div>` : `<p class="foot-note" style="margin-top:0">Báo cáo theo tháng (số buổi đã dạy để tính học phí, nội dung, nhận xét, bài tập) sẽ hiện ở đây sau buổi học đầu tiên. Phụ huynh xem được đúng phần này.</p><div class="slots">${bankSection(d, true)}</div>`);
-    h += `<div class="slot-list list"><button class="item nav" data-act="so-import"><span class="ico">📥</span><span class="txt"><span class="t">Nhập từ file Excel</span><span class="s">Chép các buổi từ file theo dõi tiến độ vào sổ</span></span>${CHEV}</button></div>`;
   }
   shell(nav, h);
 }
@@ -2994,20 +3000,23 @@ function viewFamily() {
     ? `<div class="slot-list list">${kids.map(k => `<div class="item">${ava(k, 'sm')}<div class="txt"><div class="t">${esc(k.name)}</div><div class="s">${ageOf(k) !== null ? `${ageOf(k)} tuổi (sinh ${dm(parse(k.birthday))}/${parse(k.birthday).getFullYear()}) · ` : ''}${modeLabel(k)}</div></div><div class="acts">${editBtn('kid-form', k.id, k.name)}</div></div>`).join('')}</div>`
     : blankAdd('Thêm tên và hình đại diện cho từng con', 'kid-form')}</section>${kids.length ? staysCard(today().getDay()) : ''}</div>`;
   if (kids.length) h += `<p class="foot-note">Việc nhà, thưởng, phạt và phiếu thưởng nằm ở trang <a href="#quy-dinh">Quy định</a>.</p>`;
-  h += roleSection();
-  h += `<section class="slot">${secHead('🔐', 'Chia sẻ và sao lưu')}<div class="card stack">`;
+  // Chia sẻ và máy của con: ai mở được app trên máy nào. Link mời cho máy của bố mẹ, mã PIN và link riêng cho máy của từng con.
+  h += `<section class="slot">${secHead('🔒', 'Chia sẻ và máy của con')}<div class="card stack">`;
   if (store?.kind === 'firebase') {
     h += `<div class="field"><label for="invite">Link mời người nhà</label>
       <div class="copyrow"><input id="invite" class="input" readonly value="${esc(inviteLink())}"><button class="btn primary sm" data-act="copy-invite">Sao chép</button></div>
-      <span class="muted small">${pinHash() ? 'Link cho bố, mẹ: máy mới mở link sẽ được hỏi là máy của ai, chọn bố mẹ thì nhập mã PIN. Máy của con thì dùng link riêng ở mục Máy của con.' : 'Gửi link này cho bố/mẹ hoặc mở trên máy tính bảng của con. Ai có link đều xem và sửa được bảng của nhà mình, nên chỉ gửi cho người trong nhà. Muốn máy của con chỉ thấy phần của con thì đặt mã PIN ở mục Máy của con.'}</span></div>`;
+      <span class="muted small">${pinHash() ? 'Link cho bố, mẹ: máy mới mở link sẽ được hỏi là máy của ai, chọn bố mẹ thì nhập mã PIN. Máy của con thì dùng link riêng của từng con ở bên dưới.' : 'Gửi link này cho bố/mẹ hoặc mở trên máy tính bảng của con. Ai có link đều xem và sửa được bảng của nhà mình, nên chỉ gửi cho người trong nhà. Muốn máy của con chỉ thấy phần của con thì đặt mã PIN bố mẹ ở bên dưới.'}</span></div>`;
   } else {
     h += `<div class="note">Dữ liệu đang lưu trên trình duyệt của máy này. Muốn đồng bộ giữa điện thoại của bố, mẹ và máy của con, hãy bật Firebase theo hướng dẫn trong README của repo.</div>`;
   }
+  h += roleRows();
+  if (store?.kind === 'firebase') h += `<div class="list"><button class="item nav" data-act="leave"><span class="ico">🔁</span><span class="txt"><span class="t">Đổi sang gia đình khác</span></span>${CHEV}</button></div>`;
+  h += `</div></section>`;
+  h += `<section class="slot">${secHead('🔐', 'Sao lưu')}<div class="card stack">`;
   if (getSeedMem()) h += `<div class="note">🔐 Máy này đã nhớ mật khẩu lịch gia đình. Mỗi khi lịch lưu sẵn có bản mới, app tự nạp lúc mở. <button class="btn quiet sm" data-act="seed-forget">Quên mật khẩu</button></div>`;
   h += `<div class="list"><button class="item nav" data-act="seed-form"><span class="ico">🔐</span><span class="txt"><span class="t">Nạp lịch gia đình</span><span class="s">Lịch lưu sẵn, mở bằng mật khẩu gia đình</span></span>${CHEV}</button>
     <button class="item nav" data-act="export"><span class="ico">⬇️</span><span class="txt"><span class="t">Tải bản sao lưu</span></span>${CHEV}</button>
-    <label class="item nav file-btn"><span class="ico">⬆️</span><span class="txt"><span class="t">Nhập từ file sao lưu</span></span>${CHEV}<input type="file" id="import-file" accept=".json,application/json"></label>
-    ${store?.kind === 'firebase' ? `<button class="item nav" data-act="leave"><span class="ico">🔁</span><span class="txt"><span class="t">Đổi sang gia đình khác</span></span>${CHEV}</button>` : ''}</div></div></section>`;
+    <label class="item nav file-btn"><span class="ico">⬆️</span><span class="txt"><span class="t">Nhập từ file sao lưu</span></span>${CHEV}<input type="file" id="import-file" accept=".json,application/json"></label></div></div></section>`;
   return h;
 }
 
@@ -3036,7 +3045,7 @@ const kidLink = id => inviteLink() + '&con=' + encodeURIComponent(id);
 const KID_ACTS = new Set(['close', 'tick', 'step', 'slot-toggle', 'task-done', 'task-step', 'role-kid', 'role-kid-ok', 'role-parent', 'pin-ok',
   'tkb-go', 'learn-tab', 'tkb-day', 'ag-day', 'ag-week', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel', 'fun-form', 'fun-ask', 'fun-cancel', 'fun-need', 'num-step', 'km-acct', 'task-form', 'task-save', 'task-del', 'task-subj', 'task-due', 'hw-view', 'file-open', 'print-ask', 'sub-del']);
 // Việc màn của cô được làm: chỉ những gì thuộc sổ học.
-const TEACH_ACTS = new Set(['close', 't-tab', 'sess-form', 'sess-view', 'sess-toggle', 'none', 'so-plan-more', 'so-off', 'sess-save', 'hw-row-add', 'so-import', 'so-import-go', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'sub-dl', 'att-del', 'so-print', 'sec-toggle', 'num-step', 'bank-form', 'bank-save']);
+const TEACH_ACTS = new Set(['close', 't-tab', 't-menu', 'sess-form', 'sess-view', 'sess-toggle', 'none', 'so-plan-more', 'so-off', 'sess-save', 'hw-row-add', 'so-import', 'so-import-go', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'sub-dl', 'att-del', 'so-print', 'sec-toggle', 'num-step', 'bank-form', 'bank-save']);
 function kidMay(a, b) {
   const r = deviceRole(); if (r === 'parent') return true;
   if (!KID_ACTS.has(a)) return false;
@@ -3071,10 +3080,10 @@ function roleKidForm(id, fromParent) {
   <p class="muted small lead">${fromParent ? `Máy này sẽ chỉ còn thấy phần của ${esc(k.name)}: việc hôm nay, bài cần nộp, tiền đang có. Không thêm, sửa, xoá được gì.` : `Con là ${esc(k.name)} phải không? Máy này sẽ chỉ hiện phần của con.`} Muốn đổi lại phải có mã PIN của bố mẹ.</p>
   <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="role-kid-ok" data-kid="${id}">Đúng rồi</button></div>`);
 }
-// Mục "Máy của con" trong trang Gia đình.
-function roleSection() {
+// Mã PIN bố mẹ và máy của từng con, nằm trong mục Chia sẻ và máy của con (trang Gia đình).
+function roleRows() {
   const kids = kidsList(); if (!kids.length) return '';
-  let h = `<section class="slot">${secHead('🔒', 'Máy của con')}<div class="card stack">`;
+  let h = '';
   if (!pinHash()) {
     h += `<div class="note">Hiện giờ ai mở app cũng thấy và sửa được như bố mẹ. Đặt mã PIN bố mẹ để máy của con chỉ thấy phần của con.</div>
       <div class="list">${menuRow('data-act="pin-set"', '🔑', 'Đặt mã PIN bố mẹ', 'Sau đó mỗi máy chọn một lần: bố mẹ hay con nào')}</div>`;
@@ -3086,7 +3095,7 @@ function roleSection() {
     }
     h += `${menuRow('data-act="pin-set"', '🔑', 'Đổi mã PIN')}<button class="item nav" data-act="pin-clear"><span class="ico">🔓</span><span class="txt"><span class="t">Bỏ mã PIN</span><span class="s">Mọi máy lại thấy và sửa được như bố mẹ</span></span>${CHEV}</button></div>`;
   }
-  return h + `</div></section>`;
+  return h;
 }
 
 // Thành tích học tập trên màn của con: những mục con đã báo đang chờ duyệt, và nút + để báo mục mới.
@@ -3922,7 +3931,9 @@ document.addEventListener('click', e => {
     delFiles(TEACH, [...(old?.files || []), ...(at?.added || [])]);
     closeModal(); clsDel(TEACH, 'tasks', id); return toast('Đã xoá bài tập.');
   }
-  if (a === 'so-print') { const info = soOf(TEACH).info.lop || {}; return printSo(TEACH, bookName(info), info.student || '', info.teacher || '', feeOf(info)); }
+  if (a === 't-menu') return menuSheet('Báo cáo', [menuRow('data-act="so-print"', '🖨️', 'In báo cáo', 'Số buổi, học phí và nội dung từng buổi, khổ ngang', !soStats(soOf(TEACH)).done.length),
+    menuRow('data-act="so-import"', '📥', 'Nhập từ file Excel', 'Chép các buổi từ file theo dõi tiến độ vào sổ')]);
+  if (a === 'so-print') { closeModal(); const info = soOf(TEACH).info.lop || {}; return printSo(TEACH, bookName(info), info.student || '', info.teacher || '', feeOf(info)); }
   if (a === 'cls-form') return classForm(id, b.dataset.kid, b.dataset.name);
   // Mở trang sổ học của một cô. Nhớ trang đang đứng để nút quay lại về đúng chỗ (Hôm nay hoặc Học thêm).
   if (a === 'cls-open') { closeModal(); UI.soBack = location.hash || '#hom-nay'; location.hash = '#lich-hoc/so/' + encodeURIComponent(id); return; }
