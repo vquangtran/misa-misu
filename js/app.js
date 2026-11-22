@@ -20,6 +20,9 @@ const dm = d => d.getDate() + '/' + (d.getMonth() + 1);
 const money = n => (Number(n) < 0 ? '−' : '') + Math.abs(Math.round(Number(n) || 0)).toLocaleString('vi-VN') + 'đ';
 const signed = n => (Number(n) > 0 ? '+' : '') + money(n);
 const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
+// Chữ để so sánh: bỏ khoảng trắng hai đầu, viết thường. slug: viết liền không dấu, nối bằng gạch ngang (làm mã cố định theo tên).
+const norm = v => String(v || '').trim().toLowerCase();
+const slug = v => norm(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.85 5.9 6.5.85-4.75 4.5 1.2 6.45L12 17.2l-5.8 3.1 1.2-6.45L2.65 9.35l6.5-.85z"/></svg>';
 const CHEV = '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>';
 // Mũi tên ở cuối dòng: bấm vào bất kỳ chỗ nào trên dòng là mở form sửa (kiểu danh sách iOS).
@@ -187,6 +190,9 @@ const setData = v => { S = v; }, setStore = v => { store = v; }, setLoaded = v =
 // Đang vẽ cho con xem (mục Học tập ở màn của con): các nút thêm, sửa không hiện.
 let RO = false;
 const setRO = v => { RO = v; };
+// Mã lớp, khi máy này đang mở bằng link của cô (màn của cô, ?lop=…).
+let TEACH = null;
+const setTeach = v => { TEACH = v; };
 const FAMILY_KEY = 'be-cham-ngoan-family';
 const getFamily = () => { try { return localStorage.getItem(FAMILY_KEY); } catch (e) { return null; } };
 const setFamily = v => { try { v ? localStorage.setItem(FAMILY_KEY, v) : localStorage.removeItem(FAMILY_KEY); } catch (e) {} };
@@ -1432,8 +1438,6 @@ function lessonItem(l, who = false) {
 // Cô mở link (…?lop=<mã lớp>) là vào thẳng màn của cô: ghi từng buổi học (nội dung, nhận xét, tài liệu), giao bài tập kèm file,
 // nhận bài và cho điểm. Máy của cô chỉ biết mã lớp nên không đọc được gì khác của gia đình (xem js/store.js).
 // Bài cô giao tự hiện trong phần Bài tập của con (tab Bài tập, màn Hôm nay, máy của con); con tick xong thì cô thấy ngay.
-let TEACH = null;   // mã lớp, khi máy này đang mở bằng link của cô
-const setTeach = v => { TEACH = v; };
 const CLS = {};     // mã lớp → { st: nơi lưu, data: { info, sessions, tasks }, loaded, err }
 const LOP_KEY = 'misa-misu-lop';
 const getLop = () => { try { return localStorage.getItem(LOP_KEY); } catch (e) { return null; } };
@@ -2667,7 +2671,6 @@ function printCoupons() {
 }
 
 // ---------- quy định: việc nhà và các mục giá ----------
-const norm = v => String(v || '').trim().toLowerCase();
 function missingSamples() {
   const cn = new Set(Object.values(S.chores).map(c => norm(c.name))), pn = new Set(Object.values(S.rewards).map(r => norm(r.name)));
   return { chores: SAMPLE_CHORES.filter(c => ![c.name, ...(c.also || [])].some(n => cn.has(norm(n)))), prices: SAMPLE_PRICES.filter(r => ![r.name, ...(r.also || [])].some(n => pn.has(norm(n)))) };
@@ -2681,7 +2684,6 @@ function addSamples(kidIds) {
 // Việc và mục giá có trong bảng mẫu mà nhà mình chưa có (tính cả tên cũ). Việc giao cho mọi con, bắt đầu từ hôm nay.
 // Mã cố định theo tên, để hai máy cùng thêm một lúc không sinh ra hai việc trùng nhau.
 // Thứ tự: chen vào cạnh việc của bảng mà nhà mình đã có, để trong mỗi buổi các việc vẫn theo thứ tự của bảng.
-const slug = v => norm(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 function sampleAdds() {
   const kids = kidsList(), chores = choresList(), prices = pricesList(), ops = [];
   const SL = { sang: 'buổi sáng', chieu: 'buổi chiều', toi: 'buổi tối', '': 'lúc nào cũng được' };
