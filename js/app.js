@@ -52,17 +52,19 @@ const PRICE_ICONS = {
   fee: ['📱', '📺', '🎮', '💻', '🎧'],
   merit: ['👏', '⭐', '💯', '🥈', '🏆', '🏅', '🥇', '🎖️', '📝', '📖', '🎤', '🎨', '⚽'],
 };
-// Các loại mục trong Bảng giá (nhóm "rewards"): thành tích học tập, ở trường và ở lớp học thêm (con tự báo, bố mẹ duyệt), phạt, phí sử dụng theo giờ, đổi quà.
-const PRICE_KINDS = [['merit', 'Thành tích', '🏅'], ['penalty', 'Phạt', '⚠️'], ['fee', 'Phí sử dụng', '📱'], ['gift', 'Đổi quà', '🎁']];
+// Các loại mục giá trong trang Quy định (nhóm "rewards"): thành tích học tập, ở trường và ở lớp học thêm (con tự báo, bố mẹ duyệt), phạt, phí sử dụng theo giờ, phiếu thưởng.
+const PRICE_KINDS = [['merit', 'Thành tích', '🏅'], ['penalty', 'Phạt', '⚠️'], ['fee', 'Phí sử dụng', '📱'], ['gift', 'Phiếu thưởng', '🎁']];
+// Năm tab, mỗi tab trả lời một câu hỏi (xem CLAUDE.md): Hôm nay con cần làm gì; các con học gì, nộp gì, ai đưa đón;
+// con có bao nhiêu tiền, vì sao; nhà mình có việc gì, thưởng phạt thế nào; cài đặt của cả nhà.
 const NAV = [
   { id: 'hom-nay', label: 'Hôm nay', ic: 'checklist' },
   { id: 'lich-hoc', label: 'Học tập', ic: 'calendar' },
   { id: 'tai-khoan', label: 'Tài khoản', ic: 'piggy' },
-  { id: 'bang-gia', label: 'Bảng giá', ic: 'tag' },
+  { id: 'quy-dinh', label: 'Quy định', ic: 'tag' },
   { id: 'gia-dinh', label: 'Gia đình', ic: 'family' },
 ];
-// Link cũ (#phan-thuong, #tien-tieu-vat) mở trang mới tương ứng.
-const NAV_ALIAS = { 'phan-thuong': 'bang-gia', 'tien-tieu-vat': 'tai-khoan' };
+// Link cũ (#bang-gia, #phan-thuong, #tien-tieu-vat) mở trang mới tương ứng.
+const NAV_ALIAS = { 'bang-gia': 'quy-dinh', 'phan-thuong': 'quy-dinh', 'tien-tieu-vat': 'tai-khoan' };
 // Bảng thưởng phạt mẫu, dùng cho gia đình mới hoặc thêm vào bảng đang có. Bản 2 (11/2026) theo bảng gia đình đã chốt.
 // kind 'must': việc phải làm mỗi ngày. kind 'extra': việc làm thêm, làm thì được tiền, không bắt buộc.
 // Việc mỗi ngày (kind 'must') có money = 0 là việc BẮT BUỘC: không cộng tiền từng lần, ngày nào làm đủ hết thì ngày đó được thưởng.
@@ -72,7 +74,7 @@ const DAILY = [0, 1, 2, 3, 4, 5, 6];
 const FUN_DEFAULT = 'Chơi game hoặc dùng iPad/điện thoại 15 phút';
 const SAMPLE_CHORES = [
   // claim: việc ai làm trước thì tính, hai con cùng làm thì chia đôi tiền.
-  // also: tên cũ của cùng việc, nhà nào đã có thì không thêm lại; bấm "Cập nhật bảng giá" thì được đổi sang tên mới.
+  // also: tên cũ của cùng việc, nhà nào đã có thì không thêm lại; bấm "Cập nhật theo bảng mẫu" thì được đổi sang tên mới.
   { name: 'Gấp chăn, dọn giường', also: ['Dọn giường', 'Gấp chăn'], icon: '🛏️', money: 0, days: DAILY, slot: 'sang', claim: true },
   { name: 'Không kén ăn', icon: '🍚', money: 0, days: DAILY },
   { name: 'Tự giác hoàn thành bài tập', icon: '✏️', money: 0, days: [1, 2, 3, 4, 5], slot: 'toi' },
@@ -101,7 +103,7 @@ const SAMPLE_CHORES = [
   { name: 'Chủ động giúp bố mẹ', icon: '🤝', money: 5000, kind: 'extra' },
   { name: FUN_DEFAULT, also: ['Xem phim hoặc chơi Lego'], icon: '🎮', money: 0, kind: 'fun', days: DAILY, slot: 'toi', minutes: 15 },
 ].map(c => ({ days: DAILY, kind: 'must', slot: '', ...c }));
-// Việc có trong bảng mẫu cũ, bản 2 đã bỏ. Bấm "Cập nhật bảng giá" thì xoá khỏi bảng (tiền các ngày đã làm giữ nguyên).
+// Việc có trong bảng mẫu cũ, bản 2 đã bỏ. Bấm "Cập nhật theo bảng mẫu" thì xoá khỏi bảng (tiền các ngày đã làm giữ nguyên).
 const RETIRED_CHORES = ['Đọc Raz-Kids, nghe audio', 'Đi bộ hoặc chạy ngoài trời', 'Đi bộ/chạy ngoài trời', 'Cất đồ chơi', 'Giặt tất'];
 const SKIP_NOTE_OLD = 'Nghỉ hết việc phải làm trong một ngày, vẫn giữ thưởng đủ tuần';
 const SAMPLE_PRICES = [
@@ -124,7 +126,7 @@ const SAMPLE_PRICES = [
   { name: 'Một ngày không làm việc nhà', icon: '🧹', kind: 'gift', price: 20000, skip: true, note: 'Nghỉ hết việc phải làm trong một ngày, không làm đứt chuỗi ngày' },
 ];
 // Thành tích học tập (ở trường và ở lớp học thêm tính như nhau): con tự báo khi có (nút + ở màn của con), nằm chờ tới khi bố mẹ duyệt mới cộng tiền.
-// Nhà nào cũng có sẵn 5 mục này (xem autoAdds), sửa hay thêm bớt ở trang Bảng giá.
+// Nhà nào cũng có sẵn 5 mục này (xem autoAdds), sửa hay thêm bớt ở trang Quy định.
 const SAMPLE_MERITS = [
   { name: 'Được cô khen', icon: '👏', price: 5000 },
   { name: 'Được 9', icon: '⭐', price: 10000 },
@@ -138,10 +140,10 @@ const DAY_BONUS = 15000;
 const WEEK_BONUS = 35000;
 // Con cũ chưa ghi mức thưởng tuần thì vẫn tính theo mức mặc định trước đây, để số dư không tự đổi.
 const WEEK_BONUS_OLD = 25000;
-// Bản của bảng mẫu. Con chưa ghi bản này (k.tableVer) thì trang Bảng giá gợi ý cập nhật một lần.
+// Bản của bảng mẫu. Con chưa ghi bản này (k.tableVer) thì trang Quy định gợi ý cập nhật một lần.
 // k.tableFull: nhà này đã được thêm đủ việc và mục giá của bản đó (xem autoFill).
 const TABLE_VER = 2;
-// Số dư thật của từng con lúc chốt bảng bản 2 (21/11/2026), theo tên. "Cập nhật bảng giá" điền sẵn để khớp số dư, sửa được trước khi áp dụng.
+// Số dư thật của từng con lúc chốt bảng bản 2 (21/11/2026), theo tên. "Cập nhật theo bảng mẫu" điền sẵn để khớp số dư, sửa được trước khi áp dụng.
 const TABLE_BALANCES = { su: 875000, misu: 875000, sa: 703270, misa: 703270 };
 const TABLE_BAL_DATE = '21/11';
 // Trước đây app tính bằng sao. Dữ liệu cũ (sao) được quy đổi: 1 sao = 5.000đ.
@@ -206,9 +208,9 @@ const setDone = (d, kid, chore, val) => { Promise.resolve(store.setDone(d, kid, 
 // ---------- derived ----------
 const kidsList = () => Object.entries(S.kids).map(([id, k]) => ({ id, ...k })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || String(a.name).localeCompare(String(b.name), 'vi'));
 const choresList = () => Object.entries(S.chores).map(([id, c]) => ({ id, ...c })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || String(a.name).localeCompare(String(b.name), 'vi'));
-// Bảng giá: { name, icon, kind: 'gift' | 'penalty' | 'fee', price (đồng; phí sử dụng là đồng/giờ; quà giá 0 là miễn phí),
+// Mục giá (trang Quy định): { name, icon, kind: 'merit' | 'gift' | 'penalty' | 'fee', price (đồng; phí sử dụng là đồng/giờ; phiếu thưởng giá 0 là miễn phí),
 //   all: true = phạt mất hết tiền đang có, week: true = phạt mất hết tiền được thưởng trong tuần }.
-// Mục cũ chỉ có cost (sao) và không có kind là đổi quà.
+// Mục cũ chỉ có cost (sao) và không có kind là phiếu thưởng.
 const priceKind = r => ['penalty', 'fee', 'merit'].includes(r.kind) ? r.kind : 'gift';
 const priceVnd = r => r.price != null ? Math.max(0, Number(r.price) || 0) : (Number(r.cost) || 0) * STAR_VND;
 const pricesList = kind => Object.entries(S.rewards).map(([id, r]) => ({ id, ...r })).filter(r => !kind || priceKind(r) === kind)
@@ -251,12 +253,12 @@ function dayBonusAt(k, dk) {
 const bonusOf = k => isDaily(k) ? dayBonusOf(k) : weekBonusOf(k);
 const bonusRule = k => !bonusOf(k) ? '' : isDaily(k) ? `ngày nào làm đủ việc thì thưởng ${money(bonusOf(k))}` : `làm đủ cả tuần thì thưởng ${money(bonusOf(k))}`;
 const bonusRules = kids => [...new Set(kids.map(bonusRule))].filter(Boolean).join(' / ');
-// Việc bắt buộc mỗi ngày: không cộng tiền từng lần, quyết định thưởng làm đủ việc (theo ngày hoặc cả tuần).
+// Việc phải làm (kind 'must', money 0): không cộng tiền từng lần, quyết định thưởng làm đủ việc (theo ngày hoặc cả tuần).
 const isWeekly = c => isMust(c) && !choreVnd(c);
-// c.weeklyFrom: thứ Hai của tuần việc này bắt đầu là việc bắt buộc (khi chuyển từ "tiền từng lần" sang), để các tuần trước giữ nguyên cách tính cũ.
-// Việc mới thêm (c.since) cũng chỉ là việc bắt buộc từ tuần được thêm.
+// c.weeklyFrom: thứ Hai của tuần việc này bắt đầu là việc phải làm (khi chuyển từ việc được thưởng sang), để các tuần trước giữ nguyên cách tính cũ.
+// Việc mới thêm (c.since) cũng chỉ là việc phải làm từ tuần được thêm.
 const weeklyIn = (c, wk) => isWeekly(c) && (!c.weeklyFrom || c.weeklyFrom <= wk) && (!c.since || key(weekStart(parse(c.since))) <= wk);
-// Trong tuần wk con này có việc bắt buộc nào không. Nhà chưa có (dữ liệu cũ) thì mọi việc mỗi ngày đều tính là phải làm, như trước đây.
+// Trong tuần wk con này có việc phải làm (money 0) nào không. Nhà chưa có (dữ liệu cũ) thì mọi việc mỗi ngày đều tính là phải làm, như trước đây.
 const hasWeekly = (kidId, wk) => memoize('hw' + kidId + wk, () => choresList().some(c => (c.kids || []).includes(kidId) && weeklyIn(c, wk)));
 const reqIn = (c, kidId, wk) => isMust(c) && (!hasWeekly(kidId, wk) || weeklyIn(c, wk));
 // c.since: ngày thêm việc. Trước ngày đó việc này chưa có, để thêm việc mới không làm hỏng chuỗi ngày và thưởng của các tuần đã qua.
@@ -437,13 +439,15 @@ const ava = (k, cls = '') => {
   return p ? `<span class="ava svg ${cls}" style="background:${tintOf(k)}" title="${esc(p.name)}">${p.svg}</span>` : `<span class="ava ${cls}" style="background:${tintOf(k)}">${esc(avatarOf(k))}</span>`;
 };
 const mini = k => photoOf(k) ? `<img class="mini" src="${photoOf(k)}" alt="">` : avatarPick(avatarOf(k)) ? `<span class="mini">${avInner(avatarOf(k))}</span>` : esc(avatarOf(k));
+// Tóm tắt một việc ở trang Quy định: giao cho ai, ngày nào, buổi hoặc giờ, các tuỳ chọn. Số tiền ghi riêng ở đầu dòng.
 function choreSummary(c) {
   const sl = SLOTS.find(x => x[0] === choreSlot(c));
-  return [isFun(c) || isWeekly(c) ? '' : money(choreVnd(c)), (c.kids || []).map(kidName).map(esc).join(', ') || 'chưa giao cho ai',
+  return [(c.kids || []).map(kidName).map(esc).join(', ') || 'chưa giao cho ai',
     perWeekOf(c) ? `${perWeekOf(c)} lần/tuần (${daysLabel(c.days)})` : daysLabel(c.days),
     choreSlot(c) ? `${toMin(c.time) !== null ? (c.by ? 'trước ' : '') + esc(c.time) : sl[1].replace('Buổi ', '').toLowerCase()}` : '',
     Number(c.minutes) ? `${Number(c.minutes)} phút` : '', (c.steps || []).length ? `${c.steps.length} mục con` : '',
-    (c.variants || []).length ? `xen kẽ: ${c.variants.map(esc).join(' / ')}` : '', c.shared ? 'việc chung' : '', c.claim ? 'ai làm trước thì tính' : '', c.prep === 'school' ? 'chỉ khi hôm sau đi học' : c.prep ? 'tối trước buổi học thêm' : '', c.imp ? 'quan trọng' : '', c.place ? `chỉ ở ${esc(placeLow(c.place))}` : ''].filter(Boolean).join(' · ');
+    (c.variants || []).length ? `xen kẽ: ${c.variants.map(esc).join(' / ')}` : '', c.shared ? 'việc chung' : '', c.claim ? 'ai làm trước thì tính' : '', c.prep === 'school' ? 'chỉ khi hôm sau đi học' : c.prep ? 'tối trước buổi học thêm' : '',
+    c.imp ? '<span class="late">quan trọng</span>' : '', c.unlock && !isFun(c) ? 'xong mới mở khoá việc thích làm' : '', c.place ? `chỉ ở ${esc(placeLow(c.place))}` : ''].filter(Boolean).join(' · ');
 }
 function daysLabel(days) {
   const s = [...(days || [])].sort();
@@ -880,7 +884,7 @@ function draw() {
   const navHtml = cls => NAV.map(n => `<a href="#${n.id}" class="${cls} ${UI.view === n.id ? 'on' : ''}" ${UI.view === n.id ? 'aria-current="page"' : ''}>${iconSvg(n.ic)}<span>${n.label}</span></a>`).join('');
   $('#rail').innerHTML = brand() + navHtml('');
   $('#tabs').innerHTML = navHtml('tab');
-  const body = !loaded ? loading() : deviceRole() !== 'parent' ? '' : ({ 'hom-nay': viewToday, 'lich-hoc': viewSchedule, 'tai-khoan': viewAccount, 'bang-gia': viewPrices, 'gia-dinh': viewFamily }[UI.view] || viewToday)();
+  const body = !loaded ? loading() : deviceRole() !== 'parent' ? '' : ({ 'hom-nay': viewToday, 'lich-hoc': viewSchedule, 'tai-khoan': viewAccount, 'quy-dinh': viewPrices, 'gia-dinh': viewFamily }[UI.view] || viewToday)();
   // Máy của con (hoặc máy chưa chọn là của ai): không vẽ phần của bố mẹ bên dưới.
   $('#app').innerHTML = deviceRole() === 'parent' ? topbar() + body : '';
   drawKidMode();
@@ -1097,7 +1101,7 @@ function todayMenu() {
   menuSheet('Hôm nay', [menuRow('data-act="today-mode" data-v="week"', '✅', 'Xem cả tuần', 'Mỗi việc một dòng, mỗi ngày một cột', off),
     menuRow('data-act="km-open"', '🙂', 'Chế độ cho bé', 'Chữ và nút to để con tự đánh dấu', off),
     menuRow('data-act="sheet-open"', '🖨️', 'In kế hoạch tuần', 'Mỗi con một trang A4 dán bàn học', off),
-    `<a class="item nav" href="#gia-dinh" data-act="close"><span class="ico">✏️</span><span class="txt"><span class="t">Sửa danh sách việc nhà</span><span class="s">Đổi tên, ngày, buổi, tiền thưởng của từng việc</span></span>${CHEV}</a>`]);
+    `<a class="item nav" href="#quy-dinh" data-act="close"><span class="ico">✏️</span><span class="txt"><span class="t">Sửa danh sách việc nhà</span><span class="s">Ở trang Quy định: đổi tên, ngày, buổi, tiền thưởng của từng việc</span></span>${CHEV}</a>`]);
 }
 // Nút + ở góc phải của mỗi màn: thêm thứ thuộc về màn đó. Chỉ có một thứ thì mở thẳng form, nhiều thứ thì hỏi.
 function pageAdd() {
@@ -1117,15 +1121,16 @@ function pageAdd() {
     return menuSheet(`Thêm cho ${nm}`, [menuRow('data-act="acct-mode" data-v="bonus"', '⭐', 'Thưởng thêm', 'Cộng một khoản ngoài việc nhà'), menuRow('data-act="acct-mode" data-v="spend"', '💸', 'Chi tiêu', 'Con tiêu tiền, rút tiền mặt'),
       menuRow(`data-act="goal-form" data-kid="${ak}"`, '🎁', 'Mục tiêu tiết kiệm', 'Con muốn để dành mua gì')]);
   }
-  if (v === 'bang-gia') return menuSheet('Thêm vào Bảng giá', [menuRow('data-act="chore-form" data-kind="week"', '⭐', 'Việc bắt buộc mỗi ngày', 'Không cộng tiền từng lần, làm đủ thì thưởng'), menuRow('data-act="chore-form" data-kind="each"', '💰', 'Việc được thưởng', 'Làm lần nào cộng tiền lần đó'),
-    menuRow('data-act="chore-form" data-kind="extra"', '💪', 'Việc làm thêm', 'Không bắt buộc'), ...PRICE_KINDS.map(([k, l, ic]) => menuRow(`data-act="price-form" data-kind="${k}"`, ic, l, PRICE_HELP[k]))]);
-  if (v === 'gia-dinh') return menuSheet('Thêm vào Gia đình', [menuRow('data-act="kid-form"', '🙂', 'Thêm con', 'Tên, ngày sinh, hình đại diện'), menuRow('data-act="chore-form"', '🧹', 'Thêm việc nhà', 'Giao việc theo ngày cho các con')]);
+  if (v === 'quy-dinh') return menuSheet('Thêm vào Quy định', [...CHORE_KINDS.map(([k, l, ic]) => menuRow(`data-act="chore-form" data-kind="${k}"`, ic, l, CHORE_KIND_SUB[k])),
+    ...PRICE_KINDS.map(([k, l, ic]) => menuRow(`data-act="price-form" data-kind="${k}"`, ic, l, PRICE_HELP[k]))]);
+  // Gia đình chỉ còn phần cài đặt: nút + thêm con. Việc nhà thêm ở trang Quy định.
+  if (v === 'gia-dinh') return kidForm();
 }
 
 // ---------- thêm việc nhanh ----------
 // Chỉ một ô gõ tên việc và vài lựa chọn bấm để đổi; còn lại lấy mặc định. Muốn chỉnh kỹ thì bấm ⋯ để mở form đầy đủ.
 let QA = null;
-const QA_PAY = [[5000, '+5.000đ mỗi lần'], [10000, '+10.000đ mỗi lần'], [0, 'Bắt buộc, đủ việc thì thưởng']];
+const QA_PAY = [[5000, 'Được thưởng +5.000đ'], [10000, 'Được thưởng +10.000đ'], [0, 'Việc phải làm']];
 const qaReps = () => { const wd = UI.date.getDay(); return [[DAILY, 'Mỗi ngày'], [[1, 2, 3, 4, 5], 'Ngày thường'], [[0, 6], 'Cuối tuần'], [[wd], `${WDN(wd)} hằng tuần`]]; };
 function qaWho() {
   const kids = kidsList(), k = todayKid(kids); if (!k) return [];
@@ -2365,9 +2370,10 @@ function hwView(tid) {
 // ---------- tài khoản ----------
 const LEDGER_KIND = {
   bonus: ['Thưởng', '⭐'], penalty: ['Phạt', '⚠️'], fee: ['Phí sử dụng', '📱'], spend: ['Chi tiêu', '💸'],
-  reward: ['Đổi quà', '🎁'], week: ['Thưởng đủ tuần', '🏆'], day: ['Thưởng ngày đủ việc', '⭐'], chores: ['Việc nhà', '🧹'], adjust: ['Khớp số dư', '🏦'],
+  reward: ['Đổi phiếu thưởng', '🎁'], week: ['Thưởng đủ tuần', '🏆'], day: ['Thưởng ngày đủ việc', '⭐'], chores: ['Việc nhà', '🧹'], adjust: ['Khớp số dư', '🏦'],
 };
-const ACCT_KINDS = [['penalty', 'Phạt'], ['fee', 'Phí'], ['bonus', 'Thưởng'], ['spend', 'Chi tiêu']];
+// Ghi cho con: ba mục. Phí sử dụng (xem TV, chơi game, điện thoại theo giờ) nằm trong Chi tiêu, vẫn ghi là khoản phí (kind 'fee').
+const ACCT_KINDS = [['penalty', 'Phạt'], ['bonus', 'Thưởng thêm'], ['spend', 'Chi tiêu']];
 const giftTagOf = (kind, vnd) => kind === 'gift' && !vnd ? 'miễn phí' : money(vnd) + (kind === 'fee' ? '/giờ' : '');
 const giftTag = r => priceVnd(r) ? money(priceVnd(r)) : 'Miễn phí';
 const priceTag = r => priceKind(r) === 'merit' ? '+' + money(priceVnd(r)) : priceKind(r) === 'penalty' ? (r.all ? 'Mất hết tiền' : r.week ? 'Mất tiền thưởng tuần' : '−' + money(priceVnd(r)))
@@ -2409,7 +2415,7 @@ function viewAccount() {
   if (!kids.length) return `<div class="day-head"><h1>Tài khoản</h1></div>` + noKids();
   const ak = UI.acctKid = S.kids[UI.acctKid] ? UI.acctKid : todayKid(kids).id, kind = ACCT_KINDS.some(x => x[0] === UI.acctKind) ? UI.acctKind : 'penalty';
   const k = kids.find(x => x.id === ak);
-  let h = `<div class="tbar">${kidTabs(kids, ak, 'acct-kid', x => `<i class="num ${balance(x.id) < 0 ? 'neg' : ''}">${kShort(balance(x.id))}</i>`)}${pillBar(moreBtn('acct-menu', 'Khớp số dư, bảng giá'), plusBtn('Thưởng thêm, chi tiêu, mục tiêu tiết kiệm'))}</div>
+  let h = `<div class="tbar">${kidTabs(kids, ak, 'acct-kid', x => `<i class="num ${balance(x.id) < 0 ? 'neg' : ''}">${kShort(balance(x.id))}</i>`)}${pillBar(moreBtn('acct-menu', 'Khớp số dư, sửa quy định'), plusBtn('Thưởng thêm, chi tiêu, mục tiêu tiết kiệm'))}</div>
   <div class="day-head"><h1>Tài khoản</h1></div>${acctStats(k)}`;
 
   const kidName1 = esc(kidName(ak));
@@ -2424,20 +2430,17 @@ function viewAccount() {
       <span class="muted small">Nửa giờ là 0,5. Tiền trừ = giá mỗi giờ × số giờ.</span></div>`;
   if (kind === 'penalty') {
     const ps = pricesList('penalty');
-    h += ps.length ? `<p class="muted small" style="margin:0">Bấm vào lỗi để trừ tiền của ${kidName1}. Bấm nhầm thì bấm Hoàn tác ngay sau đó, hoặc Huỷ trong lịch sử.</p>${presets(ps)}` : `<p class="muted small" style="margin:0">Chưa có mục phạt nào. Thêm ở trang <a href="#bang-gia">Bảng giá</a>.</p>`;
+    h += ps.length ? `<p class="muted small" style="margin:0">Bấm vào lỗi để trừ tiền của ${kidName1}. Bấm nhầm thì bấm Hoàn tác ngay sau đó, hoặc Huỷ trong lịch sử.</p>${presets(ps)}` : `<p class="muted small" style="margin:0">Chưa có mục phạt nào. Thêm ở trang <a href="#quy-dinh">Quy định</a>.</p>`;
     h += `<details class="adv"><summary>Phạt số tiền khác</summary>${custom('Số tiền trừ (đồng)', 'Trừ tiền', 'Ví dụ: Làm vỡ cốc')}</details>`;
-  } else if (kind === 'fee') {
-    const ps = pricesList('fee');
-    h += hoursField;
-    h += ps.length ? presets(ps) : `<p class="muted small" style="margin:0">Chưa có mục phí sử dụng nào. Thêm ở trang <a href="#bang-gia">Bảng giá</a>.</p>`;
   } else if (kind === 'bonus') {
     h += `<p class="muted small" style="margin:0">Tiền việc nhà và tiền thưởng làm đủ việc được cộng tự động. Ở đây ghi các khoản thưởng thêm khác.</p>${pricesList('merit').length ? presets(pricesList('merit')) : ''}${custom('Số tiền thưởng (đồng)', 'Thưởng tiền', 'Ví dụ: Được điểm 10, giúp bà nấu cơm')}`;
   } else {
     const gs = pricesList('gift'), fs = pricesList('fee');
-    h += `<p class="muted small" style="margin:0">Con tiêu tiền trong tài khoản: xem TV, chơi game, đổi phiếu thưởng, mua quà hoặc rút tiền mặt.</p>`;
-    // Xem TV, chơi game, điện thoại: tính theo giờ, giá mỗi giờ ở trang Bảng giá (mục Phí sử dụng).
-    if (fs.length) h += `<div class="sub-h">Xem TV, chơi game (tính theo giờ)</div>${hoursField}${presets(fs)}<div class="sub-h">Phiếu thưởng, mua quà</div>`;
+    h += `<p class="muted small" style="margin:0">Con tiêu tiền trong tài khoản: xem TV, chơi game, đổi phiếu thưởng, mua đồ hoặc rút tiền mặt.</p>`;
+    // Phí sử dụng (xem TV, chơi game, điện thoại): tính theo giờ, giá mỗi giờ ở trang Quy định.
+    if (fs.length) h += `<div class="sub-h">Phí sử dụng (tính theo giờ)</div>${hoursField}${presets(fs)}${gs.length ? '<div class="sub-h">Phiếu thưởng</div>' : ''}`;
     if (gs.length) h += presets(gs);
+    if (!fs.length && !gs.length) h += `<p class="muted small" style="margin:0">Chưa có mục phí sử dụng hay phiếu thưởng nào. Thêm ở trang <a href="#quy-dinh">Quy định</a>.</p>`;
     h += custom('Số tiền chi (đồng)', 'Ghi chi tiêu', 'Ví dụ: Rút tiền mặt, mua truyện');
   }
   h += `</div></section>`;
@@ -2608,7 +2611,7 @@ function printCoupons() {
     <div class="cs-grid">${gs.map((r, i) => `<div class="coupon c${i % 3}"><span class="c-ico">${esc(r.icon || '🎁')}</span><div><div class="c-t">${esc(r.name)}</div>${r.note ? `<div class="c-n">${esc(r.note)}</div>` : ''}<div class="c-p">${giftTag(r)}</div></div></div>`).join('')}</div></div>`);
 }
 
-// ---------- bảng giá ----------
+// ---------- quy định: việc nhà và các mục giá ----------
 const norm = v => String(v || '').trim().toLowerCase();
 function missingSamples() {
   const cn = new Set(Object.values(S.chores).map(c => norm(c.name))), pn = new Set(Object.values(S.rewards).map(r => norm(r.name)));
@@ -2639,7 +2642,7 @@ function sampleAdds() {
   SAMPLE_CHORES.forEach(({ also, ver, ...m }, i) => {
     const nid = 'mau-' + slug(m.name); if (have[i] || S.chores[nid]) return;
     ops.push({ col: 'chores', nid, add: { ...m, kids: kids.map(k => k.id), order: order[i], since: key(today()) }, ico: m.icon, t: `Thêm việc “${m.name}”`,
-      s: [isFun(m) ? 'việc thích làm' : isWeekly(m) ? 'việc bắt buộc' : isExtra(m) ? `việc làm thêm, ${money(m.money)}` : `${money(m.money)} mỗi lần`, isExtra(m) ? '' : SL[m.slot], m.prep ? 'chỉ hiện vào tối trước ngày có học thêm' : ''].filter(Boolean).join(' · ') });
+      s: [isFun(m) ? 'việc thích làm' : isWeekly(m) ? 'việc phải làm' : isExtra(m) ? `việc làm thêm, ${money(m.money)}` : `${money(m.money)} mỗi lần`, isExtra(m) ? '' : SL[m.slot], m.prep ? 'chỉ hiện vào tối trước ngày có học thêm' : ''].filter(Boolean).join(' · ') });
   });
   for (const { also, ver, ...m } of SAMPLE_PRICES) {
     const nid = 'gia-' + slug(m.name); if (hit(prices, { ...m, also }) || S.rewards[nid]) continue;
@@ -2661,12 +2664,12 @@ function autoFill() {
   for (const o of adds) put(o.col, o.nid, o.add);
   for (const k of kids) put('kids', k.id, { ...S.kids[k.id], tableFull: TABLE_VER });
   const nc = adds.filter(o => o.col === 'chores').length, np = adds.length - nc; if (!adds.length) return;
-  toast([nc ? `Đã đưa ${nc} việc của bảng vào lịch từng ngày` : '', np ? `${nc ? 'thêm' : 'Đã thêm'} ${np} mục vào bảng giá` : ''].filter(Boolean).join(', ') + '.',
+  toast([nc ? `Đã đưa ${nc} việc của bảng vào lịch từng ngày` : '', np ? `${nc ? 'thêm' : 'Đã thêm'} ${np} mục vào trang Quy định` : ''].filter(Boolean).join(', ') + '.',
     () => { for (const o of adds) del(o.col, o.nid); toast('Đã hoàn tác, lịch như trước.'); });
 }
 // Những thứ app tự thêm một lần cho mỗi nhà, từ máy của bố mẹ (đánh dấu ở cài đặt của gia đình để không thêm lại sau khi bố mẹ sửa, xoá).
 // Mã mục cố định nên hai máy cùng thêm cũng không bị trùng. Cờ ghi chung một lần để lần ghi sau không đè mất cờ trước.
-//   merit: 5 mục thành tích học tập trong Bảng giá.
+//   merit: 5 mục thành tích học tập trong trang Quy định.
 //   bottle: mục con "Đã tráng bình nước" trong các checklist đang có được gắn "(mai đi học)", để tối trước ngày nghỉ không phải tick.
 //   nodone: bỏ mục con "Việc ngày hôm nay đã hoàn thành" khỏi các checklist đang có (dòng tự soát, app không kiểm tra được).
 //   hw: hai việc quan trọng về bài tập về nhà (hôm sau có học thêm, hôm sau đi học) và mục phạt Thiếu BTVN (lần 2 trong tuần phạt nặng hơn).
@@ -2691,7 +2694,7 @@ function autoAdds() {
     const pen = !S.rewards[HW_PENALTY[0]] && !pricesList('penalty').some(r => norm(r.name) === norm(HW_PENALTY[1].name));
     if (pen) put('rewards', HW_PENALTY[0], HW_PENALTY[1]);
     flags.hw = 1;
-    if (n || pen) toast(`Đã thêm ${[n ? `${n} việc quan trọng về BTVN` : '', pen ? 'mục phạt Thiếu BTVN' : ''].filter(Boolean).join(' và ')}. Sửa ở Bảng giá.`);
+    if (n || pen) toast(`Đã thêm ${[n ? `${n} việc quan trọng về BTVN` : '', pen ? 'mục phạt Thiếu BTVN' : ''].filter(Boolean).join(' và ')}. Sửa ở trang Quy định.`);
   }
   // Sửa mục con của các checklist đang có. Gom mọi thay đổi của một việc vào một lần ghi: với Firestore, dữ liệu trong máy chưa đổi ngay sau khi ghi,
   // nên ghi hai lần liên tiếp thì lần sau sẽ đè mất thay đổi của lần trước.
@@ -2814,7 +2817,7 @@ function autoAdds() {
   }
   if (Object.keys(flags).length) put('paid', SETTINGS_ID, { ...set, ...flags });
 }
-// Cập nhật bảng giá một lần theo bảng mẫu bản mới: những gì sẽ đổi trong dữ liệu đang dùng.
+// Cập nhật quy định một lần theo bảng mẫu bản mới: những gì sẽ đổi trong dữ liệu đang dùng.
 // Chỉ đụng tới mục trùng tên với bảng mẫu (tên mới hoặc tên cũ); mục gia đình tự thêm thì giữ nguyên. Việc và mục giá còn thiếu thì thêm đủ.
 // Trả về null khi không có gì để đổi, hoặc các con đã ghi bản này (đã áp dụng hoặc đã bỏ qua).
 function tableUpdate() {
@@ -2854,8 +2857,8 @@ function tableUpdate() {
   return ops.length ? { ops, kids, bals } : null;
 }
 function tableUpdateForm() {
-  const u = tableUpdate(); if (!u) return toast('Bảng giá đã là bản mới.');
-  openModal(`<h2>Cập nhật bảng giá</h2><p class="muted small lead">Bấm Áp dụng để đổi ${u.ops.length} mục dưới đây trong bảng của nhà mình. Việc và mục giá nhà mình tự thêm thì giữ nguyên, tiền các ngày đã qua không đổi. Áp dụng xong vẫn bấm Hoàn tác được.</p>
+  const u = tableUpdate(); if (!u) return toast('Quy định đã theo bảng mẫu mới nhất.');
+  openModal(`<h2>Cập nhật theo bảng mẫu</h2><p class="muted small lead">Bấm Áp dụng để đổi ${u.ops.length} mục dưới đây trong bảng của nhà mình. Việc và mục giá nhà mình tự thêm thì giữ nguyên, tiền các ngày đã qua không đổi. Áp dụng xong vẫn bấm Hoàn tác được.</p>
   <div class="fg"><div class="list">${u.ops.map(o => `<div class="item"><span class="ico">${esc(o.ico)}</span><div class="txt"><div class="t">${esc(o.t)}</div><div class="s">${esc(o.s)}</div></div></div>`).join('')}</div></div>
   ${u.bals.length ? `<div class="fg">${u.bals.map(x => frow(`Số dư của ${esc(x.name)}`, pillNum(`tb-${x.kid}`, x.target, { attr: `step="1" data-tb="${x.kid}"` }), { id: `tb-${x.kid}`, sub: `Số bố mẹ chốt ngày ${TABLE_BAL_DATE}. Trong app đang là ${money(balance(x.kid))}. Từ đó tới nay đã khác thì sửa lại, bỏ trống nếu không muốn đổi` })).join('')}</div>` : ''}
   <div class="foot"><button class="btn danger left" data-act="table-skip">Không dùng bản này</button><button class="btn quiet" data-act="close">Để sau</button><button class="btn primary" data-act="table-apply">Áp dụng</button></div>`);
@@ -2881,43 +2884,47 @@ function tableUpdateRun(apply, bals = []) {
     for (const x of bals) {
       const diff = S.kids[x.kid] ? x.target - balance(x.kid) : 0; if (!diff) continue;
       const lid = uid(); added.push(['ledger', lid]);
-      put('ledger', lid, { kid: x.kid, amount: diff, kind: 'adjust', icon: '🏦', note: `Khớp số dư khi cập nhật bảng giá: ${money(x.target)}`, at });
+      put('ledger', lid, { kid: x.kid, amount: diff, kind: 'adjust', icon: '🏦', note: `Khớp số dư khi cập nhật theo bảng mẫu: ${money(x.target)}`, at });
     }
     memo = {};
   }
   return () => { for (const [col, id, old] of before) put(col, id, old); for (const [col, id] of added) del(col, id); };
 }
 // Tiêu đề nhóm kèm nút thêm ngay tại chỗ: thêm đúng loại đang xem, không phải chọn lại loại trong form.
-// Việc đang có tiền từng lần mà trùng tên với việc bắt buộc mỗi ngày trong bảng mẫu (gấp chăn, không kén ăn, bài tập, cất cặp, dọn bàn học, đánh răng...).
+// Việc đang có tiền từng lần mà trùng tên với việc phải làm trong bảng mẫu (gấp chăn, không kén ăn, bài tập, cất cặp, dọn bàn học, đánh răng...).
 function weeklyCandidates() {
   const names = new Set(SAMPLE_CHORES.filter(isWeekly).flatMap(c => [c.name, ...(c.also || [])]).map(norm));
   return choresList().filter(c => isMust(c) && !isWeekly(c) && names.has(norm(c.name)));
 }
+// Trang Quy định: nơi duy nhất thêm, sửa, xoá việc nhà (bốn loại) và các mục giá (thành tích, phạt, phí sử dụng, phiếu thưởng).
+// Màn khác chỉ hiện và dẫn sang đây.
 function viewPrices() {
-  const kids = kidsList(), chores = choresList().filter(c => !isFun(c)), off = !kids.length;
-  let h = `<div class="day-head tools"><h1>Bảng giá</h1>${pillBar(moreBtn('price-menu', 'In bảng giá, in phiếu thưởng'), plusBtn('Thêm việc, phạt, phí, quà', off))}</div>`;
+  const kids = kidsList(), chores = choresList(), off = !kids.length;
+  let h = `<div class="day-head tools"><h1>Quy định</h1>${pillBar(moreBtn('price-menu', 'In bảng giá, phiếu thưởng, kế hoạch tuần'), plusBtn('Thêm việc nhà, thành tích, phạt, phí, phiếu thưởng', off))}</div>`;
   const miss = missingSamples(), n = miss.chores.length + miss.prices.length;
   const upd = tableUpdate(), allDaily = kids.length > 0 && kids.every(isDaily);
-  if (upd) h += suggest('Bảng giá có bản mới', `${upd.ops.length} thay đổi${upd.ops.some(o => o.col === 'kids') ? ', trong đó có thưởng theo ngày thay cho thưởng đủ tuần' : ''}. Xem trước rồi mới áp dụng.`, 'Xem thay đổi', 'table-update');
+  if (upd) h += suggest('Bảng mẫu có bản mới', `${upd.ops.length} thay đổi${upd.ops.some(o => o.col === 'kids') ? ', trong đó có thưởng theo ngày thay cho thưởng đủ tuần' : ''}. Xem trước rồi mới áp dụng.`, 'Xem thay đổi', 'table-update');
   if (n && kids.length) h += suggest(`Bảng mẫu còn ${n} mục chưa có ở đây`, miss.chores.length ? `${miss.chores.length} việc, ${miss.prices.length} mục phạt, phí và phiếu thưởng.` : 'Các mục phạt, phí sử dụng và phiếu thưởng.', 'Thêm vào', 'seed-prices');
   // Số tiền nằm ngay dưới tên, để tên việc không bị ép thành nhiều dòng trên màn hình hẹp.
-  const who = c => `${esc((c.kids || []).map(kidName).join(', ') || 'chưa giao cho ai')} · ${perWeekOf(c) ? `${perWeekOf(c)} lần/tuần` : daysLabel(c.days)}`;
-  const choreRow = c => `<div class="item"><span class="ico">${esc(c.icon || '✅')}</span><div class="txt"><div class="t">${esc(c.name)}</div><div class="s">${isWeekly(c) ? '' : `<b class="num plus">+${money(choreVnd(c))}</b> · `}${who(c)}</div></div>
+  const choreRow = c => `<div class="item"><span class="ico">${esc(c.icon || '✅')}</span><div class="txt"><div class="t">${esc(c.name)}</div><div class="s">${isWeekly(c) || isFun(c) ? '' : `<b class="num plus">+${money(choreVnd(c))}</b> · `}${choreSummary(c)}</div></div>
     <div class="acts">${editBtn('chore-form', c.id, c.name)}</div></div>`;
-  const must = chores.filter(isMust), weekly = must.filter(isWeekly), each = must.filter(c => !isWeekly(c)), extra = chores.filter(isExtra);
-  // Việc bắt buộc mỗi ngày: không tính tiền từng lần, làm đủ thì được thưởng (theo ngày, hoặc cả tuần với con chưa chuyển).
+  const weekly = chores.filter(c => choreKindOf(c) === 'week'), each = chores.filter(c => choreKindOf(c) === 'each'), extra = chores.filter(isExtra), fun = chores.filter(isFun);
+  // Việc phải làm: không tính tiền từng lần, làm đủ thì được thưởng (theo ngày, hoặc cả tuần với con chưa chuyển).
   const cand = weeklyCandidates();
-  if (!weekly.length && cand.length) h += suggest('Chuyển sang việc bắt buộc mỗi ngày?', `${cand.map(c => esc(c.name)).join(', ')}: không cộng tiền từng lần nữa, ${allDaily ? bonusRules(kids) || 'làm đủ việc thì thưởng' : `làm đủ tất cả các ngày thì cuối tuần thưởng ${money(WEEK_BONUS)} mỗi con`}.`, `Chuyển ${cand.length} việc`, 'weekly-convert');
-  // Mỗi nhóm một nhãn màu, bấm nhãn để gập lại khi chỉ muốn xem nhóm khác.
-  const sec = (key, tint, ic, label, cnt, addAttr, body, note = '') => `<section class="slot ${tint}">${secHead(ic, label, { cnt, key, add: off ? '' : addBtn(addAttr[0], `Thêm: ${label}`, `data-kind="${addAttr[1]}"`) })}${secIsOpen(key) ? body + (note ? `<p class="foot-note" style="margin:0 6px">${note}</p>` : '') : ''}</section>`;
+  if (!weekly.length && cand.length) h += suggest('Chuyển sang việc phải làm?', `${cand.map(c => esc(c.name)).join(', ')}: không cộng tiền từng lần nữa, ${allDaily ? bonusRules(kids) || 'làm đủ việc thì thưởng' : `làm đủ tất cả các ngày thì cuối tuần thưởng ${money(WEEK_BONUS)} mỗi con`}.`, `Chuyển ${cand.length} việc`, 'weekly-convert');
+  // Mỗi nhóm một nhãn màu, bấm nhãn để gập lại khi chỉ muốn xem nhóm khác. Nút + của nhóm thêm đúng loại đó.
+  const sec = (key, tint, kind, cnt, body, note = '') => { const [, label, ic] = CHORE_KINDS.find(x => x[0] === kind);
+    return `<section class="slot ${tint}">${secHead(ic, label, { cnt, key, add: off ? '' : addBtn('chore-form', `Thêm: ${label}`, `data-kind="${kind}"`) })}${secIsOpen(key) ? body + (note ? `<p class="foot-note" style="margin:0 6px">${note}</p>` : '') : ''}</section>`; };
+  const list = (l, empty) => l.length ? `<div class="slot-list list">${l.map(choreRow).join('')}</div>` : off ? '' : blankAdd(empty[0], 'chore-form', `data-kind="${empty[1]}"`);
   const bonusRows = kids.map(k => isDaily(k) ? `<div class="item"><span class="ico">⭐</span><div class="txt"><div class="t">Mỗi ngày làm đủ việc${kids.length > 1 ? ` · ${esc(k.name)}` : ''}</div><div class="s"><b class="num ${dayBonusOf(k) ? 'plus' : ''}">${dayBonusOf(k) ? '+' + money(dayBonusOf(k)) : 'Không thưởng'}</b> · tự cộng khi xong việc phải làm cuối cùng trong ngày</div></div>
       <div class="acts">${editBtn('kid-form', k.id, 'thưởng ngày đủ việc của ' + k.name)}</div></div>` : `<div class="item"><span class="ico">🏆</span><div class="txt"><div class="t">Làm đủ tất cả các ngày trong tuần${kids.length > 1 ? ` · ${esc(k.name)}` : ''}</div><div class="s"><b class="num ${weekBonusOf(k) ? 'plus' : ''}">${weekBonusOf(k) ? '+' + money(weekBonusOf(k)) : 'Không thưởng'}</b> · tự cộng vào cuối tuần</div></div>
       <div class="acts">${editBtn('kid-form', k.id, 'thưởng đủ tuần của ' + k.name)}</div></div>`).join('');
   h += `<div class="slots">`;
-  h += sec('bg-week', 'tn3', '⭐', 'Việc bắt buộc mỗi ngày', weekly.length || '', ['chore-form', 'week'], kids.length || weekly.length ? `<div class="slot-list list">${bonusRows}${weekly.map(choreRow).join('')}</div>` : blankAdd('Thêm con trước rồi giao việc', 'kid-form'),
-    weekly.length ? (allDaily ? 'Không cộng tiền từng lần. Ngày nào làm đủ hết thì ngày đó được thưởng.' : 'Không cộng tiền từng lần. Làm đủ tất cả các ngày thì cuối tuần được thưởng.') : kids.length ? `Chưa có việc bắt buộc nào, nên ${allDaily ? 'thưởng ngày đủ việc' : 'thưởng đủ tuần'} đang tính theo tất cả việc mỗi ngày bên dưới. Mở một việc, chọn Cách thưởng là Bắt buộc mỗi ngày để đưa việc đó lên đây.` : '');
-  if (each.length) h += sec('bg-each', 'tn1', '💰', 'Việc được thưởng', each.length, ['chore-form', 'each'], `<div class="slot-list list">${each.map(choreRow).join('')}</div>`, weekly.length ? 'Làm lần nào cộng tiền lần đó. Không tính vào thưởng làm đủ việc.' : '');
-  h += sec('bg-extra', 'tn4', '💪', 'Việc làm thêm', extra.length || '', ['chore-form', 'extra'], extra.length ? `<div class="slot-list list">${extra.map(choreRow).join('')}</div>` : off ? '' : blankAdd('Việc không bắt buộc, làm lúc nào được tiền lúc đó', 'chore-form', 'data-kind="extra"'));
+  h += sec('bg-week', 'tn3', 'week', weekly.length || '', kids.length || weekly.length ? `<div class="slot-list list">${bonusRows}${weekly.map(choreRow).join('')}</div>` : blankAdd('Thêm con trước rồi giao việc', 'kid-form'),
+    weekly.length ? (allDaily ? 'Không cộng tiền từng lần. Ngày nào làm đủ hết thì ngày đó được thưởng. Việc ghi “quan trọng” nằm đầu mỗi buổi ở màn Hôm nay.' : 'Không cộng tiền từng lần. Làm đủ tất cả các ngày thì cuối tuần được thưởng.') : kids.length ? `Chưa có việc phải làm nào, nên ${allDaily ? 'thưởng ngày đủ việc' : 'thưởng đủ tuần'} đang tính theo tất cả việc mỗi ngày bên dưới. Mở một việc, chọn Loại việc là Việc phải làm để đưa việc đó lên đây.` : '');
+  h += sec('bg-each', 'tn1', 'each', each.length || '', list(each, ['Việc nằm trong lịch mỗi ngày, làm lần nào cộng tiền lần đó', 'each']), each.length && weekly.length ? 'Làm lần nào cộng tiền lần đó. Không tính vào thưởng làm đủ việc.' : '');
+  h += sec('bg-extra', 'tn4', 'extra', extra.length || '', list(extra, ['Việc không bắt buộc, làm lúc nào được tiền lúc đó', 'extra']));
+  h += sec('bg-fun', 'tn2', 'fun', fun.length || '', list(fun, ['Con thích làm gì khi xong việc? Ví dụ: chơi game 15 phút', 'fun']), fun.length ? 'Không có tiền. Mở khoá khi xong việc phải làm của buổi đó và các việc mở khoá (ví dụ đọc sách 30 phút). Con xin thêm, xin sửa ở màn của con, bố mẹ duyệt ở màn Hôm nay.' : '');
   const EMPTY = { merit: 'Con tự báo, bố mẹ duyệt mới cộng tiền. Ví dụ: được điểm 10 ở trường hay ở lớp học thêm', penalty: 'Lỗi nào thì bị trừ tiền. Ví dụ: nổi nóng, trì hoãn', fee: 'Dùng điện thoại, xem tivi mất bao nhiêu tiền mỗi giờ', gift: 'Con dùng tiền để đổi. Ví dụ: chọn phim tối nay' }, TINT = { merit: 'tn3', penalty: 's-late', fee: 'tn2', gift: 'tn5' };
   for (const [kind, label, ic] of PRICE_KINDS) {
     const list = pricesList(kind);
@@ -2934,34 +2941,24 @@ function printPrices() {
   const sec = (title, items) => items.length ? `<h2>${title}</h2><div class="pp-grid">${items.join('')}</div>` : '';
   printHtml(`<div class="price-poster"><h1>Tiền tiêu vặt của ${esc(kids.map(k => k.name).join(', ') || 'các con')}</h1>
     ${sec('Thưởng', chores.filter(c => !isWeekly(c)).map(c => cell(c.icon, c.name, money(choreVnd(c)))))}
-    ${chores.some(isWeekly) ? `<h2>Việc bắt buộc mỗi ngày${rules ? `: ${rules}` : ''}</h2><div class="pp-line">${chores.filter(isWeekly).map(c => `${esc(c.icon || '')} ${esc(c.name)}`).join(' · ')}</div>` : ''}
+    ${chores.some(isWeekly) ? `<h2>Việc phải làm${rules ? `: ${rules}` : ''}</h2><div class="pp-line">${chores.filter(isWeekly).map(c => `${esc(c.icon || '')} ${esc(c.name)}`).join(' · ')}</div>` : ''}
     ${rules && !chores.some(isWeekly) ? `<div class="pp-line">🏆 Việc phải làm: <b>${rules}</b></div>` : ''}
     ${sec('Thành tích học tập, ở trường và học thêm (con báo, bố mẹ duyệt)', meritList().map(r => cell(r.icon, r.name, '+' + money(priceVnd(r)))))}
     ${sec('Phạt', pricesList('penalty').map(r => cell(r.icon, r.name, r.all ? 'mất hết tiền' : r.week ? 'mất tiền thưởng của tuần' : 'trừ ' + money(priceVnd(r)) + (againVnd(r) ? `, từ lần 2 trong tuần ${money(againVnd(r))}` : ''), 'minus')))}
     ${sec('Phí sử dụng', pricesList('fee').map(r => cell(r.icon, r.name, money(priceVnd(r)) + '/giờ', 'minus')))}
-    ${sec('Đổi quà', pricesList('gift').map(r => cell(r.icon, r.name, giftTag(r))))}</div>`);
+    ${sec('Phiếu thưởng', pricesList('gift').map(r => cell(r.icon, r.name, giftTag(r))))}</div>`);
 }
 
 const inviteLink = () => location.origin + location.pathname + '?gd=' + encodeURIComponent(family);
 
+// Gia đình: cài đặt ít khi đụng tới (các con, máy của con và mã PIN, chia sẻ, sao lưu). Việc nhà và thưởng phạt nằm ở trang Quy định.
 function viewFamily() {
-  const kids = kidsList(), chores = choresList();
-  let h = `<div class="day-head tools"><h1>Gia đình</h1>${pillBar(plusBtn('Thêm con hoặc việc nhà'))}</div><div class="slots">
+  const kids = kidsList();
+  let h = `<div class="day-head tools"><h1>Gia đình</h1>${pillBar(plusBtn('Thêm con'))}</div><div class="slots">
   <section class="slot tn0">${secHead('👪', 'Các con', { cnt: kids.length || '', add: addBtn('kid-form', 'Thêm con') })}${kids.length
     ? `<div class="slot-list list">${kids.map(k => `<div class="item">${ava(k, 'sm')}<div class="txt"><div class="t">${esc(k.name)}</div><div class="s">${ageOf(k) !== null ? `${ageOf(k)} tuổi (sinh ${dm(parse(k.birthday))}/${parse(k.birthday).getFullYear()}) · ` : ''}${modeLabel(k)}</div></div><div class="acts">${editBtn('kid-form', k.id, k.name)}</div></div>`).join('')}</div>`
-    : blankAdd('Thêm tên và hình đại diện cho từng con', 'kid-form')}</section>`;
-  const choreItem = c => `<div class="item"><span class="ico">${esc(c.icon || '✅')}</span><div class="txt"><div class="t">${esc(c.name)}</div><div class="s">${choreSummary(c)}</div></div><div class="acts">${editBtn('chore-form', c.id, c.name)}</div></div>`;
-  // Việc nhà chia theo loại, mỗi loại một nhãn màu gập mở được.
-  const GROUPS = [['gd-week', 'tn3', '⭐', 'Việc bắt buộc mỗi ngày', isWeekly, 'week'], ['gd-each', 'tn1', '💰', 'Việc được thưởng', c => isMust(c) && !isWeekly(c), 'each'], ['gd-extra', 'tn4', '💪', 'Việc làm thêm', isExtra, 'extra'], ['gd-fun', 'tn2', '🎬', 'Việc thích làm', isFun, 'fun']];
-  if (chores.length) for (const [key, tint, ic, label, f, kind] of GROUPS) {
-    const l = chores.filter(f); if (!l.length) continue;
-    h += `<section class="slot ${tint}">${secHead(ic, label, { cnt: l.length, key, add: addBtn('chore-form', `Thêm: ${label}`, `data-kind="${kind}"`) })}${secIsOpen(key) ? `<div class="slot-list list">${l.map(choreItem).join('')}</div>` : ''}</section>`;
-  } else h += `<section class="slot tn3">${secHead('🧹', 'Việc nhà')}${kids.length ? blankAdd('Thêm việc đầu tiên cho các con', 'chore-form') : '<p class="foot-note" style="margin:0 6px">Thêm con trước rồi giao việc.</p>'}</section>`;
-  h += `</div>`;
-  if (!chores.length && kids.length) h += suggest('Chưa biết bắt đầu từ đâu?', `Bảng mẫu có sẵn ${SAMPLE_CHORES.length} việc, ${SAMPLE_PRICES.length} mục phạt, phí sử dụng và phiếu thưởng. Thêm xong sửa lại tuỳ ý.`, 'Dùng bảng mẫu', 'seed');
-  if (chores.length) h += `<p class="foot-note">Phạt, phí sử dụng và quà nằm ở <a href="#bang-gia">Bảng giá</a>.</p>`;
-  if (kids.length) h += `<div class="slot-list list"><button class="item nav" data-act="sheet-open"><span class="ico">🖨️</span><span class="txt"><span class="t">In kế hoạch tuần</span><span class="s">Mỗi con một trang A4</span></span>${CHEV}</button></div>`;
-
+    : blankAdd('Thêm tên và hình đại diện cho từng con', 'kid-form')}</section></div>`;
+  if (kids.length) h += `<p class="foot-note">Việc nhà, thưởng, phạt và phiếu thưởng nằm ở trang <a href="#quy-dinh">Quy định</a>.</p>`;
   h += roleSection();
   h += `<section class="slot">${secHead('🔐', 'Chia sẻ và sao lưu')}<div class="card stack">`;
   if (store?.kind === 'firebase') {
@@ -3073,7 +3070,7 @@ function kmNews(k, t) {
   const card = (cls, title, list, when) => list.length ? `<button class="km-news ${cls}" data-act="km-acct"><b>${title}</b>${list.map(l => `<span>${day(when(l))} · ${esc(l.note || '')} <i class="num">${signed(ledgerVnd(l))}</i></span>`).join('')}${CHEV}</button>` : '';
   return card('cut', `⚠️ Con bị trừ ${money(-cuts.reduce((a, l) => a + ledgerVnd(l), 0))}`, cuts, l => l.at) + card('ok', `🏅 Bố mẹ đã duyệt, con được cộng ${money(oks.reduce((a, l) => a + ledgerVnd(l), 0))}`, oks, l => l.okAt);
 }
-// Bảng phạt và phí cho con xem (lấy từ Bảng giá của bố mẹ): lỗi nào bị trừ bao nhiêu, dùng gì mất bao nhiêu mỗi giờ, để con biết mà tránh.
+// Bảng phạt và phí cho con xem (lấy từ trang Quy định của bố mẹ): lỗi nào bị trừ bao nhiêu, dùng gì mất bao nhiêu mỗi giờ, để con biết mà tránh.
 function kidRules() {
   const row = (r, ic, tag, sub) => `<div class="item"><span class="ico">${esc(r.icon || ic)}</span><div class="txt"><div class="t">${esc(r.name)}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div><div class="acts"><span class="delta num minus">${tag}</span></div></div>`;
   const ps = pricesList('penalty'), fs = pricesList('fee');
@@ -3118,8 +3115,9 @@ function drawKidMode() {
   <div class="seg modes km-tabs" role="tablist" aria-label="Chọn màn">${[['today', '☀️ Hôm nay'], ['learn', '📚 Học tập'], ['acct', '💰 Tài khoản']].map(([v, l]) => `<label><input type="radio" name="kmtab" value="${v}" ${v === tab ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div>`;
   el.classList.toggle('plain', tab !== 'today');
   if (tab !== 'today') {
-    RO = true;
-    try { el.innerHTML = `<div class="wrap">${top}${tab === 'learn' ? learnPage([k], false) : kidAcct(k)}</div>`; } finally { RO = false; }
+    // Tab Học tập của con nhớ tab riêng (UI.kmLearn), mở ở Sắp tới, không theo tab bố mẹ xem lần cuối trên cùng máy.
+    const parentLearn = UI.learn; RO = true; UI.learn = UI.kmLearn || 'sap-toi';
+    try { el.innerHTML = `<div class="wrap">${top}${tab === 'learn' ? learnPage([k], false) : kidAcct(k)}</div>`; } finally { RO = false; UI.learn = parentLearn; }
     return;
   }
   const list = mustFor(k.id, t), n = list.filter(c => isDone(t, k.id, c.id)).length, plan = dayPlan(k.id, t), cur = slotAt(nowMin());
@@ -3309,22 +3307,27 @@ function kidForm(id) {
   ${formFoot(k ? 'kid-del' : '', id, 'kid-save')}`);
 }
 // ---------- form việc nhà: các nhóm thẻ, mỗi dòng một nhãn bên trái và giá trị bên phải ----------
-const KIND_HELP = {
-  must: 'Nằm trong lịch mỗi ngày của con',
-  extra: 'Không bắt buộc, làm lúc nào được tiền lúc đó',
-  fun: 'Không được thưởng, mở khoá khi xong việc phải làm của buổi và việc mở khoá (đọc sách 30 phút)',
-};
-// wbs: câu mô tả cách thưởng của các con (bonusRules), ví dụ "ngày nào làm đủ việc thì thưởng 15.000đ".
-const payHelp = (pay, wbs) => pay === 'week' ? `Không cộng tiền từng lần${wbs ? ', ' + wbs : ', làm đủ việc thì thưởng'}` : 'Làm lần nào cộng tiền lần đó, không tính vào thưởng làm đủ việc';
+// Bốn loại việc nhà, cùng một tên ở mọi màn, form và bản in (bảng tên gọi trong CLAUDE.md). Dữ liệu vẫn lưu bằng kind và money:
+//   week: Việc phải làm (kind 'must', money 0) · each: Việc được thưởng (kind 'must', money > 0) · extra: Việc làm thêm · fun: Việc thích làm.
+const CHORE_KINDS = [['week', 'Việc phải làm', '⭐'], ['each', 'Việc được thưởng', '💰'], ['extra', 'Việc làm thêm', '💪'], ['fun', 'Việc thích làm', '🎬']];
+const CHORE_KIND_SUB = { week: 'Không cộng tiền từng lần, làm đủ thì được thưởng', each: 'Nằm trong lịch mỗi ngày, làm lần nào cộng tiền lần đó', extra: 'Không bắt buộc, làm lúc nào được tiền lúc đó', fun: 'Không có tiền, mở khoá khi xong việc phải làm' };
+const choreKindOf = c => isFun(c) ? 'fun' : isExtra(c) ? 'extra' : isWeekly(c) ? 'week' : 'each';
+// Dòng giải thích dưới ô Loại việc. wbs: câu mô tả cách thưởng của các con (bonusRules), ví dụ "ngày nào làm đủ việc thì thưởng 15.000đ".
+const kindHelp = (kind, wbs) => ({
+  week: `Nằm trong lịch mỗi ngày. Không cộng tiền từng lần${wbs ? ', ' + wbs : ', làm đủ việc thì thưởng'}`,
+  each: 'Nằm trong lịch mỗi ngày. Làm lần nào cộng tiền lần đó, không tính vào thưởng làm đủ việc',
+  extra: 'Không bắt buộc, không xếp vào buổi nào, làm lúc nào được tiền lúc đó',
+  fun: 'Không có tiền, mở khoá khi xong việc phải làm của buổi và việc mở khoá (đọc sách 30 phút)',
+}[kind] || '');
 const DAY_SETS = [['0,1,2,3,4,5,6', 'Mỗi ngày'], ['1,2,3,4,5', 'Ngày thường'], ['0,6', 'Cuối tuần']];
 const daySet = days => { const k = [...days].map(Number).sort().join(); return DAY_SETS.some(x => x[0] === k) ? k : 'custom'; };
 // pre: những gì đã gõ và chọn ở ô thêm nhanh ({ name, slot, days, kids, money }), điền sẵn vào form thêm mới.
 function choreForm(id, kindPre, pre) {
   const c = id ? S.chores[id] : null, kids = kidsList();
   const ck = c ? (c.kids || []) : pre?.kids || kids.map(k => k.id), days = c ? (c.days || []) : pre?.days || [0, 1, 2, 3, 4, 5, 6];
-  const kind = c ? (isFun(c) ? 'fun' : isExtra(c) ? 'extra' : 'must') : ['extra', 'fun'].includes(kindPre) ? kindPre : 'must', fun = kind === 'fun', slot = c ? choreSlot(c) : pre?.slot || '', pw = c ? perWeekOf(c) : 0;
-  // Việc mỗi ngày: bắt buộc (làm đủ thì thưởng) hoặc có tiền từng lần. Việc mới mặc định có tiền từng lần, trừ khi thêm từ nhóm việc bắt buộc.
-  const pay = c ? (isWeekly(c) ? 'week' : 'each') : kindPre === 'week' || pre?.money === 0 ? 'week' : 'each';
+  // Việc mới mặc định là Việc được thưởng, trừ khi thêm từ nút + của một nhóm (kindPre) hoặc từ ô thêm nhanh (pre.money = 0 là Việc phải làm).
+  const kind = c ? choreKindOf(c) : CHORE_KINDS.some(x => x[0] === kindPre) ? kindPre : pre ? (pre.money === 0 ? 'week' : 'each') : 'each';
+  const slot = c ? choreSlot(c) : pre?.slot || '', pw = c ? perWeekOf(c) : 0;
   const wbs = bonusRules(kids);
   const adv = c && (pw || (c.variants || []).length || c.shared || c.claim || c.prep || c.imp || c.unlock || c.place || toMin(c.time) !== null || Number(c.minutes));
   const ico = c?.icon || (pre?.name && CHORE_ICONS.includes(guessIcon(pre.name)) ? guessIcon(pre.name) : CHORE_ICONS[0]);
@@ -3333,9 +3336,8 @@ function choreForm(id, kindPre, pre) {
       <button class="ico-btn" data-act="ico-toggle" aria-expanded="false" aria-label="Chọn biểu tượng"><span class="ico-now">${icon(ico)}</span></button></div>
     <div class="ico-pick" hidden>${pickGrid('cico', CHORE_ICONS.includes(ico) ? CHORE_ICONS : [ico, ...CHORE_ICONS], ico)}</div></div>
   <div class="fg">
-    ${frow('Loại việc', pillSel('ckind', [['must', 'Mỗi ngày'], ['extra', 'Làm thêm'], ['fun', 'Thích làm']], kind), { id: 'ckind', sub: KIND_HELP[kind], subId: 'ckind-help' })}
-    ${frow('Cách thưởng', pillSel('cpay', [['each', 'Tiền từng lần'], ['week', 'Bắt buộc mỗi ngày']], pay), { id: 'cpay', cls: 'cpay-f', hidden: kind !== 'must', sub: payHelp(pay, wbs), subId: 'cpay-help' })}
-    ${frow('Tiền mỗi lần', `<div class="pillnum"><button data-act="num-step" data-t="cmoney" data-n="-5000" data-min="0" aria-label="Bớt 5.000đ">−</button><input id="cmoney" class="num" type="number" min="0" step="1000" inputmode="numeric" value="${c && choreVnd(c) ? choreVnd(c) : pre?.money || 5000}"><span>đ</span><button data-act="num-step" data-t="cmoney" data-n="5000" data-min="0" aria-label="Thêm 5.000đ">+</button></div>`, { id: 'cmoney', cls: 'cmoney-f', hidden: fun || (kind === 'must' && pay === 'week') })}
+    ${frow('Loại việc', pillSel('ckind', CHORE_KINDS.map(([v, l]) => [v, l]), kind), { id: 'ckind', sub: kindHelp(kind, wbs), subId: 'ckind-help' })}
+    ${frow('Tiền mỗi lần', `<div class="pillnum"><button data-act="num-step" data-t="cmoney" data-n="-5000" data-min="0" aria-label="Bớt 5.000đ">−</button><input id="cmoney" class="num" type="number" min="0" step="1000" inputmode="numeric" value="${c && choreVnd(c) ? choreVnd(c) : pre?.money || 5000}"><span>đ</span><button data-act="num-step" data-t="cmoney" data-n="5000" data-min="0" aria-label="Thêm 5.000đ">+</button></div>`, { id: 'cmoney', cls: 'cmoney-f', hidden: kind === 'fun' || kind === 'week' })}
     ${frow('Buổi', pillSel('cslot', SLOTS.map(([v, label]) => [v, label]), slot, 's-' + (slot || 'any')), { id: 'cslot' })}
     <div class="fr col">${frow('Lặp lại', pillSel('cdays', [...DAY_SETS, ['custom', 'Chọn ngày']], daySet(days)), { id: 'cdays', cls: 'in' })}
       <div class="seg days7">${WEEK_ORDER.map(d => `<label><input type="checkbox" name="cday" value="${d}" ${days.includes(d) ? 'checked' : ''}><span>${WDS[d]}</span></label>`).join('')}</div></div>
@@ -3713,11 +3715,11 @@ document.addEventListener('click', e => {
     setDone(key(d), kid, cid + '~s', mask);
     return;
   }
-  if (a === 'tkb-go' && !$('#km').hidden) { e.preventDefault(); UI.kmTab = 'learn'; if (b.dataset.tab) UI.learn = b.dataset.tab; UI.tkbDay = b.dataset.wd ? Number(b.dataset.wd) : null; $('#km').scrollTop = 0; return render(); }
+  if (a === 'tkb-go' && !$('#km').hidden) { e.preventDefault(); UI.kmTab = 'learn'; if (b.dataset.tab) UI.kmLearn = b.dataset.tab; UI.tkbDay = b.dataset.wd ? Number(b.dataset.wd) : null; $('#km').scrollTop = 0; return render(); }
   if (a === 'tkb-go') { UI.tkbKid = b.dataset.kid; if (b.dataset.tab) UI.learn = b.dataset.tab; UI.tkbDay = b.dataset.wd ? Number(b.dataset.wd) : null; return; } // link tự chuyển sang #lich-hoc
   if (a === 'grid-week') { const n = Number(b.dataset.n); UI.gridWs = n ? addDays(UI.gridWs || weekStart(today()), n) : null; return render(); }
   if (a === 'grid-tick') { const d = parse(b.dataset.d), cid = b.dataset.chore; if (!S.chores[cid] || d > today()) return; return markChore(d, b.dataset.kid, cid, !isDone(d, b.dataset.kid, cid)); }
-  if (a === 'learn-tab') { UI.learn = b.dataset.v; UI.histAll = false; UI.tkbDay = null; return render(); }
+  if (a === 'learn-tab') { if ($('#km').hidden) UI.learn = b.dataset.v; else UI.kmLearn = b.dataset.v; UI.histAll = false; UI.tkbDay = null; return render(); }
   if (a === 'tkb-day') {
     UI.tkbDay = Number(b.dataset.d); render();
     // Bấm ở bản cả tuần thì cuộn lên thẻ của ngày vừa chọn.
@@ -4046,9 +4048,10 @@ document.addEventListener('click', e => {
   if (a === 'sec-toggle') { UI.secOpen[b.dataset.key] = b.getAttribute('aria-expanded') !== 'true'; return render(); }
   if (a === 'page-add') return pageAdd();
   if (a === 'acct-menu') return menuSheet('Tài khoản', [menuRow('data-act="bal-form"', '🏦', 'Khớp số dư', 'Gõ số tiền thật theo tài khoản ngân hàng'),
-    `<a class="item nav" href="#bang-gia" data-act="close"><span class="ico">🎁</span><span class="txt"><span class="t">Sửa bảng giá</span><span class="s">Mục phạt, phí sử dụng, phiếu thưởng</span></span>${CHEV}</a>`]);
+    `<a class="item nav" href="#quy-dinh" data-act="close"><span class="ico">🎁</span><span class="txt"><span class="t">Sửa quy định</span><span class="s">Mục phạt, phí sử dụng, phiếu thưởng</span></span>${CHEV}</a>`]);
   if (a === 'acct-mode') { closeModal(); UI.acctKind = b.dataset.v; render(); return setTimeout(() => { const i = $('#aamt'); if (i) { i.scrollIntoView({ block: 'center' }); i.focus({ preventScroll: true }); } }, 80); }
-  if (a === 'price-menu') return menuSheet('Bảng giá', [menuRow('data-act="prices-print"', '🖨️', 'In bảng giá', 'Một tờ để dán tủ lạnh'), menuRow('data-act="coupons-print"', '🎟️', 'In phiếu thưởng', 'Tờ phiếu cắt rời', !pricesList('gift').length)]);
+  if (a === 'price-menu') return menuSheet('Quy định', [menuRow('data-act="prices-print"', '🖨️', 'In bảng giá', 'Một tờ để dán tủ lạnh'), menuRow('data-act="coupons-print"', '🎟️', 'In phiếu thưởng', 'Tờ phiếu cắt rời', !pricesList('gift').length),
+    menuRow('data-act="sheet-open"', '🗓️', 'In kế hoạch tuần', 'Mỗi con một trang A4 dán bàn học', !kidsList().length)]);
   if (a === 'today-menu') return todayMenu();
   if (a === 'today-mode') { closeModal(); UI.todayMode = b.dataset.v === 'week' ? 'week' : 'day'; render(); return window.scrollTo(0, 0); }
   if (a === 'slot-toggle') { UI.slotOpen[b.dataset.slot] = b.getAttribute('aria-expanded') !== 'true'; return render(); }
@@ -4114,7 +4117,7 @@ document.addEventListener('click', e => {
   if (a === 'seed') {
     const kidIds = kidsList().map(k => k.id);
     addSamples(kidIds);
-    return toast('Đã thêm việc nhà và bảng giá mẫu.');
+    return toast('Đã thêm việc nhà và các mục thưởng, phạt mẫu.');
   }
   if (a === 'weekly-convert') {
     const cand = weeklyCandidates(), wk = key(weekStart(today())); if (!cand.length) return;
@@ -4123,7 +4126,7 @@ document.addEventListener('click', e => {
       const { id: kid, ...rest } = k, log = Array.isArray(k.wbLog) ? k.wbLog : [], same = log.find(e => e.from === wk);
       put('kids', kid, { ...rest, weekBonus: WEEK_BONUS, wbLog: [...log.filter(e => e.from !== wk), { from: wk, amount: WEEK_BONUS, prev: same ? same.prev : weekBonusOf(k) }].sort((x, y) => x.from.localeCompare(y.from)) });
     }
-    return toast(`Đã chuyển ${cand.length} việc sang bắt buộc mỗi ngày.${kidsList().every(isDaily) ? '' : ` Làm đủ cả tuần thưởng ${money(WEEK_BONUS)}.`}`);
+    return toast(`Đã chuyển ${cand.length} việc sang việc phải làm.${kidsList().every(isDaily) ? '' : ` Làm đủ cả tuần thưởng ${money(WEEK_BONUS)}.`}`);
   }
   if (a === 'table-update') return tableUpdateForm();
   if (a === 'table-apply' || a === 'table-skip') {
@@ -4131,7 +4134,7 @@ document.addEventListener('click', e => {
     const bals = a === 'table-apply' ? [...document.querySelectorAll('#modal [data-tb]')].filter(i => i.value.trim() !== '' && Number.isFinite(Number(i.value))).map(i => ({ kid: i.dataset.tb, target: Math.round(Number(i.value)) })) : [];
     const n = tableUpdate()?.ops.length || 0, undo = tableUpdateRun(a === 'table-apply', bals);
     closeModal(); if (!undo) return;
-    return toast(a === 'table-apply' ? `Đã cập nhật bảng giá: ${n} thay đổi${bals.length ? ', đã khớp số dư' : ''}.` : 'Đã bỏ qua bản này, bảng giá giữ nguyên.', () => { undo(); toast('Đã hoàn tác, bảng giá như trước.'); });
+    return toast(a === 'table-apply' ? `Đã cập nhật quy định: ${n} thay đổi${bals.length ? ', đã khớp số dư' : ''}.` : 'Đã bỏ qua bản này, quy định giữ nguyên.', () => { undo(); toast('Đã hoàn tác, quy định như trước.'); });
   }
   if (a === 'seed-prices') {
     const n = addSamples(kidsList().map(k => k.id));
@@ -4185,10 +4188,13 @@ document.addEventListener('click', e => {
     if (!kids.length) return toast('Chọn ít nhất một con.');
     if (!days.length) return toast('Chọn ít nhất một ngày.');
     const old = id ? S.chores[id] : null, time = $('#ctime').value;
-    const kind = ['fun', 'extra'].includes($('#ckind').value) ? $('#ckind').value : 'must';
-    const data = { name, icon: radioVal('cico') || '✅', money: kind === 'fun' || (kind === 'must' && $('#cpay').value === 'week') ? 0 : Math.max(0, Math.round(Number($('#cmoney').value) || 0)), kids, days, order: old ? (old.order ?? 0) : Object.keys(S.chores).length,
+    const sel = $('#ckind').value, kind = ['fun', 'extra'].includes(sel) ? sel : 'must';
+    const pay = kind === 'fun' || sel === 'week' ? 0 : Math.max(0, Math.round(Number($('#cmoney').value) || 0));
+    // Việc được thưởng mà tiền 0 sẽ thành Việc phải làm: hỏi lại thay vì tự đổi loại.
+    if (sel === 'each' && !pay) { $('#cmoney').focus(); return toast('Nhập số tiền mỗi lần, hoặc chọn Loại việc là Việc phải làm.'); }
+    const data = { name, icon: radioVal('cico') || '✅', money: pay, kids, days, order: old ? (old.order ?? 0) : Object.keys(S.chores).length,
       kind, slot: $('#cslot').value || '' };
-    // Việc mới chỉ tính từ hôm nay. Việc đang có tiền chuyển sang bắt buộc thì tính từ tuần này.
+    // Việc mới chỉ tính từ hôm nay. Việc được thưởng chuyển sang Việc phải làm thì tính từ tuần này.
     if (!old) data.since = key(today()); else if (old.since) data.since = old.since;
     if (kind === 'must' && !data.money) { if (old && !isWeekly(old)) data.weeklyFrom = key(weekStart(today())); else if (old?.weeklyFrom) data.weeklyFrom = old.weeklyFrom; }
     if (toMin(time) !== null) { data.time = time; if ($('#cby').checked) data.by = true; }
@@ -4343,12 +4349,10 @@ document.addEventListener('change', e => {
   if (e.target.id === 'ag-pick' && e.target.value) { UI.agDate = parse(e.target.value); render(); }
   if (e.target.name === 'kmtab') { UI.kmTab = e.target.value; UI.histAll = false; $('#km').scrollTop = 0; render(); }
   if (e.target.name === 'tview') { UI.taskDone = e.target.value === '1'; UI.histAll = false; render(); }
-  if (e.target.id === 'ckind' || e.target.id === 'cpay') {
-    const kind = $('#ckind').value, pay = $('#cpay').value, f = $('#modal .cmoney-f'), pf = $('#modal .cpay-f');
-    pf.hidden = kind !== 'must';
-    f.hidden = kind === 'fun' || (kind === 'must' && pay === 'week');
-    $('#ckind-help').textContent = KIND_HELP[kind] || '';
-    $('#cpay-help').textContent = payHelp(pay, $('#cname').dataset.wbs);
+  if (e.target.id === 'ckind') {
+    const kind = e.target.value;
+    $('#modal .cmoney-f').hidden = kind === 'fun' || kind === 'week';
+    $('#ckind-help').textContent = kindHelp(kind, $('#cname').dataset.wbs);
   }
   if (e.target.id === 'cslot') e.target.className = 'pillsel s-' + (e.target.value || 'any');
   // Lặp lại: chọn sẵn một nhóm ngày, hoặc bấm từng thứ bên dưới.
