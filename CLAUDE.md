@@ -11,12 +11,12 @@ Năm tab của bố mẹ, mỗi tab trả lời một câu hỏi:
 | Tab | Câu hỏi | Gồm |
 | --- | --- | --- |
 | Hôm nay (`#hom-nay`) | Hôm nay con cần làm gì? | Theo từng con. Thông báo cần bố mẹ chú ý ở đầu màn (chờ duyệt, sổ học của cô), tiến độ và số dư, khối nhắc, bài cần nộp, các buổi trong ngày, việc làm thêm. Menu ⋯: Xem cả tuần, Chế độ cho bé, In kế hoạch tuần, Sửa danh sách việc nhà (mở Quy định). |
-| Học tập (`#lich-hoc`) | Các con học gì, nộp gì, ai đưa đón? | Cả nhà hoặc từng con. Tab: Sắp tới, Bài tập, Thời khoá biểu, Mốc năm học, Học thêm (lịch học thêm, đưa đón, các con ở đâu, sổ học của cô). |
+| Học tập (`#lich-hoc`) | Các con học gì, nộp gì, ai đưa đón? | Cả nhà hoặc từng con. Bốn tab chia theo nguồn: Sắp tới (lịch gộp từng ngày, kèm các con ở đâu hôm đó), Bài tập, Ở trường (thanh gạt Thời khoá biểu / Mốc năm học), Học thêm (lịch học thêm và đưa đón, Học phí của tất cả các cô, Sổ học của cô). Mỗi sổ học là một trang riêng `#lich-hoc/so/<mã sổ>` có nút quay lại. |
 | Tài khoản (`#tai-khoan`) | Con có bao nhiêu tiền, vì sao? | Theo từng con. Số dư, chờ duyệt thành tích, Ghi cho con (Phạt, Thưởng thêm, Chi tiêu), mục tiêu tiết kiệm, lịch sử. |
 | Quy định (`#quy-dinh`, link cũ `#bang-gia`) | Nhà mình có việc gì, thưởng phạt thế nào? | Nơi duy nhất thêm, sửa, xoá việc nhà (bốn loại) và mục giá (thành tích, phạt, phí sử dụng, phiếu thưởng). Menu ⋯: in bảng giá, phiếu thưởng, kế hoạch tuần. |
-| Gia đình (`#gia-dinh`) | Cài đặt của cả nhà | Các con, máy của con và mã PIN, link mời, sao lưu. |
+| Gia đình (`#gia-dinh`) | Cài đặt của cả nhà | Các con, các con ở đâu, máy của con và mã PIN, link mời, sao lưu. |
 
-- Máy của con (nhà có mã PIN) và Chế độ cho bé dùng chung một màn với ba tab: Hôm nay, Học tập (chỉ xem, nhớ tab riêng), Tài khoản (chỉ xem). Báo thành tích có ở cả tab Hôm nay và tab Tài khoản của con.
+- Máy của con (nhà có mã PIN) và Chế độ cho bé dùng chung một màn với ba tab: Hôm nay, Học tập (bốn tab như bố mẹ, chỉ xem, không có sổ học và học phí, nhớ tab riêng), Tài khoản (chỉ xem). Báo thành tích có ở cả tab Hôm nay và tab Tài khoản của con.
 - Màn của cô (`?lop=<mã lớp>`): ba tab Buổi học, Bài tập, Báo cáo; chỉ đọc và ghi được sổ của lớp đó.
 
 ## Quy tắc đặt chỗ

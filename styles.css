@@ -247,7 +247,8 @@ img.mini{width:1.35em;height:1.35em;border-radius:50%;object-fit:cover;vertical-
 .toggle input:checked::after{transform:translateX(20px)}
 .tabbar{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-behavior:smooth;margin:0 -16px;padding:0 16px 3px}
 .tabbar::-webkit-scrollbar{display:none}
-.tabbar button{flex:none;min-height:38px;padding:5px 14px;border-radius:999px;border:0;background:var(--fill);color:var(--muted);font-size:14px;font-weight:500;white-space:nowrap}
+/* Học tập có 4 tab: giãn đều cho kín một hàng, đệm hẹp để vừa cả màn 360px; máy hẹp hơn nữa thì vẫn vuốt ngang được. */
+.tabbar button{flex:1 0 auto;min-height:38px;padding:5px 8px;border-radius:999px;border:0;background:var(--fill);color:var(--muted);font-size:14px;font-weight:500;white-space:nowrap}
 .tabbar button.on{background:var(--accent);color:var(--on-accent);font-weight:600}
 .tabbar button:active{opacity:.6}
 
