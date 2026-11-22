@@ -980,11 +980,12 @@ const kidTabs = (kids, cur, act, badge, all) => `<div class="kid-tabs">${all ? `
 const pillBar = (...btns) => `<div class="pillbar">${btns.join('')}</div>`;
 const moreBtn = (act, label) => `<button data-act="${act}" aria-label="${label}">${DOTS}</button>`;
 const plusBtn = (label, off) => `<button class="add" data-act="page-add" aria-label="${label}" ${off ? 'disabled' : ''}>${PLUS}</button>`;
-// Tiêu đề nhóm dạng nhãn màu. key: bấm nhãn để gập, mở (máy nhớ trong UI.secOpen; closed = mặc định gập). add, side: nút bên phải.
+// Tiêu đề nhóm. key: bấm tiêu đề để gập, mở (máy nhớ trong UI.secOpen; closed = mặc định gập). add, side: nút bên phải.
+// sub: nhóm con nằm dưới một tiêu đề lớn (các tháng của Buổi học, các trạng thái của Bài tập) thì là nhãn nhỏ viết hoa, không tranh chỗ với tiêu đề lớn.
 const secIsOpen = (key, closed) => !key || (UI.secOpen[key] ?? !closed);
-function secHead(ic, label, { cnt = '', key = '', closed = false, add = '', side = '' } = {}) {
+function secHead(ic, label, { cnt = '', key = '', closed = false, add = '', side = '', sub = false } = {}) {
   const inner = `${ic}<span>${label}</span>${cnt !== '' ? `<i class="num">${cnt}</i>` : ''}`;
-  return `<div class="slot-h">${key ? `<button class="slot-pill" data-act="sec-toggle" data-key="${key}" aria-expanded="${secIsOpen(key, closed)}">${inner}${DOWN}</button>` : `<span class="slot-pill">${inner}</span>`}${side}${add}</div>`;
+  return `<div class="slot-h ${sub ? 'sub' : ''}">${key ? `<button class="slot-pill" data-act="sec-toggle" data-key="${key}" aria-expanded="${secIsOpen(key, closed)}">${inner}${DOWN}</button>` : `<span class="slot-pill">${inner}</span>`}${side}${add}</div>`;
 }
 const addBtn = (act, label, attr = '') => RO ? '' : `<button class="mini-add" data-act="${act}" ${attr} aria-label="${label}">${PLUS}</button>`;
 // Chỗ chưa có gì: ô nét đứt, bấm để thêm ngay tại chỗ. ro: câu hiện cho con (chỉ xem, không có nút thêm).
@@ -1707,13 +1708,15 @@ function sessRow(code, s, hws, mode, inNeed) {
 }
 const HW_BADGE = { got: 'ok', done: 'wait', late: 'owe', open: '' };
 const hwBadgeHtml = t => { const st = hwState(t); if (!t.got && cleanFiles(t.sub).length) return `<span class="badge wait">Đã nộp ${cleanFiles(t.sub).length} file</span>`; return `<span class="badge ${st.k === 'got' && t.chk ? chkKind(t.chk) : HW_BADGE[st.k]}">${esc(st.k === 'got' ? (t.chk ? CHK[t.chk] : 'Cô đã nhận') + (t.score ? ' · ' + t.score : '') : st.k === 'done' ? 'Chờ cô nhận' : st.k === 'late' ? st.txt : 'Đang làm')}</span>`; };
-function hwRow(code, t, d, mode) {
+// grouped: dòng nằm trong nhóm đã mang tên trạng thái (Đang làm, Chờ cô nhận, Cô đã nhận) thì không lặp lại nhãn đó; nhãn có tin riêng (quá hạn, đã nộp file, kết quả, điểm) vẫn hiện.
+function hwRow(code, t, d, mode, grouped) {
   const st = hwState(t), s = t.session ? sessList(d).find(x => x.id === t.session) : null, nd = t.steps.filter(x => x.done).length;
   const meta = [t.due ? `hạn ${dm(parse(t.due))}` : 'chưa có hạn', s ? `buổi ${s.no}` : '', t.steps.length ? `${nd}/${t.steps.length} bước` : ''].filter(Boolean).join(' · ');
   const act = mode === 'edit' ? `data-act="hw-form" data-id="${t.id}"` : `data-act="hw-view" data-id="L~${code}~${t.id}"`;
+  const plain = grouped && !(!t.got && cleanFiles(t.sub).length) && (st.k === 'open' || st.k === 'done' || (st.k === 'got' && !t.chk && !t.score));
   return `<div class="item sess"><span class="ico">📝</span><div class="txt"><div class="t">${esc(t.title)}</div><div class="s">${meta}</div>${t.notes ? `<div class="s snip">${esc(String(t.notes).slice(0, 160))}</div>` : ''}
     ${t.review ? `<div class="s cmt"><b>Nhận xét bài làm:</b> ${esc(t.review)}</div>` : ''}${attView(code, t.files, t.links)}${t.sub.length ? `<div class="s sub-l"><b>Bài con nộp${t.subAt ? ' ' + dm(parse(t.subAt)) : ''}:</b></div>${attView(code, t.sub)}` : ''}</div>
-    <div class="acts">${hwBadgeHtml(t)}<button class="edit" ${act} aria-label="${mode === 'edit' ? 'Sửa' : 'Xem'}: ${esc(t.title)}">${CHEV}</button></div></div>`;
+    <div class="acts">${plain ? '' : hwBadgeHtml(t)}<button class="edit" ${act} aria-label="${mode === 'edit' ? 'Sửa' : 'Xem'}: ${esc(t.title)}">${CHEV}</button></div></div>`;
 }
 const sessMonths = ss => [...new Set(ss.map(s => (s.date || '').slice(0, 7)))].sort().reverse();
 function soStats(d) {
@@ -1815,7 +1818,7 @@ function soMonths(code, d, mode) {
   return need + (plan.length ? `<section class="slot tn0">${secHead('🗓️', 'Sắp tới', { cnt: plan.length })}<div class="slot-list list">${shown.map(row).join('')}</div>
     ${more > 0 ? `<button class="linkbtn so-more" data-act="so-plan-more">${showAll ? 'Thu gọn' : `Xem thêm ${more} buổi`}</button>` : ''}</section>` : '')
     + months.map((mk, i) => { const l = ss.filter(s => (s.date || '').slice(0, 7) === mk).reverse(), key = edit ? 'so-m-' + (mk || 'none') : '';
-      return `<section class="slot">${secHead('', monthTxt(mk), { cnt: `${l.length} buổi`, key, closed: i > 0 })}${secIsOpen(key, i > 0) ? `<div class="slot-list list">${l.map(row).join('')}</div>` : ''}</section>`; }).join('');
+      return `<section class="slot">${!edit && i === 0 ? secHead('📒', 'Các buổi đã học', { cnt: ss.length }) : ''}${secHead('', monthTxt(mk), { cnt: `${l.length} buổi`, key, closed: i > 0, sub: true })}${secIsOpen(key, i > 0) ? `<div class="slot-list list">${l.map(row).join('')}</div>` : ''}</section>`; }).join('');
 }
 // ----- nhập sổ từ file Excel theo dõi tiến độ -----
 // Mẫu file: mỗi hàng một buổi, hàng tiêu đề có các cột Buổi, Hình thức, Thời lượng (phút), Ngày học, Chuyên đề / mục tiêu, Lý thuyết / đọc hiểu,
@@ -2109,11 +2112,11 @@ function drawTeacher() {
     h += `<section class="slot">${secHead('✏️', 'Bài tập', { cnt: st.hw.length || '' })}${st.hw.length ? '' : blankAdd('Bài tập giao kèm buổi học: bấm để ghi buổi học và giao bài', 'sess-form')}</section>`;
     const groups = [['Con báo đã làm xong, chờ cô nhận', t => t.done && !t.got, 'tn3', ''], ['Đang làm', t => !t.done && !t.got, 'tn0', ''], ['Cô đã nhận', t => t.got, '', 'so-got']];
     h += st.hw.length ? `<div class="slots">${groups.map(([label, f, tint, k]) => { const l = st.hw.filter(f); if (k) l.reverse();
-      return l.length ? `<section class="slot ${tint}">${secHead('', label, { cnt: l.length, key: k, closed: l.length > 5 })}${secIsOpen(k, l.length > 5) ? `<div class="slot-list list">${l.map(t => hwRow(TEACH, t, d, 'edit')).join('')}</div>` : ''}</section>` : ''; }).join('')}</div>`
+      return l.length ? `<section class="slot ${tint}">${secHead('', label, { cnt: l.length, key: k, closed: l.length > 5, sub: true })}${secIsOpen(k, l.length > 5) ? `<div class="slot-list list">${l.map(t => hwRow(TEACH, t, d, 'edit', true)).join('')}</div>` : ''}</section>` : ''; }).join('')}</div>`
       : `<p class="foot-note" style="margin-top:0">Bài cô giao hiện ngay trong mục Bài tập trên máy của ${esc(info.student)}, kèm file cô đính kèm. Con tick làm xong thì cô thấy ở đây.</p>`;
   } else {
-    h += `<div class="row"><button class="btn quiet sm" data-act="so-import">📥 Nhập từ file Excel</button></div>`;
     h += (st.done.length ? `<div class="slots">${feeSection(d, feeOf(info), null)}${bankSection(d, true)}${soMonths(TEACH, d, 'view')}</div>` : `<p class="foot-note" style="margin-top:0">Báo cáo theo tháng (số buổi đã dạy để tính học phí, nội dung, nhận xét, bài tập) sẽ hiện ở đây sau buổi học đầu tiên. Phụ huynh xem được đúng phần này.</p><div class="slots">${bankSection(d, true)}</div>`);
+    h += `<div class="slot-list list"><button class="item nav" data-act="so-import"><span class="ico">📥</span><span class="txt"><span class="t">Nhập từ file Excel</span><span class="s">Chép các buổi từ file theo dõi tiến độ vào sổ</span></span>${CHEV}</button></div>`;
   }
   shell(nav, h);
 }
