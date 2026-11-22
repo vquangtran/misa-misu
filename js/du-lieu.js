@@ -67,6 +67,7 @@ export const pricesList = kind => Object.entries(S.rewards).map(([id, r]) => ({ 
 //   prep: true = chỉ hiện vào hôm trước ngày con có buổi học thêm (chuẩn bị sách vở, nộp bài tập), prep: 'school' = chỉ hiện vào hôm trước ngày con đi học,
 //   place: tên nơi = chỉ hiện vào ngày các con ở đó (theo lịch Các con ở đâu), ví dụ hút bụi chỉ ở 6th Element,
 //   unlock: true = việc mở khoá: phải xong việc này trong ngày thì việc thích làm mới mở (ví dụ đọc sách 30 phút),
+//   readLog: true = bấm xong thì con phải ghi đã đọc gì, bao nhiêu trang (ví dụ đọc sách 30 phút; lưu ở done, khoá choreId + '~r'),
 //   imp: true = việc quan trọng, xếp vào nhóm Việc quan trọng ở đầu mỗi buổi (màn Hôm nay và màn của con),
 //   claim: true = ai làm trước thì tính: một con làm thì con kia không phải làm nữa, cùng làm thì tính cả hai và chia đều tiền }
 export const isFun = c => c.kind === 'fun';
@@ -117,6 +118,10 @@ export function weekBonusAt(k, wsKey) {
 export const perWeekOf = c => Math.max(0, Math.min(7, Number(c.perWeek) || 0));
 export const isDone = (d, kid, chore) => (Number(S.done[key(d)]?.[kid]?.[chore]) || 0) > 0;
 export const stepMask = (d, kid, chore) => Number(S.done[key(d)]?.[kid]?.[chore + '~s']) || 0;
+// Việc đọc sách (readLog): con ghi đã đọc gì, bao nhiêu trang khi bấm xong. { what, pages } hoặc null.
+export const readLogOf = (d, kid, chore) => { const x = S.done[typeof d === 'string' ? d : key(d)]?.[kid]?.[chore + '~r']; return x && typeof x === 'object' && x.what ? x : null; };
+// Lần ghi gần nhất của con cho việc này (để điền sẵn tên sách đang đọc dở).
+export const lastReadLog = (kid, chore) => { for (const dk of Object.keys(S.done).sort().reverse()) { const x = readLogOf(dk, kid, chore); if (x) return x; } return null; };
 // Số lần đã làm trong tuần chứa ngày d: tính đến hết ngày d, hoặc chỉ những ngày trước d.
 export function weekCount(kid, c, d, beforeOnly = false) {
   const ws = weekStart(d), dk = key(d); let n = 0;

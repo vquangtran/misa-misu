@@ -1,7 +1,7 @@
 // Màn Tài khoản: số dư, ghi cho con (phạt, thưởng thêm, chi tiêu), chờ duyệt thành tích, việc thích làm con xin, lịch sử, mục tiêu tiết kiệm.
 import { $, addDays, CHEV, DAILY, daysLabel, dm, esc, key, money, norm, nowMin, pad, parse, PLUS, signed, today, WDN, weekStart } from './chung.js';
 import { againVnd, balance, choresList, choreSlot, choreVnd, dayBonuses, dayBonusIn, dayBonusOf, doneVnd, earned, isDaily, isExtra, isFun, kidName,
-  kidsList, ledgerVnd, memoize, penaltyTimes, penaltyVnd, priceKind, pricesList, priceVnd, RO, S, slotAt, slotName, SLOTS, streakOf, todayKid, UI,
+  kidsList, ledgerVnd, memoize, penaltyTimes, penaltyVnd, priceKind, pricesList, priceVnd, readLogOf, RO, S, slotAt, slotName, SLOTS, streakOf, todayKid, UI,
   weekBonuses, weekBonusOf, weekStats } from './du-lieu.js';
 import { addBtn, bar, barCount, blankAdd, kidTabs, mini, moreBtn, noKids, pillBar, plusBtn, secHead, secIsOpen } from './giao-dien.js';
 import { DAY_SETS, formFoot, frow, kidRow, openModal, pillNum, pillSel, titleCard } from './form.js';
@@ -50,7 +50,9 @@ function statement(kidId) {
   }
   for (const dk of Object.keys(S.done)) {
     const v = earned(kidId, dk, dk); if (!v) continue;
-    const names = Object.entries(S.done[dk][kidId] || {}).filter(([cid, x]) => !cid.includes('~') && doneVnd(x) > 0).map(([cid]) => S.chores[cid]?.name).filter(Boolean);
+    // Việc đọc sách ghi kèm đã đọc gì, bao nhiêu trang.
+    const names = Object.entries(S.done[dk][kidId] || {}).filter(([cid, x]) => !cid.includes('~') && doneVnd(x) > 0 && S.chores[cid]?.name)
+      .map(([cid]) => { const r = readLogOf(dk, kidId, cid); return S.chores[cid].name + (r ? ` (${r.what}${Number(r.pages) ? `, ${Number(r.pages)} trang` : ''})` : ''); });
     const end = parse(dk); end.setHours(23, 58);
     rows.push({ kind: 'chores', vnd: v, note: `Ngày ${dm(parse(dk))} · ${names.length ? `${names.length} việc: ${names.join(', ')}` : 'việc nhà'}`, at: end.toISOString() });
   }

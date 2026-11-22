@@ -45,7 +45,8 @@ export const SAMPLE_CHORES = [
   { name: 'Đánh răng, rửa mặt', also: ['Đánh răng rửa mặt', 'Đánh răng'], icon: '🪥', money: 0, days: DAILY, slot: 'sang' },
   { name: 'Tập thể dục ít nhất 15 phút', also: ['Nhảy dây mỗi ngày', 'Nhảy dây'], icon: '🏃', money: 15000, days: DAILY, slot: 'chieu', minutes: 15 },
   // unlock: đọc sách xong thì việc thích làm mới mở khoá.
-  { name: 'Đọc sách 30 phút', also: ['Đọc sách'], icon: '📚', money: 10000, days: DAILY, minutes: 30, unlock: true },
+  // readLog: bấm xong thì con ghi đã đọc gì, bao nhiêu trang.
+  { name: 'Đọc sách 30 phút', also: ['Đọc sách'], icon: '📚', money: 10000, days: DAILY, minutes: 30, unlock: true, readLog: true },
   { name: 'Checklist trước khi đi ngủ', also: ['Chuẩn bị trước khi ngủ'], icon: '🌙', money: 5000, days: DAILY, slot: 'toi',
     steps: ['Cặp sách đã chuẩn bị', 'Quần áo ngày mai đã chuẩn bị', 'Bàn học đã gọn', 'Sách đã cất đúng chỗ', 'Đã đánh răng, rửa mặt', 'Đã tráng bình nước (mai đi học)'] },
   // Việc nhà cần làm mỗi ngày: nằm trong lịch từng buổi, làm thì được tiền, không tính vào thưởng làm đủ việc.
@@ -109,7 +110,7 @@ function choreSummary(c) {
     choreSlot(c) ? `${toMin(c.time) !== null ? (c.by ? 'trước ' : '') + esc(c.time) : sl[1].replace('Buổi ', '').toLowerCase()}` : '',
     Number(c.minutes) ? `${Number(c.minutes)} phút` : '', (c.steps || []).length ? `${c.steps.length} mục con` : '',
     (c.variants || []).length ? `xen kẽ: ${c.variants.map(esc).join(' / ')}` : '', c.shared ? 'việc chung' : '', c.claim ? 'ai làm trước thì tính' : '', c.prep === 'school' ? 'chỉ khi hôm sau đi học' : c.prep ? 'tối trước buổi học thêm' : '',
-    c.imp ? '<span class="late">quan trọng</span>' : '', c.unlock && !isFun(c) ? 'xong mới mở khoá việc thích làm' : '', c.place ? `chỉ ở ${esc(placeLow(c.place))}` : ''].filter(Boolean).join(' · ');
+    c.imp ? '<span class="late">quan trọng</span>' : '', c.unlock && !isFun(c) ? 'xong mới mở khoá việc thích làm' : '', c.readLog && !isFun(c) ? 'ghi đã đọc gì, bao nhiêu trang' : '', c.place ? `chỉ ở ${esc(placeLow(c.place))}` : ''].filter(Boolean).join(' · ');
 }
 // Đoán biểu tượng theo tên việc, để thêm nhanh không phải chọn.
 const ICON_GUESS = [[/nhảy dây/, '🪢'], [/uống|nước lọc/, '💧'], [/giường|chăn/, '🛏️'], [/răng|rửa mặt/, '🪥'], [/đồ chơi|lego/, '🧸'], [/bát|chén|dọn mâm/, '🍽️'], [/cây|tưới/, '🪴'], [/cặp/, '🎒'], [/quần áo|gấp áo/, '👕'], [/quét/, '🧹'], [/lau/, '🧽'],
@@ -325,7 +326,7 @@ export function choreForm(id, kindPre, pre) {
   const kind = c ? choreKindOf(c) : CHORE_KINDS.some(x => x[0] === kindPre) ? kindPre : pre ? (pre.money === 0 ? 'week' : 'each') : 'each';
   const slot = c ? choreSlot(c) : pre?.slot || '', pw = c ? perWeekOf(c) : 0;
   const wbs = bonusRules(kids);
-  const adv = c && (pw || (c.variants || []).length || c.shared || c.claim || c.prep || c.imp || c.unlock || c.place || toMin(c.time) !== null || Number(c.minutes));
+  const adv = c && (pw || (c.variants || []).length || c.shared || c.claim || c.prep || c.imp || c.unlock || c.readLog || c.place || toMin(c.time) !== null || Number(c.minutes));
   const ico = c?.icon || (pre?.name && CHORE_ICONS.includes(guessIcon(pre.name)) ? guessIcon(pre.name) : CHORE_ICONS[0]);
   openModal(`<h2>${c ? 'Sửa việc' : 'Thêm việc'}</h2>
   <div class="fg f-title"><div class="ft"><input id="cname" class="input ft-input" maxlength="40" value="${esc(c?.name || pre?.name || '')}" placeholder="Tên việc" aria-label="Tên việc" autocomplete="off" data-wbs="${esc(wbs)}" ${c ? '' : 'data-new="1"'}>
@@ -341,14 +342,15 @@ export function choreForm(id, kindPre, pre) {
   </div>
   <div class="fg"><div class="fr col"><div class="fl"><label for="csteps">Danh sách con</label><span class="fs">Mỗi dòng một mục. Con tick đủ các mục thì việc được tính là xong. Mục nào chỉ cần khi hôm sau đi học thì ghi thêm “(mai đi học)” ở cuối dòng: tối trước ngày nghỉ mục đó tự ẩn.</span></div>
     <textarea id="csteps" class="input f-area" rows="3" placeholder="Cặp sách đã soạn&#10;Quần áo ngày mai&#10;Bàn học đã gọn">${esc((c?.steps || []).join('\n'))}</textarea></div></div>
-  <details class="fg f-adv" ${adv ? 'open' : ''}><summary class="fr"><div class="fl"><span class="lbl">Thêm tuỳ chọn</span><span class="fs">Giờ, số phút, nơi làm, số lần mỗi tuần, việc chung</span></div>${DOWN}</summary>
+  <details class="fg f-adv" ${adv ? 'open' : ''}><summary class="fr"><div class="fl"><span class="lbl">Thêm tuỳ chọn</span><span class="fs">Giờ, số phút, nơi làm, số lần mỗi tuần, việc chung, ghi đã đọc gì</span></div>${DOWN}</summary>
     ${frow('Giờ', `<input id="ctime" class="pillin num" type="time" value="${esc(c?.time || '')}">`, { id: 'ctime', sub: 'Có giờ thì việc tự xếp vào buổi theo giờ đó' })}
     <div class="fr">${toggle('cby', 'Phải xong trước giờ này <span class="fs">Ví dụ: tắm trước 19:00, quá giờ thì app báo</span>', c?.by)}</div>
     ${frow('Làm trong bao lâu', `<div class="pillnum"><input id="cmin" class="num" type="number" min="0" max="600" step="5" inputmode="numeric" value="${Number(c?.minutes) || ''}" placeholder="0"><span>phút</span></div>`, { id: 'cmin' })}
     ${frow('Chỉ làm ở', `<input id="cplace" class="input" list="cplace-list" maxlength="24" value="${esc(placeName(c?.place))}" placeholder="Ở đâu cũng được"><datalist id="cplace-list">${placeNames().map(n => `<option value="${esc(n)}">`).join('')}</datalist>`, { id: 'cplace', cls: 'col', sub: 'Chỉ hiện vào ngày các con ở đó, theo lịch Các con ở đâu. Ví dụ: hút bụi chỉ ở 6th Element' })}
     ${frow('Số lần mỗi tuần', pillSel('cpw', [0, 1, 2, 3, 4, 5, 6].map(n => [n, n ? `${n} lần mỗi tuần` : 'Mọi ngày đã chọn']), pw), { id: 'cpw', sub: 'Ví dụ: chạy bộ 3 buổi, ngày nào cũng được' })}
     <div class="fr">${toggle('cimp', 'Việc quan trọng <span class="fs">Xếp vào nhóm Việc quan trọng, nằm đầu mỗi buổi ở màn Hôm nay và màn của con</span>', c?.imp)}</div>
- <div class="fr">${toggle('cunlock', 'Xong việc này mới mở khoá việc thích làm <span class="fs">Ví dụ: đọc sách 30 phút xong mới được chơi game, dùng iPad</span>', c?.unlock)}</div>
+    <div class="fr">${toggle('cread', 'Hỏi con đã đọc gì, bao nhiêu trang <span class="fs">Bấm xong thì con ghi tên sách và số trang, ghi rồi mới được tính</span>', c?.readLog)}</div>
+    <div class="fr">${toggle('cunlock', 'Xong việc này mới mở khoá việc thích làm <span class="fs">Ví dụ: đọc sách 30 phút xong mới được chơi game, dùng iPad</span>', c?.unlock)}</div>
     <div class="fr">${toggle('cprep', 'Chỉ khi hôm sau có học thêm <span class="fs">Chỉ hiện vào hôm trước ngày con có buổi học thêm: chuẩn bị sách vở, nộp bài tập</span>', c?.prep && c.prep !== 'school')}</div>
     <div class="fr">${toggle('cprepsch', 'Chỉ khi hôm sau đi học <span class="fs">Chỉ hiện vào hôm trước ngày con đi học, theo thời khoá biểu và ngày nghỉ</span>', c?.prep === 'school')}</div>
     <div class="fr">${toggle('cclaim', 'Ai làm trước thì tính <span class="fs">Một con làm thì con kia không phải làm nữa. Cùng làm thì tính cả hai, chia đều tiền</span>', c?.claim)}</div>

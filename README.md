@@ -69,7 +69,7 @@ Nơi duy nhất thêm, sửa, xoá việc nhà và các mục giá (trước đ�
 
 **Bốn loại việc**, cùng một tên ở mọi màn:
 - *Việc phải làm* (gấp chăn, không kén ăn, bài tập, cất cặp, đánh răng rửa mặt...): không cộng tiền từng lần, ngày nào làm đủ thì được thưởng ngày đủ việc. *Uống đủ 1200ml nước lọc* là việc phải làm cả ngày, có hai mục con *Hết chai thứ nhất (600ml)*, *Hết chai thứ hai (600ml)* (hai chai con mang đi học); app thêm sẵn một lần cho nhà đang dùng, sửa hay xoá ở Quy định. *Việc quan trọng* là việc phải làm xếp lên đầu mỗi buổi, chữ đỏ.
-- *Việc được thưởng* (tập thể dục, đọc sách, xếp bát vào máy, đổ rác...): nằm trong lịch mỗi ngày, làm lần nào cộng tiền lần đó, không tính vào thưởng làm đủ việc.
+- *Việc được thưởng* (tập thể dục, đọc sách, xếp bát vào máy, đổ rác...): nằm trong lịch mỗi ngày, làm lần nào cộng tiền lần đó, không tính vào thưởng làm đủ việc. Bấm xong *Đọc sách 30 phút* thì con phải ghi đã đọc gì và bao nhiêu trang (tên sách điền sẵn theo lần trước), ghi rồi việc mới được tính; câu trả lời hiện dưới tên việc và trong lịch sử ở Tài khoản. Việc khác muốn hỏi như vậy thì bật *Hỏi con đã đọc gì, bao nhiêu trang* trong form việc (Thêm tuỳ chọn).
 - *Việc làm thêm* (hút bụi, lau nhà...): không bắt buộc, làm lúc nào được tiền lúc đó.
 - *Việc thích làm* (mặc định *Chơi game hoặc dùng iPad/điện thoại 15 phút*): không có tiền, khoá cho tới khi xong việc phải làm của buổi đó và xong các việc mở khoá (mặc định *Đọc sách 30 phút*). Bấm vào việc đang khoá thì hiện những việc còn phải làm.
 

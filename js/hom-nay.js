@@ -3,10 +3,10 @@ import { $, addDays, CHEV, confetti, DAILY, dateTxt, daysLabel, daysTo, dm, dmy,
   printHtml, STAR, toast, today, toMin, WD, WDN, WDS, weekStart } from './chung.js';
 import { ageOf, choresFor, choresList, choreSlot, choreVnd, claimers, claimVal, clearMemo, dayBonusAt, dayBonusIn, dayBonusOf, deviceRole, doneVal,
   doneVnd, earned, isBirthday, isDaily, isDone, isExtra, isFun, isMust, isWeekly, kidName, kidSince, kidsList, lessonsOn, mustFor, nextSchool, onDay,
-  perWeekOf, placeLow, placeName, prepFor, reqIn, RO, S, schoolOn, setDone, skipEntry, skipOn, slotAt, SLOTS, stayInfo, stayLine, stepMask, stepsAll,
+  perWeekOf, placeLow, placeName, prepFor, readLogOf, lastReadLog, reqIn, RO, S, schoolOn, setDone, skipEntry, skipOn, slotAt, SLOTS, stayInfo, stayLine, stepMask, stepsAll,
   stepsOf, streakOf, takenBy, tkbOf, todayKid, UI, variantOf, weekBonusAt, weekBonusOf, weekCount, weekStats } from './du-lieu.js';
 import { ava, barCount, kidTabs, lessonIcon, mini, moneyChip, moreBtn, noKids, pillBar, secHead, secIsOpen, tintOf } from './giao-dien.js';
-import { menuRow, menuSheet, openModal } from './form.js';
+import { frow, menuRow, menuSheet, openModal, pillNum } from './form.js';
 import { dayAgenda, eventLines, placeTxt, taskRow, tasksList, tasksSoon } from './hoc-tap.js';
 import { classesOf, classTitle, CLS, feeOf, paidOf, sessList, soFees, soMissing, soOf, soStats } from './so-hoc.js';
 import { coins, coinUnit, goalProgress, pendingCard } from './tai-khoan.js';
@@ -121,6 +121,7 @@ export function choreMeta(c, kidId, d, isToday) {
     p.push(others ? (mine ? `🙌 làm cùng ${others}${choreVnd(c) ? ', chia đều tiền' : ''}` : `🙋 ${others} đã làm${choreVnd(c) ? ' · làm cùng thì chia đều tiền' : ''}`) : mine ? '' : 'ai làm trước thì tính');
   }
   const v = variantOf(c, kidId, d); if (v) p.push(`hôm nay: <b>${esc(v)}</b>`);
+  const r = c.readLog && isDone(d, kidId, c.id) ? readLogOf(d, kidId, c.id) : null; if (r) p.push(`📖 ${esc(r.what)}${Number(r.pages) ? `, ${Number(r.pages)} trang` : ''}`);
   if (isToday && c.by && !isDone(d, kidId, c.id) && toMin(c.time) !== null && nowMin() > toMin(c.time)) p.push('<span class="late">⏰ quá giờ</span>');
   const busy = busyAt(kidId, d, toMin(c.time)); if (busy) p.push(`<span class="late">⚠️ lúc ${esc(c.time)} con đang ${esc(busy)}</span>`);
   return p.filter(Boolean).join(' · ');
@@ -400,8 +401,19 @@ export function markChore(d, kid, cid, on) {
   for (const x of who) {
     setDone(key(d), x, cid, on ? (ch.claim ? claimVal(ch, doers.length) : doneVal(ch)) : 0);
     if ((ch.steps || []).length) setDone(key(d), x, cid + '~s', on ? stepsAll(stepsOf(ch, x, d)) : 0);
+    if (!on && readLogOf(d, x, cid)) setDone(key(d), x, cid + '~r', 0);
   }
   if (msg) toast(msg);
+}
+// Việc đọc sách (readLog): bấm xong thì hỏi đã đọc gì, bao nhiêu trang; bấm Xong (read-save ở thao-tac.js) mới đánh dấu việc.
+// Tên sách điền sẵn theo lần ghi trước, vì con hay đọc tiếp một cuốn.
+export function readForm(d, kid, cid) {
+  const ch = S.chores[cid]; if (!ch) return;
+  const last = lastReadLog(kid, cid), con = UI.km?.on || deviceRole() !== 'parent' ? 'Con' : esc(kidName(kid));
+  openModal(`<h2>${esc(ch.icon || '📚')} ${esc(ch.name)}</h2><p class="muted small lead">${con} đọc gì, bao nhiêu trang? Ghi xong bấm Xong thì việc mới được tính.</p>
+  <div class="fg">${frow('Đọc gì', `<input id="rwhat" class="input" maxlength="60" value="${esc(last?.what || '')}" placeholder="Ví dụ: Dế Mèn phiêu lưu ký, báo Nhi Đồng" autocomplete="off">`, { id: 'rwhat', cls: 'col', sub: 'Tên sách, truyện hay báo' })}
+    ${frow('Bao nhiêu trang', pillNum('rpages', '', { step: 1, unit: 'trang', attr: 'min="1" max="999" step="1"', ph: '0' }), { id: 'rpages' })}</div>
+  <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="read-save" data-kid="${esc(kid)}" data-chore="${esc(cid)}" data-d="${key(d)}">Xong</button></div>`);
 }
 // Màn chúc mừng khi con làm xong hết việc phải làm hôm nay.
 function celebrate(kidId, got) {

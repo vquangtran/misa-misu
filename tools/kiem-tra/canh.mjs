@@ -89,6 +89,15 @@ export const CANH = [
       await c.click(X);
       // Bấm hết các việc phải làm còn lại của Su hôm nay: màn chúc mừng và thưởng ngày đủ việc.
       await c.click(act('slot-toggle'), { text: 'Lúc nào cũng được' });
+      // Đọc sách: hỏi đã đọc gì, bao nhiêu trang (tên sách điền sẵn theo lần trước); chưa ghi số trang thì chưa tính.
+      await c.click(act('tick', { kid: 'k-su', chore: 'mau-doc-sach-30-phut' }), { label: 'đóng dấu Đọc sách: hỏi đã đọc gì' });
+      await c.click('#modal ' + act('read-save'), { label: 'chưa ghi số trang' });
+      await c.fill({ '#rpages': '15' });
+      await c.click('#modal ' + act('read-save'));
+      await c.click(act('tick', { kid: 'k-su', chore: 'mau-doc-sach-30-phut' }), { label: 'bỏ dấu Đọc sách' });
+      await c.click(act('tick', { kid: 'k-su', chore: 'mau-doc-sach-30-phut' }));
+      await c.fill({ '#rwhat': 'Báo Nhi Đồng', '#rpages': '8' });
+      await c.click('#modal ' + act('read-save'));
       for (const id of ['hw-lesson', 'hw-school', 'mau-tu-giac-hoan-thanh-bai-tap', 'mau-hoan-thanh-bai-tap-o-lop', 'mau-tu-chuan-bi-cat-cap', 'mau-don-ban-hoc', 'mau-chuan-bi-sach-vo-cho-buoi-hoc-them-hom-sau', 'mau-khong-ken-an', 'mau-gap-chan-don-giuong', 'mau-danh-rang-rua-mat'])
         await c.click(act('tick', { kid: 'k-su', chore: id }), { optional: true, label: 'đóng dấu ' + id });
       await c.click(act('slot-toggle'), { text: 'Việc làm thêm' });
@@ -366,6 +375,9 @@ export const CANH = [
       await c.go('/');
       await c.click('#km ' + act('tick', { kid: 'k-su', chore: 'mau-don-ban-hoc' }));
       await c.click('#km ' + act('step', { kid: 'k-su', chore: 'mau-checklist-truoc-khi-di-ngu', i: 3 }));
+      await c.click('#km ' + act('tick', { kid: 'k-su', chore: 'mau-doc-sach-30-phut' }), { label: 'con đóng dấu Đọc sách' });
+      await c.fill({ '#rwhat': 'Truyện cổ tích', '#rpages': '20' });
+      await c.click('#modal ' + act('read-save'));
       await c.click('#km ' + act('task-done'), { nth: 0 });
       await c.click('#km ' + act('tkb-go'), { nth: 0 });
       await c.check('#km input[name="kmtab"][value="learn"]');

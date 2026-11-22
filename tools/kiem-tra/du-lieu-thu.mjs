@@ -25,6 +25,8 @@ export function duLieuThu() {
   tick('2026-11-18', 'k-sa', [mau('Đánh răng, rửa mặt'), mau('Xếp bát vào máy')]);
   tick('2026-11-22', 'k-sa', MUST.slice(0, 4));
   tick('2026-11-23', 'k-sa', [mau('Gấp chăn, dọn giường'), mau('Đánh răng, rửa mặt')]);
+  // Su ghi đã đọc gì, bao nhiêu trang khi xong việc đọc sách (lần sau điền sẵn tên sách).
+  done['2026-11-22']['k-su'][mau('Đọc sách 30 phút') + '~r'] = { what: 'Dế Mèn phiêu lưu ký', pages: 12 };
 
   return {
     kids: {

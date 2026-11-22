@@ -4,7 +4,7 @@ import { icon } from './icons.js';
 import { $, addDays, CHEV, confetti, dateTxt, daysTo, dm, dueLabel, esc, hm, key, money, monthTxt, newFamilyCode, norm, parse, toast, today, toMin,
   uid, WDN, weekStart } from './chung.js';
 import { SAMPLE_YEAR } from './nha-minh.js';
-import { againVnd, balance, choresList, choreSlot, DAY_BONUS, dayBonusOf, del, deviceRole, isDaily, isDone, isWeekly, keepFamilyInUrl, kidName,
+import { againVnd, balance, choresList, choreSlot, DAY_BONUS, dayBonusOf, del, deviceRole, isDaily, isDone, isFun, isWeekly, keepFamilyInUrl, kidName,
   kidsList, penaltyTimes, pinHash, placeName, priceKind, pricesList, priceVnd, put, render, S, setDone, setFamily, setRole, SETTINGS_ID, skipOn, SLOTS,
   stepMask, stepsAll, stepsOf, TEACH, tkbOf, TODAY_KID, UI, WEEK_BONUS, weekBonusOf, weekGain } from './du-lieu.js';
 import { avInner, photoOf } from './giao-dien.js';
@@ -15,7 +15,7 @@ import { ATT, attAdd, attClear, attDraw, attTake, bankForm, bookName, CHK, class
   cleanSteps, CLS, CLS_GONE, clsDel, clsPatch, clsPut, delFiles, feeOf, fileOpen, growTitle, hwDueAfter, hwForm, hwList, hwRowInput, hwView, linkList,
   nextClassDay, offOf, okDate, okId, paidOf, printAsk, printSo, sessDayTitle, sessDefaults, sessForm, sessView, soImportGo, soImportPick, soOf,
   soStats, subAdd, subMay } from './so-hoc.js';
-import { drawSheet, funNeedForm, markChore, printSheet, QA, QA_PAY, qaChips, qaData, qaReps, qaWho, quickAdd, todayMenu } from './hom-nay.js';
+import { drawSheet, funNeedForm, markChore, printSheet, QA, QA_PAY, qaChips, qaData, qaReps, qaWho, quickAdd, readForm, todayMenu } from './hom-nay.js';
 import { balForm, funAsks, funDiff, funForm, funOf, goalForm, goalsOf, meritForm, meritSheet, skipForm } from './tai-khoan.js';
 import { addSamples, CHORE_KIND_SUB, CHORE_KINDS, choreForm, guessIcon, kindHelp, meritList, PRICE_FEE, PRICE_HELP, PRICE_KINDS, priceForm,
   printCoupons, printPrices, TABLE_VER, tableUpdate, tableUpdateForm, tableUpdateRun, weeklyCandidates } from './quy-dinh.js';
@@ -50,14 +50,14 @@ function pageAdd() {
 // ---------- máy của con và màn của cô được làm gì ----------
 // Việc máy của con được làm: đánh dấu việc, bài tập của chính mình, gập mở các buổi, xin thêm hoặc xin sửa việc thích làm (bố mẹ duyệt), và xin vào phần bố mẹ.
 // Thêm các nút chỉ để xem ở mục Học tập: đổi tab, chọn ngày, chọn thứ, mở nhóm đã qua.
-const KID_ACTS = new Set(['close', 'tick', 'step', 'slot-toggle', 'task-done', 'task-step', 'role-kid', 'role-kid-ok', 'role-parent', 'pin-ok',
+const KID_ACTS = new Set(['close', 'tick', 'step', 'read-save', 'slot-toggle', 'task-done', 'task-step', 'role-kid', 'role-kid-ok', 'role-parent', 'pin-ok',
   'tkb-go', 'learn-tab', 'tkb-day', 'ag-day', 'ag-week', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel', 'fun-form', 'fun-ask', 'fun-cancel', 'fun-need', 'num-step', 'km-acct', 'task-form', 'task-save', 'task-del', 'task-subj', 'task-due', 'hw-view', 'file-open', 'print-ask', 'sub-del']);
 // Việc màn của cô được làm: chỉ những gì thuộc sổ học.
 const TEACH_ACTS = new Set(['close', 't-tab', 't-menu', 'sess-form', 'sess-view', 'sess-toggle', 'none', 'so-plan-more', 'so-off', 'sess-save', 'hw-row-add', 'so-import', 'so-import-go', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'sub-dl', 'att-del', 'so-print', 'sec-toggle', 'num-step', 'bank-form', 'bank-save']);
 function kidMay(a, b) {
   const r = deviceRole(); if (r === 'parent') return true;
   if (!KID_ACTS.has(a)) return false;
-  if (a === 'tick' || a === 'step') return b.dataset.kid === r;
+  if (a === 'tick' || a === 'step' || a === 'read-save') return b.dataset.kid === r;
   if (a === 'task-done' || a === 'task-step' || a === 'hw-view' || a === 'print-ask' || a === 'sub-del') return taskOf(b.dataset.id)?.kid === r;
   if (a === 'file-open') return classesList().some(c => c.code === b.dataset.code && c.kid === r);
   // Bài tập: con tự thêm bài cho chính mình; chỉ sửa, xoá được bài do chính con thêm (bài bố mẹ ghi thì chỉ tick).
@@ -122,9 +122,20 @@ document.addEventListener('click', e => {
     const d = b.dataset.km ? today() : UI.date, kid = b.dataset.kid; if (!S.chores[b.dataset.chore]) return;
     const on = isDone(d, kid, b.dataset.chore);
     const sl = b.closest('.slot[data-slot]'); if (sl) UI.slotOpen[sl.dataset.slot] = true;
+    // Việc đọc sách: hỏi đã đọc gì, bao nhiêu trang trước khi đánh dấu.
+    if (!on && S.chores[b.dataset.chore].readLog && !isFun(S.chores[b.dataset.chore])) return readForm(d, kid, b.dataset.chore);
     const st = b.classList.contains('stamp') ? b : b.querySelector('.stamp');
     if (!on && st) st.classList.add('on', 'pop');
     return markChore(d, kid, b.dataset.chore, !on);
+  }
+  if (a === 'read-save') {
+    const kid = b.dataset.kid, cid = b.dataset.chore, d = parse(b.dataset.d); if (!S.chores[cid] || !S.kids[kid]) return;
+    const what = $('#rwhat').value.trim().slice(0, 60), pages = Math.round(Number($('#rpages').value) || 0);
+    if (!what) { $('#rwhat').focus(); return toast('Ghi tên sách, truyện hay báo con đã đọc nhé.'); }
+    if (pages < 1) { $('#rpages').focus(); return toast('Ghi số trang con đã đọc nhé.'); }
+    closeModal();
+    setDone(key(d), kid, cid + '~r', { what, pages: Math.min(pages, 999) });
+    return markChore(d, kid, cid, true);
   }
   if (a === 'step') {
     const d = b.dataset.km ? today() : UI.date, kid = b.dataset.kid, cid = b.dataset.chore, ch = S.chores[cid]; if (!ch) return;
@@ -133,7 +144,7 @@ document.addEventListener('click', e => {
     let mask = isDone(d, kid, cid) ? all : stepMask(d, kid, cid) & all;
     mask ^= 1 << Number(b.dataset.i);
     b.classList.toggle('on', !!((mask >> Number(b.dataset.i)) & 1));
-    if (mask === all) return markChore(d, kid, cid, true);
+    if (mask === all) return S.chores[cid].readLog && !isFun(ch) ? readForm(d, kid, cid) : markChore(d, kid, cid, true);
     if (isDone(d, kid, cid)) setDone(key(d), kid, cid, 0);
     setDone(key(d), kid, cid + '~s', mask);
     return;
@@ -638,6 +649,7 @@ document.addEventListener('click', e => {
     if ($('#cprepsch').checked) data.prep = 'school'; else if ($('#cprep').checked) data.prep = true;
     if ($('#cimp').checked) data.imp = true;
     if (kind !== 'fun' && $('#cunlock').checked) data.unlock = true;
+    if (kind !== 'fun' && $('#cread').checked) data.readLog = true;
     const place = placeName($('#cplace').value); if (place) data.place = place;
     closeModal(); put('chores', id || uid(), data);
     return toast('Đã lưu việc.');

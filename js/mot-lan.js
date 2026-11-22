@@ -8,7 +8,7 @@
 // giữ nguyên. Bước nào dùng hằng số riêng ở nha-minh.js (SAMPLE_CLASSES, SU_TV_HW_FROM, SA_TV_HW_FROM…) thì xem còn chỗ nào dùng không.
 //   - Giữ: merit, hw (nhà mới cũng được thêm sẵn 5 mục thành tích, hai việc BTVN và mục phạt Thiếu BTVN).
 //   - Bỏ được: autoFill; các cờ bottle, nodone, read, screen, vac, game, so, book, hwfromSa, hwfrom, dur2, trang1745, trangHome,
-//     homeAll, sportOut, dur, water (chỉ sửa dữ liệu của nhà mình; nhà mới có việc uống nước trong bảng mẫu).
+//     homeAll, sportOut, dur, water, readlog (chỉ sửa dữ liệu của nhà mình; nhà mới có việc uống nước trong bảng mẫu).
 //   - Đổi tên nơi ở cũ (Nhà mẹ, Nhà bố) không có cờ, chạy mỗi lần mở app: bỏ được khi không còn nạp bản sao lưu cũ (lúc hiện,
 //     placeName vẫn đổi tên cũ sang tên mới).
 //   - Sổ học: suAutoImport, suFixes, suTeachFix (sổ Tiếng Việt của Su) và planAuto (kế hoạch Toán của Su, sổ Tiếng Việt của Sa)
@@ -54,6 +54,7 @@ const classSamples = () => kidsList().flatMap(k => SAMPLE_CLASSES.map((sp, i) =>
 //   hw: hai việc quan trọng về bài tập về nhà (hôm sau có học thêm, hôm sau đi học) và mục phạt Thiếu BTVN (lần 2 trong tuần phạt nặng hơn).
 //   water: việc phải làm Uống đủ 1200ml nước lọc mỗi ngày cho mọi con (hai mục con, mỗi chai 600ml), nếu nhà đã có việc nhà và chưa có việc
 //     cùng tên. Nhà mới chưa có việc nào thì không thêm: bảng mẫu đã có việc này.
+//   readlog: việc đọc sách, đọc báo hỏi con đã đọc gì, bao nhiêu trang khi bấm xong.
 //   Các cờ còn lại ghi ngay ở từng đoạn bên dưới.
 let addsChecked = false;
 export function autoAdds() {
@@ -112,6 +113,11 @@ export function autoAdds() {
   if (!set.read) {
     for (const c of choresList()) if (!isFun(c) && ['đọc sách 30 phút', 'đọc sách'].includes(norm(c.name)) && !c.unlock) edit(c.id, { unlock: true });
     flags.read = 1;
+  }
+  // Việc đọc sách, đọc báo: bấm xong thì con ghi đã đọc gì, bao nhiêu trang (một lần; bố mẹ tắt được ở form việc).
+  if (!set.readlog) {
+    for (const c of choresList()) if (!isFun(c) && /^đọc (sách|báo|truyện)/.test(norm(c.name)) && !c.readLog) edit(c.id, { readLog: true });
+    flags.readlog = 1;
   }
   // Chi tiêu có Xem TV và Chơi game (tính theo giờ, một lần): đổi tên mục "Tivi" thành "Xem TV", thêm "Chơi game" nếu chưa có.
   if (!set.screen) {

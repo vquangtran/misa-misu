@@ -9,7 +9,8 @@
 //                             since: ngày thêm việc, weeklyFrom: thứ Hai của tuần việc bắt đầu là việc bắt buộc, claim: ai làm trước thì tính, cùng làm thì chia đều tiền }
 //   rewards  bảng giá       { name, icon, kind: merit|penalty|fee|gift (merit: thành tích học tập ở trường và ở lớp học thêm, con tự báo, bố mẹ duyệt), price (đồng; fee là đồng/giờ), all: mất hết tiền, week: mất hết tiền được thưởng trong tuần,
 //                             again (đồng): mức phạt từ lần thứ hai trong cùng tuần; mỗi lần phạt ghi ledger.rid = mã mục để đếm }
-//   done     việc đã xong   id = "YYYY-MM-DD", { [kidId]: { [choreId]: số tiền nhận được (0 = chưa) } }
+//   done     việc đã xong   id = "YYYY-MM-DD", { [kidId]: { [choreId]: số tiền nhận được (0 = chưa),
+//                             [choreId + '~s']: các mục con đã tick (mặt nạ bit), [choreId + '~r']: { what, pages } con đã đọc gì, bao nhiêu trang } }
 //   ledger   sổ tài khoản   { kid, amount (đồng), kind: bonus|penalty|fee|spend|reward, note, icon, at, skip: ngày được miễn việc, wipe: thứ Hai của tuần bị phạt mất tiền thưởng,
 //                             pending: true = thành tích con báo đang chờ bố mẹ duyệt (amount = 0, số tiền sẽ cộng ở ask); duyệt xong thì amount = ask, có okAt }
 //   paid     (cũ, không dùng nữa) tiền tiêu vặt đã trả theo tuần
