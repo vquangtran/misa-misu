@@ -271,6 +271,19 @@ export const CANH = [
     },
   },
 
+  // Bước một lần nghi2411 (mot-lan.js): bố mẹ đã tự thêm mốc Nghỉ học 24/11 cho Su; app bật Nghỉ cả học thêm cho mốc đó và thêm mốc chung của cả nhà.
+  {
+    ten: 'tu-ghi-nghi',
+    sua: sua(d => { delete d.paid.caidat.nghi2411; d.events['ev-5'] = { name: 'Nghỉ học', icon: '🏖️', kind: 'holiday', from: '2026-11-24', kids: ['k-su'] }; }),
+    async chay(c) {
+      await c.go('/#hom-nay');
+      await c.click(act('today-kid', { kid: 'k-sa' }));
+      await c.hash('#lich-hoc');
+      await c.click(act('learn-tab', { v: 'truong' }));
+      await c.check('input[name="truong"][value="moc"]');
+    },
+  },
+
   // Tài khoản: ghi phạt (cả phạt tăng nặng), phí sử dụng theo giờ, thưởng thêm, chi tiêu, phiếu thưởng, duyệt, lịch sử, mục tiêu.
   {
     ten: 'tai-khoan',

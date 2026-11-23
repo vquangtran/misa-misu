@@ -8,7 +8,7 @@
 // giữ nguyên. Bước nào dùng hằng số riêng ở nha-minh.js (SAMPLE_CLASSES, SU_TV_HW_FROM, SA_TV_HW_FROM…) thì xem còn chỗ nào dùng không.
 //   - Giữ: merit, hw (nhà mới cũng được thêm sẵn 5 mục thành tích, hai việc BTVN và mục phạt Thiếu BTVN).
 //   - Bỏ được: autoFill; các cờ bottle, nodone, read, screen, vac, game, so, book, hwfromSa, hwfrom, dur2, trang1745, trangHome,
-//     homeAll, sportOut, dur, water, water5k, readlog (chỉ sửa dữ liệu của nhà mình; nhà mới có việc uống nước trong bảng mẫu).
+//     homeAll, sportOut, dur, water, water5k, readlog, nghi2411 (chỉ sửa dữ liệu của nhà mình; nhà mới có việc uống nước trong bảng mẫu).
 //   - Đổi tên nơi ở cũ (Nhà mẹ, Nhà bố) không có cờ, chạy mỗi lần mở app: bỏ được khi không còn nạp bản sao lưu cũ (lúc hiện,
 //     placeName vẫn đổi tên cũ sang tên mới).
 //   - Sổ học: suAutoImport, suFixes, suTeachFix (sổ Tiếng Việt của Su) và planAuto (kế hoạch Toán của Su, sổ Tiếng Việt của Sa)
@@ -16,8 +16,8 @@
 //     data/ke-hoach-toan-su.json, data/so-tieng-viet-sa.json không còn được dùng.
 // Bỏ hay thêm bước thì chạy lại `node tools/kiem-tra/chay.mjs tao-diem-xuat-phat` (dữ liệu sau lần mở đầu sẽ khác).
 import { addDays, DAILY, key, money, newFamilyCode, norm, parse, slug, toast, today } from './chung.js';
-import { isSa, isSu, isSuTV, SA, SA_TV_HW_FROM, SAMPLE_CLASSES, SU, SU_TV_BOOK, SU_TV_DUR, SU_TV_HW_FROM, SU_TV_MODE } from './nha-minh.js';
-import { choresList, del, deviceRole, isDaily, isDone, isFun, isWeekly, kidName, kidsList, lessonsList, loaded, placeName, pricesList, put, S, setDone,
+import { isSa, isSu, isSuTV, NGHI_2411, SA, SA_TV_HW_FROM, SAMPLE_CLASSES, SU, SU_TV_BOOK, SU_TV_DUR, SU_TV_HW_FROM, SU_TV_MODE } from './nha-minh.js';
+import { choresList, del, deviceRole, eventsList, isDaily, isDone, isFun, isWeekly, kidName, kidsList, lessonsList, loaded, placeName, pricesList, put, S, setDone,
   SETTINGS_ID, stale, stepMask, stepText, TEACH } from './du-lieu.js';
 import { classesList, classesOf, classLessons, classTitle, CLS, clsPut, fixedFor, okDate, onSoData, paidOf, parseSoRows, sessList, soImportApply,
   soImportPlan } from './so-hoc.js';
@@ -56,6 +56,7 @@ const classSamples = () => kidsList().flatMap(k => SAMPLE_CLASSES.map((sp, i) =>
 //     cùng tên. Nhà mới chưa có việc nào thì không thêm: bảng mẫu đã có việc này.
 //   water5k: việc uống nước đã thêm là việc phải làm thì đổi sang việc được thưởng 5.000đ.
 //   readlog: việc đọc sách, đọc báo hỏi con đã đọc gì, bao nhiêu trang khi bấm xong.
+//   nghi2411: mốc Nghỉ học 24/11/2026 cho cả nhà, nghỉ cả học thêm (NGHI_2411 ở nha-minh.js).
 //   Các cờ còn lại ghi ngay ở từng đoạn bên dưới.
 let addsChecked = false;
 export function autoAdds() {
@@ -216,6 +217,17 @@ export function autoAdds() {
   if (!set.dur) {
     for (const c of classesList()) if (isSuTV(kidName(c.kid), c.name) && !Array.isArray(c.dur)) { const { id, ...o } = c; put('paid', id, { ...o, dur: SU_TV_DUR.slice() }); }
     flags.dur = 1;
+  }
+  // Mai (24/11/2026) Su, Sa nghỉ cả học chính lẫn học thêm: thêm mốc Nghỉ học cho cả nhà (chỉ nhà có Su hoặc Sa). Đã có mốc Nghỉ học trùng ngày (bố mẹ tự thêm) thì chỉ bật
+  // Nghỉ cả học thêm cho mốc đó, mốc đó chưa của cả nhà thì vẫn thêm mốc chung. Qua ngày đó thì thôi, để không đổi tiền thưởng các ngày đã qua.
+  if (!set.nghi2411) {
+    if (key(today()) <= NGHI_2411.from && kidsList().some(k => isSu(k.name) || isSa(k.name))) {
+      const dk = NGHI_2411.from, have = eventsList().filter(e => e.kind === 'holiday' && e.from <= dk && dk <= e.to);
+      for (const e of have) if (!e.noLessons) put('events', e.id, { ...S.events[e.id], noLessons: true });
+      if (!have.some(e => !(e.kids || []).length)) put('events', 'nghi-2026-11-24', { ...NGHI_2411, kids: [] });
+      toast('Đã ghi Thứ Ba 24/11 nghỉ học, nghỉ cả học thêm (Mốc năm học).');
+    }
+    flags.nghi2411 = 1;
   }
   if (Object.keys(flags).length) put('paid', SETTINGS_ID, { ...set, ...flags });
 }

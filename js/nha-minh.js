@@ -58,6 +58,9 @@ export const SAMPLE_YEAR = { label: 'năm học 2026 – 2027', items: [
   { name: 'Kết thúc năm học (bế giảng)', icon: '🏆', kind: 'event', from: '2027-05-24', to: '2027-05-30' },
 ] };
 
+// Nghỉ học Thứ Ba 24/11/2026 (Ngày Văn hóa Việt Nam, trường thông báo 19/11); các cô dạy thêm cũng nghỉ. autoAdds (cờ nghi2411) thêm một lần.
+export const NGHI_2411 = { name: 'Nghỉ học nhân Ngày Văn hóa Việt Nam', icon: '🏖️', kind: 'holiday', from: '2026-11-24', noLessons: true };
+
 // ---------- các con ở đâu ----------
 export const PLACE_NAMES = ['Nhà B4', '6th Element', 'Nhà ông bà'];
 // Tên cũ được hiện bằng tên mới: nhà gọi theo tên toà nhà, không theo bố hay mẹ (dữ liệu cũ ghi "Nhà mẹ", "Nhà bố", "bên mẹ", "Mẹ"...).

@@ -48,6 +48,8 @@ export function duLieuThu() {
       l9: { kid: 'k-su', amount: 0, ask: 5000, kind: 'bonus', note: 'Được cô khen', icon: '👏', at: '2026-11-23T06:00:00.000Z', pending: true },
     },
     paid: {
+      // Cờ nghi2411 đã chạy, để các cảnh vẫn có ngày mai 24/11 đi học (cảnh tu-ghi-nghi bỏ cờ này để thử bước tự thêm mốc nghỉ).
+      caidat: { nghi2411: 1 },
       'xin-a1': { xin: 'fun', kid: 'k-su', name: 'Đọc truyện tranh', icon: '📚', minutes: 20, slot: 'toi', days: [0, 6], at: '2026-11-22T10:00:00.000Z' },
     },
     timetables: {
