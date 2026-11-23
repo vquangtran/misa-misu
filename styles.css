@@ -149,6 +149,8 @@ main{flex:1;min-width:0;padding:calc(8px + env(safe-area-inset-top,0px)) max(16p
 .item .s b.plus,.item .s b.num.plus{color:var(--good)} .item .s b.minus,.item .s b.num.minus{color:var(--bad)}
 .item .acts{display:flex;gap:8px;align-items:center;flex:none}
 .item.done .t{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--ring);text-decoration-thickness:1.5px}
+/* Bài có hạn nộp vào ngày nghỉ: chưa phải nộp, hiện mờ */
+.item.task.off,.big-item.task.off{opacity:.55}
 .item.taken .t{color:var(--muted)}
 /* việc có danh sách con: biểu tượng và ngôi sao nằm ngang hàng tên việc, không trôi xuống giữa */
 .item:has(.steps)>.ico,.item:has(.steps)>.stamp{align-self:flex-start}

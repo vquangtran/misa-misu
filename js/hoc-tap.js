@@ -2,8 +2,8 @@
 import { $, addDays, CHEV, daysTo, dm, dmy, dueLabel, durTxt, esc, hm, key, NEXT, norm, nowMin, parse, PLUS, PREV, printHtml, today, toMin, WD, WDN,
   WDS, WEEK_ORDER, weekStart } from './chung.js';
 import { SAMPLE_PERIODS, SAMPLE_TKBS, SAMPLE_YEAR } from './nha-minh.js';
-import { eventsList, eventsOf, holidayOn, kidName, kidsList, lessonMin, lessonsList, lessonsOf, lessonsOn, memoize, nextSchool, placeLow, placeName,
-  placeNames, RO, S, schoolDay, schoolOn, stayInfo, stayLine, tkbDays, tkbOf, UI } from './du-lieu.js';
+import { eventsList, eventsOf, holidayOn, kidName, kidsList, lessonMin, lessonsAt, lessonsList, lessonsOf, lessonsOffOn, lessonsOn, memoize, nextSchool,
+  placeLow, placeName, placeNames, RO, S, schoolDay, schoolOn, stayInfo, stayLine, tkbDays, tkbOf, UI } from './du-lieu.js';
 import { addBtn, ava, barCount, blankAdd, editBtn, kidChip, kidTabs, lessonIcon, mini, noKids, pillBar, plusBtn, secHead, secIsOpen, subjDot, subjTint,
   suggest } from './giao-dien.js';
 import { formFoot, frow, kidRow, openModal, pillSel, radioVal, titleCard, toggle } from './form.js';
@@ -22,7 +22,8 @@ export const sampleLabel = sp => `${sp.cls} · ${sp.year}`;
 const tkbSig = t => JSON.stringify((t.rows || []).map(r => [r.s, r.e, ...tkbDays(t).map(d => String((r.d || {})[d] || '').trim())]));
 
 // ---------- mốc năm học ----------
-// events: { name, icon, kind: exam|holiday|meeting|event, from: "YYYY-MM-DD", to: "YYYY-MM-DD" (không bắt buộc), kids: [] = cả nhà }
+// events: { name, icon, kind: exam|holiday|meeting|event, from: "YYYY-MM-DD", to: "YYYY-MM-DD" (không bắt buộc), kids: [] = cả nhà,
+//   noLessons: true = mốc Nghỉ học nghỉ cả học thêm }
 export const EVENT_KINDS = [['exam', 'Kiểm tra', '📝'], ['holiday', 'Nghỉ học', '🏖️'], ['meeting', 'Họp phụ huynh', '👪'], ['event', 'Sự kiện', '🎉']];
 const EVENT_ICONS = ['📝', '🏫', '🎒', '📘', '🌱', '🌸', '🧧', '🎓', '🏆', '👪', '🎉', '🏖️', '⚽', '🎭', '🩺', '📣'];
 function eventRange(e) {
@@ -72,6 +73,7 @@ export function eventForm(id, kidPre) {
   ${titleCard('ename', e?.name, 'Tên mốc', { max: 60, icoName: 'eico', icons: EVENT_ICONS, ico: e?.icon || EVENT_KINDS.find(x => x[0] === kind)[2], attr: e ? '' : 'data-new="1"' })}
   <div class="fg">
     ${frow('Loại', pillSel('ekind', EVENT_KINDS.map(([v, l]) => [v, l]), kind), { id: 'ekind', sub: EVENT_HELP[kind], subId: 'ekind-help' })}
+    <div class="fr ehol-f" ${kind === 'holiday' ? '' : 'hidden'}>${toggle('enolesson', 'Nghỉ cả học thêm <span class="fs">Những ngày này không có buổi học thêm, tối hôm trước không hiện việc chuẩn bị cho buổi học thêm</span>', e?.noLessons)}</div>
     ${frow('Từ ngày', `<input id="efrom" class="pillin num" type="date" value="${esc(e?.from || '')}">`, { id: 'efrom' })}
     ${frow('Đến ngày', `<input id="eto" class="pillin num" type="date" value="${esc(e?.to && e.to !== e.from ? e.to : '')}">`, { id: 'eto', sub: 'Bỏ trống nếu chỉ một ngày' })}
     ${kids.length > 1 ? kidRow('Của con nào', 'ekid', 'checkbox', sel, 'Không chọn ai thì là mốc chung của cả nhà') : ''}
@@ -239,28 +241,32 @@ export const tasksList = () => memoize('tasks', () => [...Object.entries(S.tasks
   .filter(t => S.kids[t.kid]), ...classTasks()].sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999') || String(a.title).localeCompare(String(b.title), 'vi')));
 export const taskOf = id => tasksList().find(t => t.id === id);
 export const openTasks = kidId => tasksList().filter(t => !t.done && (!kidId || t.kid === kidId));
-// Bài cần nhắc ở màn Hôm nay: quá hạn, hạn hôm nay hoặc ngày mai.
-export const tasksSoon = kidId => openTasks(kidId).filter(t => t.due && daysTo(t.due) <= 1);
+// Hạn nộp rơi vào ngày nghỉ: bài ở trường thì ngày có mốc Nghỉ học, bài học thêm (cô giao trong sổ, hoặc môn trùng tên buổi học thêm)
+// thì ngày nghỉ cả học thêm. Hôm đó chưa phải nộp: ở Bài cần nộp bài hiện mờ, xếp cuối.
+const isExtraTask = t => !!t.cls || (!!t.subj && lessonsOf(t.kid).some(l => norm(l.name) === norm(t.subj)));
+export const dueOff = t => !t.done && !!t.due && daysTo(t.due) >= 0 && !!(isExtraTask(t) ? lessonsOffOn(t.kid, parse(t.due)) : holidayOn(t.kid, parse(t.due)));
+// Bài cần nhắc ở màn Hôm nay: quá hạn, hạn hôm nay hoặc ngày mai (hạn vào ngày nghỉ thì xếp cuối).
+export const tasksSoon = kidId => { const l = openTasks(kidId).filter(t => t.due && daysTo(t.due) <= 1); return [...l.filter(t => !dueOff(t)), ...l.filter(dueOff)]; };
 // Ngày học tới có môn này: theo thời khoá biểu ở trường (bỏ qua ngày nghỉ), hoặc buổi học thêm cùng tên.
 export function nextSubjectDay(kidId, subj, from = today()) {
   if (!subj || (!tkbOf(kidId) && !lessonsOf(kidId).length)) return null;
   for (let i = 1; i <= 31; i++) {
     const x = addDays(from, i), info = schoolOn(kidId, x);
-    if ((info && info.subjects.some(s => norm(s) === norm(subj))) || lessonsOn(kidId, x.getDay()).some(l => norm(l.name) === norm(subj))) return x;
+    if ((info && info.subjects.some(s => norm(s) === norm(subj))) || lessonsAt(kidId, x).some(l => norm(l.name) === norm(subj))) return x;
   }
   return null;
 }
 export function taskRow(t, showKid, mode = '') {
   const big = mode === 'big', bare = big || mode === 'mini';
-  const nd = t.steps.filter(x => x.done).length, over = !t.done && t.due && daysTo(t.due) < 0, kind = TASK_KINDS.find(x => x[0] === t.kind) || TASK_KINDS[0];
+  const nd = t.steps.filter(x => x.done).length, over = !t.done && t.due && daysTo(t.due) < 0, off = dueOff(t), kind = TASK_KINDS.find(x => x[0] === t.kind) || TASK_KINDS[0];
   const natt = t.cls ? t.hw.files.length + linkList(t.hw.links).length : 0;
-  const meta = [t.subj ? `${subjDot(t.subj)}${esc(t.subj)}` : '', t.done ? (t.cls ? esc(hwState(t.hw).txt) : `xong ${t.doneAt ? dm(parse(t.doneAt)) : ''}`) : t.due ? `<span class="${over ? 'late' : ''}">${over ? '' : 'hạn '}${esc(dueLabel(t.due))}</span>` : 'chưa có hạn',
+  const meta = [t.subj ? `${subjDot(t.subj)}${esc(t.subj)}` : '', t.done ? (t.cls ? esc(hwState(t.hw).txt) : `xong ${t.doneAt ? dm(parse(t.doneAt)) : ''}`) : t.due ? `<span class="${over ? 'late' : ''}">${over ? '' : 'hạn '}${esc(dueLabel(t.due))}</span>${off ? ` · nghỉ ${isExtraTask(t) ? 'học thêm' : 'học'}, chưa phải nộp` : ''}` : 'chưa có hạn',
     t.steps.length ? `${nd}/${t.steps.length} bước` : '', showKid ? esc(kidName(t.kid)) : '', t.by ? 'con tự thêm' : '', t.cls ? `${esc(t.cls.teacher || 'cô')} giao` : '', natt ? `📎 ${natt}` : ''].filter(Boolean).join(' · ');
   // Máy của con (RO): chỉ bài do chính con thêm (t.by) mới có nút sửa.
   // Bài cô giao: không sửa được ở nhà, bấm để xem cô dặn gì, file đính kèm, điểm và nhận xét.
   const acts = bare ? '' : t.cls ? `<div class="acts"><button class="edit" data-act="hw-view" data-id="${esc(t.id)}" aria-label="Xem: ${esc(t.title)}">${CHEV}</button></div>` : RO ? (t.by && t.by === t.kid ? `<div class="acts"><button class="edit" data-act="task-form" data-id="${t.id}" data-lock="1" aria-label="Sửa: ${esc(t.title)}">${CHEV}</button></div>` : '') : `<div class="acts">${editBtn('task-form', t.id, t.title)}</div>`;
   const steps = !t.done && t.steps.length ? `<div class="steps">${t.steps.map((x, i) => `<button class="step ${x.done ? 'on' : ''}" data-act="task-step" data-id="${t.id}" data-i="${i}" aria-pressed="${!!x.done}">${esc(x.t)}</button>`).join('')}</div>` : '';
-  return `<div class="${big ? 'big-item task' : 'item task'} ${t.done ? 'done' : ''}"><button class="check ${t.done ? 'on' : ''}" data-act="task-done" data-id="${t.id}" aria-pressed="${!!t.done}" aria-label="${t.done ? 'Chưa xong' : 'Xong'}: ${esc(t.title)}">✓</button>
+  return `<div class="${big ? 'big-item task' : 'item task'} ${t.done ? 'done' : ''}${off ? ' off' : ''}"><button class="check ${t.done ? 'on' : ''}" data-act="task-done" data-id="${t.id}" aria-pressed="${!!t.done}" aria-label="${t.done ? 'Chưa xong' : 'Xong'}: ${esc(t.title)}">✓</button>
     <div class="txt"><div class="t">${kind[2]} ${esc(t.title)}</div><div class="s">${meta}</div>${t.notes && !bare ? `<div class="s snip">${esc(String(t.notes).slice(0, 120))}</div>` : ''}${steps}${t.cls && big ? `<button class="linkbtn hw-open" data-act="hw-view" data-id="${esc(t.id)}">Xem cô dặn gì${natt ? ` · 📎 ${natt} file` : ''}</button>` : ''}</div>
     ${acts}</div>`;
 }
@@ -331,7 +337,8 @@ export function dayAgenda(kidId, d) {
     events: eventsOf(kidId).filter(e => e.from <= dk && dk <= e.to),
     hol: holidayOn(kidId, d),
     school: schoolOn(kidId, d),
-    lessons: lessonsOn(kidId, d.getDay()),
+    lessons: lessonsAt(kidId, d),
+    lessonsOff: lessonsOffOn(kidId, d) && lessonsOn(kidId, d.getDay()).length > 0,
     tasks: tasksList().filter(t => t.kid === kidId && (t.due === dk || (isT && !t.done && t.due && t.due < dk))),
   };
 }
@@ -360,7 +367,7 @@ function viewAgenda(ks) {
     const part = (title, body) => body ? `<div class="ag-sec"><div class="cap">${title}</div>${body}</div>` : '';
     b += part('Kiểm tra và mốc', a.events.map(e => `<div class="item event"><span class="ico">${esc(e.icon || '📌')}</span><div class="txt"><div class="t">${esc(e.name)}</div><div class="s">${esc(eventRange(e))}</div></div></div>`).join(''));
     b += part('Ở trường', a.hol ? `<p class="muted small" style="margin:4px 0">Nghỉ: ${esc(a.hol.name)}</p>` : a.school ? `<div class="periods">${a.school.list.map(p => `<div class="period"><span class="num">${esc(p.s)}</span>${subjDot(p.subj)}<span>${esc(p.subj)}</span></div>`).join('')}</div>` : '');
-    b += part('Học thêm', a.lessons.map(l => `<div class="period"><span class="num">${esc(l.s)}</span><i class="dot lesson"></i><span>${esc(l.name)}${l.at ? ` <span class="muted small">· ${esc(placeName(l.at))}</span>` : ''}</span></div>`).join(''));
+    b += part('Học thêm', a.lessonsOff ? `<p class="muted small" style="margin:4px 0">Nghỉ học thêm: ${esc(a.hol.name)}</p>` : a.lessons.map(l => `<div class="period"><span class="num">${esc(l.s)}</span><i class="dot lesson"></i><span>${esc(l.name)}${l.at ? ` <span class="muted small">· ${esc(placeName(l.at))}</span>` : ''}</span></div>`).join(''));
     b += part('Bài phải nộp', a.tasks.length ? `<div class="list">${a.tasks.map(x => taskRow(x, false)).join('')}</div>` : '');
     h += `<section class="slot">${multi ? kidChip(k) : ''}${b ? `<div class="slot-list pad">${b}</div>` : RO ? `<div class="slot-blank ro"><span>Ngày này con không có lịch học, bài tập hay kiểm tra</span></div>` : `<button class="slot-blank" data-act="page-add"><span>Ngày này ${esc(k.name)} không có lịch học, bài tập hay kiểm tra</span>${PLUS}</button>`}</section>`;
   }

@@ -241,6 +241,36 @@ export const CANH = [
     },
   },
 
+  // Mai nghỉ cả học chính lẫn học thêm (mốc Nghỉ học bật Nghỉ cả học thêm): tối nay việc chuẩn bị cho hôm sau không hiện,
+  // bài có hạn ngày mai hiện mờ, lịch ngày mai không có buổi học thêm.
+  {
+    ten: 'ngay-nghi',
+    async chay(c) {
+      await c.go('/#lich-hoc');
+      await c.click(act('learn-tab', { v: 'truong' }));
+      await c.check('input[name="truong"][value="moc"]');
+      await c.click(act('page-add'));
+      await c.fill({ '#ename': 'Nghỉ cả ngày', '#efrom': '2026-11-24' });
+      await c.fill({ '#ekind': 'holiday' });
+      await c.check('#enolesson');
+      await c.click('#modal ' + act('event-save'));
+      await c.click(act('learn-tab', { v: 'sap-toi' }));
+      await c.click(act('ag-day', { d: '2026-11-24' }));
+      await c.hash('#hom-nay');
+      await c.click(act('today-kid', { kid: 'k-sa' }));
+      await c.click(act('slot-toggle'), { text: 'Buổi tối' });
+      await c.click(act('today-kid', { kid: 'k-su' }));
+      await c.click(act('slot-toggle'), { text: 'Buổi tối' });
+      await c.click(act('day-set', { d: '2026-11-24' }));
+      await c.hash('#lich-hoc');
+      await c.click(act('learn-tab', { v: 'truong' }));
+      await c.click(act('event-form') + '[aria-label="Sửa: Nghỉ cả ngày"]');
+      await c.fill({ '#ekind': 'event' });
+      await c.fill({ '#ekind': 'holiday' });
+      await c.click(X);
+    },
+  },
+
   // Tài khoản: ghi phạt (cả phạt tăng nặng), phí sử dụng theo giờ, thưởng thêm, chi tiêu, phiếu thưởng, duyệt, lịch sử, mục tiêu.
   {
     ten: 'tai-khoan',

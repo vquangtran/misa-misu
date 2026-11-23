@@ -129,10 +129,10 @@ export function weekCount(kid, c, d, beforeOnly = false) {
   return n;
 }
 // Việc "X lần mỗi tuần" hiện mỗi ngày cho tới khi đủ số lần (ngày đã làm thì vẫn hiện).
-// Việc chỉ có vào hôm trước (c.prep). true: hôm sau con có buổi học thêm. 'school': hôm sau con đi học
-// (theo thời khoá biểu, trừ ngày nghỉ trong Mốc năm học; chưa nhập thời khoá biểu thì tính Thứ Hai đến Thứ Sáu).
+// Việc chỉ có vào hôm trước (c.prep). true: hôm sau con có buổi học thêm (trừ ngày nghỉ cả học thêm trong Mốc năm học).
+// 'school': hôm sau con đi học (theo thời khoá biểu, trừ ngày nghỉ trong Mốc năm học; chưa nhập thời khoá biểu thì tính Thứ Hai đến Thứ Sáu).
 const schoolTomorrow = (kidId, d) => { const x = addDays(d, 1); return tkbOf(kidId) ? !!schoolOn(kidId, x) : !holidayOn(kidId, x) && x.getDay() >= 1 && x.getDay() <= 5; };
-export const prepFor = (c, kidId, d) => !c.prep || (c.prep === 'school' ? schoolTomorrow(kidId, d) : lessonsOn(kidId, addDays(d, 1).getDay()).length > 0);
+export const prepFor = (c, kidId, d) => !c.prep || (c.prep === 'school' ? schoolTomorrow(kidId, d) : lessonsAt(kidId, addDays(d, 1)).length > 0);
 // Mục con chỉ áp dụng khi hôm sau đi học: dòng kết thúc bằng "(mai đi học)". Hôm sau không đi học thì mục đó không hiện và không phải tick.
 const STEP_SCHOOL = /\s*\((?:khi\s+)?(?:mai|hôm sau)\s+đi học\)\s*$/i;
 export const stepText = x => String(x).replace(STEP_SCHOOL, '').trim();
@@ -290,6 +290,10 @@ export const lessonsList = () => Object.entries(S.lessons || {}).map(([id, l]) =
   .sort((a, b) => WEEK_ORDER.indexOf(a.day) - WEEK_ORDER.indexOf(b.day) || toMin(a.s) - toMin(b.s) || (S.kids[a.kid].order ?? 0) - (S.kids[b.kid].order ?? 0));
 export const lessonsOf = kidId => lessonsList().filter(l => l.kid === kidId);
 export const lessonsOn = (kidId, wd) => lessonsOf(kidId).filter(l => l.day === wd);
+// Ngày nghỉ cả học thêm: mốc Nghỉ học có bật e.noLessons. Ngày đó không có buổi học thêm nào.
+export const lessonsOffOn = (kidId, d) => { const dk = key(d); return eventsOf(kidId).find(e => e.kind === 'holiday' && e.noLessons && e.from <= dk && dk <= e.to) || null; };
+// Các buổi học thêm của con trong ngày d (theo thứ, trừ ngày nghỉ cả học thêm).
+export const lessonsAt = (kidId, d) => lessonsOffOn(kidId, d) ? [] : lessonsOn(kidId, d.getDay());
 export const lessonMin = l => Math.max(0, toMin(l.e) - toMin(l.s));
 
 // ---------- các con ở đâu ----------

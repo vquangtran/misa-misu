@@ -2,7 +2,7 @@
 import { $, addDays, CHEV, confetti, DAILY, dateTxt, daysLabel, daysTo, dm, dmy, DOTS, DOWN, esc, hm, key, money, NEXT, nowMin, parse, PLUS, PREV,
   printHtml, STAR, toast, today, toMin, WD, WDN, WDS, weekStart } from './chung.js';
 import { ageOf, choresFor, choresList, choreSlot, choreVnd, claimers, claimVal, clearMemo, dayBonusAt, dayBonusIn, dayBonusOf, deviceRole, doneVal,
-  doneVnd, earned, isBirthday, isDaily, isDone, isExtra, isFun, isMust, isWeekly, kidName, kidSince, kidsList, lessonsOn, mustFor, nextSchool, onDay,
+  doneVnd, earned, isBirthday, isDaily, isDone, isExtra, isFun, isMust, isWeekly, kidName, kidSince, kidsList, lessonsAt, mustFor, nextSchool, onDay,
   perWeekOf, placeLow, placeName, prepFor, readLogOf, lastReadLog, reqIn, RO, S, schoolOn, setDone, skipEntry, skipOn, slotAt, SLOTS, stayInfo, stayLine, stepMask, stepsAll,
   stepsOf, streakOf, takenBy, tkbOf, todayKid, UI, variantOf, weekBonusAt, weekBonusOf, weekCount, weekStats } from './du-lieu.js';
 import { ava, barCount, kidTabs, lessonIcon, mini, moneyChip, moreBtn, noKids, pillBar, secHead, secIsOpen, tintOf } from './giao-dien.js';
@@ -65,7 +65,7 @@ export function dayPlan(kidId, d) {
     items.push({ type: 'mark', t: toMin(info.start), icon: '🏫', text: `Vào học (${info.list.length} tiết)` });
     items.push({ type: 'mark', t: toMin(info.end), icon: '🏫', text: 'Tan học' });
   }
-  for (const l of lessonsOn(kidId, d.getDay())) items.push({ type: 'lesson', l, t: toMin(l.s) });
+  for (const l of lessonsAt(kidId, d)) items.push({ type: 'lesson', l, t: toMin(l.s) });
   for (const x of items) if (x.slot === undefined) { x.slot = slotAt(x.t); x.sec = 'mark'; }
   const rank = x => SECS.indexOf(x.sec) * 10000 + (x.t ?? 24 * 60);
   const groups = SLOTS.map(([id, label, icon]) => ({ id, label, icon, items: items.filter(x => x.slot === id)
@@ -101,7 +101,7 @@ export function funNeedForm(kidId, cid, dk) {
 // Con đang ở trường hay đang học thêm vào phút m của ngày d không (trả về tên, hoặc '').
 function busyAt(kidId, d, m) {
   if (m === null) return '';
-  const l = lessonsOn(kidId, d.getDay()).find(l => toMin(l.s) <= m && m < toMin(l.e));
+  const l = lessonsAt(kidId, d).find(l => toMin(l.s) <= m && m < toMin(l.e));
   if (l) return `học ${l.name} (${l.s} – ${l.e})`;
   const info = schoolOn(kidId, d);
   return info && toMin(info.start) <= m && m < toMin(info.end) ? `ở trường (${info.start} – ${info.end})` : '';
@@ -115,7 +115,7 @@ export function choreMeta(c, kidId, d, isToday) {
   const n = perWeekOf(c); if (n) p.push(`${weekCount(kidId, c, d)}/${n} lần tuần này`);
   if (c.shared) p.push('👨‍👩‍👧 việc chung');
   if (c.prep === 'school') p.push(`${isToday ? 'mai' : 'hôm sau'} đi học`);
-  else if (c.prep) { const ls = lessonsOn(kidId, addDays(d, 1).getDay()).map(l => esc(l.name)).filter(Boolean); if (ls.length) p.push(`${isToday ? 'mai' : 'hôm sau'} học ${ls.join(', ')}`); }
+  else if (c.prep) { const ls = lessonsAt(kidId, addDays(d, 1)).map(l => esc(l.name)).filter(Boolean); if (ls.length) p.push(`${isToday ? 'mai' : 'hôm sau'} học ${ls.join(', ')}`); }
   if (c.claim && (c.kids || []).length > 1) {
     const mine = isDone(d, kidId, c.id), others = claimers(c, d).filter(x => x !== kidId).map(kidName).map(esc).join(', ');
     p.push(others ? (mine ? `🙌 làm cùng ${others}${choreVnd(c) ? ', chia đều tiền' : ''}` : `🙋 ${others} đã làm${choreVnd(c) ? ' · làm cùng thì chia đều tiền' : ''}`) : mine ? '' : 'ai làm trước thì tính');
@@ -332,7 +332,7 @@ function weekPlan(k) {
   const sched = d => {
     const a = dayAgenda(k.id, d), p = [];
     for (const e of a.events) p.push(`${esc(e.icon || '📌')} ${esc(e.name)}`);
-    if (a.hol) p.push('Nghỉ học');
+    if (a.hol) p.push(a.lessonsOff ? 'Nghỉ học, nghỉ học thêm' : 'Nghỉ học');
     else if (a.school) p.push(`🏫 ${esc(a.school.start)} – ${esc(a.school.end)}`);
     for (const l of a.lessons) p.push(`${lessonIcon(l.name)} ${esc(l.s)} ${esc(l.name)}`);
     for (const t of tasksList().filter(t => t.kid === k.id && t.due === key(d) && !t.done)) p.push(`📝 Nộp: ${esc(t.subj ? t.subj + ' – ' : '')}${esc(t.title)}`);

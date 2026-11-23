@@ -22,7 +22,7 @@
 //   stays    các con ở đâu  id = thứ "0".."6", { day, night }
 //   tasks    bài tập        { kid, title, kind: bt|on|da, subj, due, notes, steps: [{ t, done }], done, doneAt, by: mã của con nếu con tự thêm từ màn của con }
 //   goals    mục tiêu tiết kiệm { kid, name, icon, price (đồng), order, done, doneAt }
-//   events   mốc năm học    { name, icon, kind: exam|holiday|meeting|event, from, to, kids: [] = cả nhà }
+//   events   mốc năm học    { name, icon, kind: exam|holiday|meeting|event, from, to, kids: [] = cả nhà, noLessons: nghỉ cả học thêm }
 //   Sổ học của cô: danh sách lớp của nhà nằm trong nhóm `paid`, id "lop-<mã>": { lop: 1, kid, name (môn), book (tên sổ, trống = "Sổ học <môn>"), dur (7 số phút theo thứ, CN = 0), hwPen ({ mã bài: 1 } đã trừ tiền Thiếu BTVN), teacher, code (mã lớp), at, fee, feeOn, feeBy, feeOff }.
 //   Cài đặt `caidat` có thêm so: 1 = đã tạo sẵn sổ học cho các cô của nhà; book: 1 = đã đổi tên sổ Tiếng Việt của Su; dur: 1 = đã ghi thời lượng theo thứ cho sổ đó.
 //   Việc thích làm con xin thêm, xin sửa (chờ bố mẹ duyệt) cũng nằm trong nhóm `paid`, id "xin-<mã>": { xin: 'fun', kid, chore (mã việc xin sửa; không có = xin thêm), name, icon, minutes, slot, days, at }.

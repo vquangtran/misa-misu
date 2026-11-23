@@ -464,6 +464,7 @@ document.addEventListener('click', e => {
     if (to && to < from) return toast('Ngày kết thúc phải sau ngày bắt đầu.');
     const data = { name, icon: radioVal('eico') || '📌', kind: $('#ekind').value || 'event', from, kids: [...document.querySelectorAll('#modal input[name=ekid]:checked')].map(x => x.value) };
     if (to && to > from) data.to = to;
+    if (data.kind === 'holiday' && $('#enolesson')?.checked) data.noLessons = true;
     closeModal(); put('events', id || uid(), data); return toast('Đã lưu mốc.');
   }
   if (a === 'event-del') { if (!armed(b, 'Bấm lần nữa để xoá')) return; closeModal(); del('events', id); return toast('Đã xoá mốc.'); }
@@ -815,6 +816,7 @@ document.addEventListener('change', e => {
   // Mốc mới: đổi loại thì biểu tượng đổi theo, cho tới khi bố mẹ tự chọn một hình.
   if (e.target.id === 'ekind') {
     $('#ekind-help').textContent = EVENT_HELP[e.target.value] || '';
+    document.querySelectorAll('#modal .ehol-f').forEach(x => (x.hidden = e.target.value !== 'holiday'));
     const ic = EVENT_KINDS.find(x => x[0] === e.target.value)?.[2], r = $('#ename').dataset.new && [...document.querySelectorAll('#modal input[name=eico]')].find(x => x.value === ic);
     if (r) { r.checked = true; $('#modal .ico-now').innerHTML = icon(ic); }
   }
