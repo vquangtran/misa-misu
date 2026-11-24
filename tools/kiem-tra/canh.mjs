@@ -534,6 +534,43 @@ export const CANH = [
     },
   },
 
+  // Con tự mua thời gian (Chế độ cho bé trên máy bố mẹ): con mua, màn của bố mẹ hiện Hãy thêm thời gian, bố bấm Đã thêm thì màn của con hiện Bố đã thêm;
+  // bố mẹ Huỷ thì trả lại tiền; bố mẹ ghi hộ ở Chi tiêu cũng tính vào mức 1 giờ mỗi mục mỗi ngày.
+  {
+    ten: 'mua-thoi-gian',
+    async chay(c) {
+      await c.go('/#hom-nay');
+      await c.click(act('today-menu'));
+      await c.click('#modal ' + act('km-open'));
+      await c.click(act('km-kid', { kid: 'k-su' }));
+      await c.check('#km input[name="kmtab"][value="acct"]');
+      await c.click('#km ' + act('buy-form', { id: 'gia-xem-tv' }));
+      await c.check('#modal input[name="bmins"][value="60"]');
+      await c.click('#modal ' + act('buy-ok'), { label: 'Su mua Xem TV 1 giờ' });
+      await c.click(X, { label: 'Xong' });
+      await c.click('#km ' + act('buy-form', { id: 'gia-dien-thoai' }));
+      await c.click('#modal ' + act('buy-ok'), { label: 'Su mua Điện thoại 30 phút' });
+      await c.click(X, { label: 'Xong' });
+      await c.check('#km input[name="kmtab"][value="today"]', true, 'Hôm nay của con: Chờ bố thêm thời gian');
+      await c.hold('#km [data-hold]');
+      await c.click(act('buy-added'), { nth: 0, label: 'bố bấm Đã thêm' });
+      await c.click(act('ledger-undo'), { nth: 0 });
+      await c.click(act('ledger-undo'), { nth: 0, label: 'bấm lần nữa: huỷ lần mua còn lại, trả lại tiền' });
+      await c.hash('#tai-khoan');
+      await c.click(act('acct-kid', { kid: 'k-su' }), { optional: true });
+      await c.check('input[name="akind"][value="spend"]');
+      await c.click(act('num-step', { t: 'amins', n: '30' }));
+      await c.click(act('num-step', { t: 'amins', n: '30' }), { label: 'nút +: không quá 60 phút' });
+      await c.click(act('acct-preset', { id: 'gia-dien-thoai' }), { label: 'bố mẹ ghi Điện thoại 1 giờ' });
+      await c.click(act('acct-preset', { id: 'gia-dien-thoai' }), { label: 'ghi nữa: báo đã đủ 1 giờ hôm nay' });
+      await c.hash('#hom-nay');
+      await c.click(act('today-menu'));
+      await c.click('#modal ' + act('km-open'));
+      await c.click(act('km-kid', { kid: 'k-su' }), { optional: true });
+      await c.check('#km input[name="kmtab"][value="acct"]', true, 'Tài khoản của con: Bố đã thêm, hai mục đã đủ 1 giờ');
+    },
+  },
+
   // Máy của con có mã PIN: chỉ thấy phần của Su, ba tab, tự thêm bài, báo thành tích, nhập PIN để thành máy bố mẹ.
   {
     ten: 'may-con',
@@ -554,14 +591,17 @@ export const CANH = [
       await c.fill({ '#ttitle': 'Con tự ghi: học từ mới' });
       await c.click('#modal ' + act('task-save'));
       await c.check('#km input[name="kmtab"][value="acct"]');
-      // Con tự mua thời gian: chọn số phút, mua, màn Đã mua thành công; mua quá số tiền đang có thì không được.
+      // Con tự mua thời gian: chọn số phút muốn mua, mua, màn Đã mua thành công; mỗi mục mỗi ngày tối đa 1 giờ.
       await c.click('#km ' + act('buy-form', { id: 'gia-choi-game' }));
-      await c.click('#modal ' + act('buy-form', { m: '60' }), { label: 'mua 1 giờ' });
-      await c.click('#modal ' + act('buy-form', { m: '30' }), { label: 'về 30 phút' });
+      await c.check('#modal input[name="bmins"][value="60"]', true, 'chọn 1 giờ: tiền tính lại');
+      await c.check('#modal input[name="bmins"][value="30"]');
       await c.click('#modal ' + act('buy-ok'), { label: 'Mua Chơi game 30 phút' });
       await c.click(X, { label: 'Xong' });
+      await c.click('#km ' + act('buy-form', { id: 'gia-choi-game' }), { label: 'mua tiếp: chỉ còn mức 30 phút' });
+      await c.click('#modal ' + act('buy-ok'), { label: 'Mua thêm 30 phút: đủ 1 giờ hôm nay, hết nút Mua' });
+      await c.click(X, { label: 'Xong' });
       await c.click('#km ' + act('buy-form', { id: 'gia-xem-tv' }));
-      for (const m of ['60', '90', '120', '150', '180', '210', '240']) await c.click('#modal ' + act('buy-form', { m }), { label: 'thêm tới ' + m + ' phút' });
+      await c.check('#modal input[name="bmins"][value="60"]');
       await c.click(X);
       await c.click('#km ' + act('merit-open', { kid: 'k-su' }));
       await c.click('#modal ' + act('merit-pick'), { nth: 0 });

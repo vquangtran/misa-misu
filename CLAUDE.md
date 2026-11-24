@@ -10,20 +10,20 @@ Năm tab của bố mẹ, mỗi tab trả lời một câu hỏi:
 
 | Tab | Câu hỏi | Gồm |
 | --- | --- | --- |
-| Hôm nay (`#hom-nay`) | Hôm nay con cần làm gì? | Theo từng con. Thông báo cần bố mẹ chú ý ở đầu màn (chờ duyệt, sổ học của cô), tiến độ và số dư, khối nhắc (kèm dòng con tự mua thời gian hôm nay), bài cần nộp, việc ôn thi tới ngày, các buổi trong ngày, việc làm thêm. Menu ⋯: Xem cả tuần, Chế độ cho bé, In kế hoạch tuần, … nghỉ học (thêm ngày nghỉ cho ngày đang xem), Sửa danh sách việc nhà (mở Quy định). Máy bố mẹ: bấm vào việc hay buổi học thêm để sửa. Máy tính màn rộng chia hai cột (các buổi bên trái, thông báo và nhắc bên phải). |
+| Hôm nay (`#hom-nay`) | Hôm nay con cần làm gì? | Theo từng con. Thông báo cần bố mẹ chú ý ở đầu màn (Hãy thêm thời gian khi con vừa tự mua, chờ duyệt, sổ học của cô), tiến độ và số dư, khối nhắc, bài cần nộp, việc ôn thi tới ngày, các buổi trong ngày, việc làm thêm. Menu ⋯: Xem cả tuần, Chế độ cho bé, In kế hoạch tuần, … nghỉ học (thêm ngày nghỉ cho ngày đang xem), Sửa danh sách việc nhà (mở Quy định). Máy bố mẹ: bấm vào việc hay buổi học thêm để sửa. Máy tính màn rộng chia hai cột (các buổi bên trái, thông báo và nhắc bên phải). |
 | Học tập (`#lich-hoc`) | Các con học gì, nộp gì, ai đưa đón? | Cả nhà hoặc từng con. Ba tab chia theo nguồn: Trên lớp (thanh gạt Bài tập / Thời khoá biểu / Mốc năm học; bài tập ở đây do bố mẹ hoặc con tự ghi), Học thêm (Sổ học của cô: mỗi sổ một thẻ có buổi vừa qua và bài tập về nhà cô giao; Học phí của tất cả các cô; Lịch học thêm và đưa đón), Thi (lịch thi các môn của từng con, nội dung ôn tập, kế hoạch ôn tập; lịch thi luôn của đúng một con, không ghi chung cả nhà; chỉ hiện kỳ thi gần nhất, các kỳ khác gập ở Kỳ thi khác; app không thêm sẵn kỳ thi, bố mẹ nhập khi có). Mỗi sổ học là một trang riêng `#lich-hoc/so/<mã sổ>` có nút quay lại. |
 | Tài khoản (`#tai-khoan`) | Con có bao nhiêu tiền, vì sao? | Theo từng con. Số dư, chờ duyệt thành tích, Ghi cho con (Phạt, Thưởng thêm, Chi tiêu), mục tiêu tiết kiệm, lịch sử. |
 | Quy định (`#quy-dinh`, link cũ `#bang-gia`) | Nhà mình có việc gì, thưởng phạt thế nào? | Nơi duy nhất thêm, sửa, xoá việc nhà (bốn loại) và mục giá (thành tích, phạt, phí sử dụng, phiếu thưởng). Menu ⋯: in bảng giá, phiếu thưởng, kế hoạch tuần. |
 | Gia đình (`#gia-dinh`) | Cài đặt của cả nhà | Các con, các con ở đâu, Chia sẻ và máy của con (link mời người nhà, mã PIN, link riêng cho máy của từng con), Sao lưu. |
 
-- Máy của con (nhà có mã PIN) và Chế độ cho bé dùng chung một màn với ba tab: Hôm nay, Học tập (ba tab như bố mẹ, chỉ xem, không có trang sổ, nhận xét học sinh và học phí, nhớ tab riêng; con tự thêm bài của mình, tick bài và việc ôn thi), Tài khoản (chỉ xem, riêng mục Mua thời gian con tự mua thời gian chơi game, điện thoại, xem TV bằng tiền của mình). Báo thành tích có ở cả tab Hôm nay và tab Tài khoản của con.
+- Máy của con (nhà có mã PIN) và Chế độ cho bé dùng chung một màn với ba tab: Hôm nay, Học tập (ba tab như bố mẹ, chỉ xem, không có trang sổ, nhận xét học sinh và học phí, nhớ tab riêng; con tự thêm bài của mình, tick bài và việc ôn thi), Tài khoản (chỉ xem, riêng mục Mua thời gian con tự mua thời gian chơi game, điện thoại, xem TV bằng tiền của mình: chọn số phút muốn mua, mỗi mục tối đa 1 giờ mỗi ngày; bố mẹ thêm thời gian trên máy rồi bấm Đã thêm thì màn của con hiện Bố đã thêm). Báo thành tích có ở cả tab Hôm nay và tab Tài khoản của con.
 - Màn của cô (`?lop=<mã lớp>`): ba tab Buổi học, Bài tập, Báo cáo (menu ⋯: In báo cáo, Nhập từ file Excel); chỉ đọc và ghi được sổ của lớp đó.
 
 ## Quy tắc đặt chỗ
 
 - Thứ con phải làm hoặc cần biết trong hôm nay: Hôm nay. Thứ không phải việc thì gọn trong một dòng nhắc.
 - Lịch học, bài tập, sổ học của cô, học phí, lịch thi: Học tập. Bài bố mẹ và con tự ghi ở tab Trên lớp; thứ cô dạy thêm ghi trong sổ tự hiện ở tab Học thêm; lịch thi, kiểm tra ở tab Thi (không nằm trong Mốc năm học).
-- Tiền vào, tiền ra của con: Tài khoản. Con tự mua thời gian ở tab Tài khoản của con (khoản phí có `by`); bố mẹ ghi phí hộ ở Tài khoản › Chi tiêu.
+- Tiền vào, tiền ra của con: Tài khoản. Con tự mua thời gian ở tab Tài khoản của con (khoản phí có `by`, bố mẹ bấm Đã thêm thì có `added`); bố mẹ ghi hộ ở Tài khoản › Chi tiêu. Phí sử dụng là mua thời gian: gọi là "số phút muốn mua", không gọi "đã dùng bao lâu".
 - Có những việc gì, bao nhiêu tiền, phạt gì: Quy định.
 - Cài đặt ít dùng: Gia đình.
 - Mỗi thứ chỉ thêm, sửa, xoá ở một chỗ. Nơi khác chỉ hiện tóm tắt và bấm để sang chỗ đó.

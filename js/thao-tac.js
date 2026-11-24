@@ -4,9 +4,9 @@ import { icon } from './icons.js';
 import { $, addDays, CHEV, confetti, dateTxt, daysTo, dm, dueLabel, durTxt, esc, hm, key, money, monthTxt, newFamilyCode, norm, parse, toast, today,
   toMin, uid, WDN, weekStart } from './chung.js';
 import { SAMPLE_YEAR } from './nha-minh.js';
-import { againVnd, balance, choresList, choreSlot, DAY_BONUS, dayBonusOf, del, deviceRole, eventTitle, FEE_MIN, isDaily, isDone, isFun, isWeekly,
-  keepFamilyInUrl, kidName, kidsList, offLabel, penaltyTimes, pinHash, placeName, priceKind, pricesList, priceVnd, put, render, S, setDone, setFamily,
-  setRole, SETTINGS_ID, skipOn, SLOTS, stepMask, stepsAll, stepsOf, TEACH, tkbOf, TODAY_KID, UI, WEEK_BONUS, weekBonusOf, weekGain } from './du-lieu.js';
+import { againVnd, balance, choresList, choreSlot, DAY_BONUS, dayBonusOf, del, deviceRole, eventTitle, FEE_DAY_MAX, FEE_MIN, isDaily, isDone, isFun,
+  isWeekly, keepFamilyInUrl, kidName, kidsList, offLabel, penaltyTimes, pinHash, placeName, priceKind, pricesList, priceVnd, put, render, S, setDone,
+  setFamily, setRole, SETTINGS_ID, skipOn, SLOTS, stepMask, stepsAll, stepsOf, TEACH, tkbOf, TODAY_KID, UI, WEEK_BONUS, weekBonusOf, weekGain } from './du-lieu.js';
 import { avInner, photoOf } from './giao-dien.js';
 import { closeModal, daySet, dismissModal, menuRow, menuSheet, openModal, radioVal, setModalDirty } from './form.js';
 import { dayOffForm, EVENT_HELP, EVENT_KINDS, eventForm, examForm, examIsNearest, examPlan, examSubjChips, lessonForm, missingYear, nextSubjectDay, openTasks, printTkb, readTkbForm, sampleLabel, sampleTkb,
@@ -16,7 +16,7 @@ import { ATT, attAdd, attClear, attDraw, attTake, bankForm, bookName, CHK, class
   nextClassDay, offOf, okDate, okId, paidOf, printAsk, printSo, sessDayTitle, sessDefaults, sessForm, sessView, soImportGo, soImportPick, soOf,
   soStats, subAdd, subMay } from './so-hoc.js';
 import { drawSheet, funNeedForm, markChore, printSheet, QA, QA_PAY, qaChips, qaData, qaReps, qaWho, quickAdd, readForm, todayMenu } from './hom-nay.js';
-import { balForm, buyCost, buyDone, buyForm, buyMins, funAsks, funDiff, funForm, funOf, goalForm, goalsOf, meritForm, meritSheet, skipForm } from './tai-khoan.js';
+import { balForm, buyCost, buyDone, buyForm, buyLeft, buyMins, funAsks, funDiff, funForm, funOf, goalForm, goalsOf, meritForm, meritSheet, skipForm } from './tai-khoan.js';
 import { addSamples, CHORE_KIND_SUB, CHORE_KINDS, choreForm, guessIcon, kindHelp, meritList, PRICE_FEE, PRICE_HELP, PRICE_KINDS, priceForm,
   printCoupons, printPrices, TABLE_VER, tableUpdate, tableUpdateForm, tableUpdateRun, weeklyCandidates } from './quy-dinh.js';
 import { decryptSeed, exportBackup, hashPin, importBackup, importData, kidForm, kidLink, photoEdit, photoLoad, photoRender, pinForm, roleKidForm,
@@ -597,7 +597,7 @@ document.addEventListener('click', e => {
     put('goals', id, { ...g, done: true, doneAt: key(today()) });
     confetti(); return toast(`${kidName(g.kid)} đã đạt mục tiêu “${g.name}”! 🎉`);
   }
-  if (a === 'num-step') { const i = $('#' + b.dataset.t), min = b.dataset.min != null ? Number(b.dataset.min) : 1; i.value = Math.max(min, Math.round(((Number(i.value) || 0) + Number(b.dataset.n)) * 100) / 100); return; }
+  if (a === 'num-step') { const i = $('#' + b.dataset.t), min = b.dataset.min != null ? Number(b.dataset.min) : 1, max = b.dataset.max != null ? Number(b.dataset.max) : Infinity; i.value = Math.min(max, Math.max(min, Math.round(((Number(i.value) || 0) + Number(b.dataset.n)) * 100) / 100)); return; }
   if (a === 'acct-go') { UI.acctKid = b.dataset.kid; UI.histAll = false; return; }
   if (a === 'hist-all') { UI.histAll = true; return render(); }
   if (a === 'ico-toggle') { const pk = $('#modal .ico-pick'), open = pk.hidden; pk.hidden = !open; b.setAttribute('aria-expanded', open); if (open) pk.querySelector('input:checked')?.focus({ preventScroll: true }); return; }
@@ -744,9 +744,10 @@ document.addEventListener('click', e => {
       else if (k === 'penalty') e = { amount: -p, kind: 'penalty', note: r.name };
       else if (k === 'merit') e = { amount: p, kind: 'bonus', note: r.name };
       else if (k === 'fee') {
-        // Giá của mục là đồng mỗi 30 phút (FEE_MIN); qty vẫn ghi số giờ như các khoản cũ.
-        const mins = Math.max(5, Math.round(Number($('#amins')?.value) || FEE_MIN));
-        e = { amount: -Math.round(p * mins / FEE_MIN), kind: 'fee', note: `${r.name} ${durTxt(mins)}`, qty: Math.round(mins / 60 * 100) / 100 };
+        // Giá của mục là đồng mỗi 30 phút (FEE_MIN), mua từng 30 phút, mỗi mục mỗi ngày tối đa 1 giờ; qty vẫn ghi số giờ như các khoản cũ.
+        const mins = buyMins($('#amins')?.value), left = buyLeft(kid, id);
+        if (left < mins) return toast(left ? `Hôm nay ${who} chỉ còn mua được ${durTxt(left)} ${r.name} (mỗi ngày tối đa ${durTxt(FEE_DAY_MAX)}).` : `Hôm nay ${who} đã mua đủ ${durTxt(FEE_DAY_MAX)} ${r.name} rồi.`);
+        e = { amount: -buyCost(r, mins), kind: 'fee', note: `${r.name} ${durTxt(mins)}`, qty: Math.round(mins / 60 * 100) / 100, rid: id, mins };
       } else {
         if (bal < p) return toast(`${who} còn thiếu ${money(p - bal)} để đổi “${r.name}”.`);
         e = { amount: p ? -p : 0, kind: 'reward', note: r.name };
@@ -793,11 +794,14 @@ document.addEventListener('click', e => {
   if (a === 'buy-form') return buyForm(b.dataset.kid, id, b.dataset.m, !!b.closest('#modal'));
   if (a === 'buy-ok') {
     const kid = b.dataset.kid, r = pricesList('fee').find(x => x.id === id); if (!r || !S.kids[kid]) return;
-    const mins = buyMins(b.dataset.m), cost = buyCost(r, mins), bal = balance(kid);
+    const left = buyLeft(kid, id); if (left < FEE_MIN) { closeModal(); return toast(`Hôm nay con đã mua đủ ${durTxt(FEE_DAY_MAX)} ${r.name} rồi. Mai mua tiếp nhé.`); }
+    const mins = buyMins(b.dataset.m, left), cost = buyCost(r, mins), bal = balance(kid);
     if (bal < cost) return toast(`Con còn thiếu ${money(cost - bal)} để mua ${r.name} ${durTxt(mins)}.`);
-    put('ledger', uid(), { kid, amount: -cost, kind: 'fee', note: `${r.name} ${durTxt(mins)} (con tự mua)`, icon: r.icon || '', qty: Math.round(mins / 60 * 100) / 100, at: new Date().toISOString(), by: kid });
+    put('ledger', uid(), { kid, amount: -cost, kind: 'fee', note: `${r.name} ${durTxt(mins)} (con tự mua)`, icon: r.icon || '', qty: Math.round(mins / 60 * 100) / 100, rid: id, mins, at: new Date().toISOString(), by: kid });
     return buyDone(r, mins, cost, bal - cost);
   }
+  // Bố mẹ đã thêm thời gian trên máy cho con: ghi lại để màn của con hiện Bố đã thêm. Chỉ máy bố mẹ bấm được (không nằm trong KID_ACTS).
+  if (a === 'buy-added') { const l = S.ledger[id]; if (!l || !l.by || l.added) return; put('ledger', id, { ...l, added: new Date().toISOString() }); return toast(`Đã báo cho ${kidName(l.kid)}: bố đã thêm thời gian.`); }
   if (a === 'merit-ask') {
     const kid = b.dataset.kid, r = meritList().find(x => x.id === id); if (!r || !S.kids[kid]) return;
     const extra = ($('#mnote')?.value || '').trim(), vnd = priceVnd(r);
@@ -879,6 +883,8 @@ document.addEventListener('change', e => {
   }
   // Form lịch thi: đổi con thì môn gợi ý đổi theo thời khoá biểu của con đó.
   if (e.target.name === 'xkid') { const box = $('#xsubj-chips'); if (box) box.innerHTML = examSubjChips(e.target.value); }
+  // Form con mua thời gian: đổi số phút thì tính lại tiền.
+  if (e.target.name === 'bmins') { const box = e.target.closest('.buy-opts'); if (box) buyForm(box.dataset.kid, box.dataset.id, e.target.value, true); }
   if (e.target.id === 'lwhere') { const g = $('#modal .lgo'); if (g) g.hidden = e.target.value !== 'out'; }
   if ((e.target.id === 'tsat' || e.target.id === 'tlunch' || e.target.name === 'tday') && tkbDraft && !$('#modal').hidden) tkbForm(tkbDraft.kid, { ...readTkbForm(), keep: true });
   if (e.target.id === 'import-file' && e.target.files[0]) importBackup(e.target.files[0]);

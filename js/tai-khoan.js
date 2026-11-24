@@ -1,8 +1,8 @@
 // Màn Tài khoản: số dư, ghi cho con (phạt, thưởng thêm, chi tiêu), chờ duyệt thành tích, việc thích làm con xin, lịch sử, mục tiêu tiết kiệm.
-import { $, addDays, CHEV, DAILY, daysLabel, dm, durTxt, esc, key, money, norm, nowMin, pad, parse, PLUS, signed, today, WDN, weekStart } from './chung.js';
-import { againVnd, balance, choresList, choreSlot, choreVnd, dayBonuses, dayBonusIn, dayBonusOf, doneVnd, earned, FEE_MIN, isDaily, isExtra, isFun,
-  kidName, kidsList, ledgerVnd, memoize, penaltyTimes, penaltyVnd, priceKind, pricesList, priceVnd, readLogOf, RO, S, slotAt, slotName, SLOTS,
-  streakOf, todayKid, UI, weekBonuses, weekBonusOf, weekStats } from './du-lieu.js';
+import { $, addDays, CHEV, DAILY, daysLabel, dm, durTxt, esc, key, money, norm, nowMin, pad, parse, PLUS, signed, toast, today, WDN, weekStart } from './chung.js';
+import { againVnd, balance, choresList, choreSlot, choreVnd, dayBonuses, dayBonusIn, dayBonusOf, doneVnd, earned, FEE_DAY_MAX, FEE_MIN, feeMinsOn,
+  isDaily, isExtra, isFun, kidName, kidsList, ledgerVnd, memoize, penaltyTimes, penaltyVnd, priceKind, pricesList, priceVnd, readLogOf, RO, S, slotAt,
+  slotName, SLOTS, streakOf, todayKid, UI, weekBonuses, weekBonusOf, weekStats } from './du-lieu.js';
 import { addBtn, bar, barCount, blankAdd, kidTabs, mini, moreBtn, noKids, pillBar, plusBtn, secHead, secIsOpen } from './giao-dien.js';
 import { DAY_SETS, formFoot, frow, kidRow, openModal, pillNum, pillSel, titleCard } from './form.js';
 import { meritList, priceTag } from './quy-dinh.js';
@@ -86,9 +86,9 @@ export function viewAccount() {
   const custom = (label, btn, ph) => `<div class="row2"><div class="field"><label for="aamt">${label}</label><input id="aamt" class="input num" type="number" min="0" step="1000" inputmode="numeric" placeholder="Ví dụ: 10000"></div>
     <div class="field"><label for="anote">Lý do</label><input id="anote" class="input" maxlength="80" placeholder="${ph}"></div></div>
     <div class="row"><button class="btn ${kind === 'bonus' ? 'primary' : 'danger'}" data-act="acct-custom">${btn}</button></div>`;
-  // Ô số phút cho phí sử dụng (xem TV, chơi game, điện thoại): giá ở trang Quy định tính cho mỗi 30 phút, nút − và + nhảy 30 phút.
-  const hoursField = `<div class="field"><label for="amins">Đã dùng bao lâu (phút)</label><div class="stepper"><button class="iconbtn" data-act="num-step" data-t="amins" data-n="-${FEE_MIN}" data-min="${FEE_MIN}" aria-label="Bớt ${FEE_MIN} phút">−</button><input id="amins" class="input num" type="number" min="5" step="5" value="${FEE_MIN}" inputmode="numeric"><button class="iconbtn" data-act="num-step" data-t="amins" data-n="${FEE_MIN}" data-min="${FEE_MIN}" aria-label="Thêm ${FEE_MIN} phút">+</button></div>
-      <span class="muted small">Giá tính cho mỗi ${FEE_MIN} phút: dùng 60 phút thì trừ gấp đôi.</span></div>`;
+  // Ô số phút muốn mua cho phí sử dụng (xem TV, chơi game, điện thoại): giá ở trang Quy định tính cho mỗi 30 phút, mỗi mục mỗi ngày tối đa 1 giờ.
+  const hoursField = `<div class="field"><label for="amins">Số phút muốn mua</label><div class="stepper"><button class="iconbtn" data-act="num-step" data-t="amins" data-n="-${FEE_MIN}" data-min="${FEE_MIN}" data-max="${FEE_DAY_MAX}" aria-label="Bớt ${FEE_MIN} phút">−</button><input id="amins" class="input num" type="number" min="${FEE_MIN}" max="${FEE_DAY_MAX}" step="${FEE_MIN}" value="${FEE_MIN}" inputmode="numeric"><button class="iconbtn" data-act="num-step" data-t="amins" data-n="${FEE_MIN}" data-min="${FEE_MIN}" data-max="${FEE_DAY_MAX}" aria-label="Thêm ${FEE_MIN} phút">+</button></div>
+      <span class="muted small">Giá tính cho mỗi ${FEE_MIN} phút. Mỗi mục mỗi ngày mua tối đa ${durTxt(FEE_DAY_MAX)}.</span></div>`;
   if (kind === 'penalty') {
     const ps = pricesList('penalty');
     h += ps.length ? `<p class="muted small" style="margin:0">Bấm vào lỗi để trừ tiền của ${kidName1}. Bấm nhầm thì bấm Hoàn tác ngay sau đó, hoặc Huỷ trong lịch sử.</p>${presets(ps)}` : `<p class="muted small" style="margin:0">Chưa có mục phạt nào. Thêm ở trang <a href="#quy-dinh">Quy định</a>.</p>`;
@@ -99,7 +99,7 @@ export function viewAccount() {
     const gs = pricesList('gift'), fs = pricesList('fee');
     h += `<p class="muted small" style="margin:0">Con tiêu tiền trong tài khoản: xem TV, chơi game, đổi phiếu thưởng, mua đồ hoặc rút tiền mặt.</p>`;
     // Phí sử dụng (xem TV, chơi game, điện thoại): tính theo thời gian dùng, giá mỗi 30 phút ở trang Quy định.
-    if (fs.length) h += `<div class="sub-h">Phí sử dụng (tính theo mỗi ${FEE_MIN} phút)</div>${hoursField}${presets(fs)}${gs.length ? '<div class="sub-h">Phiếu thưởng</div>' : ''}`;
+    if (fs.length) h += `<div class="sub-h">Phí sử dụng (mua từng ${FEE_MIN} phút)</div>${hoursField}${presets(fs)}${gs.length ? '<div class="sub-h">Phiếu thưởng</div>' : ''}`;
     if (gs.length) h += presets(gs);
     if (!fs.length && !gs.length) h += `<p class="muted small" style="margin:0">Chưa có mục phí sử dụng hay phiếu thưởng nào. Thêm ở trang <a href="#quy-dinh">Quy định</a>.</p>`;
     h += custom('Số tiền chi (đồng)', 'Ghi chi tiêu', 'Ví dụ: Rút tiền mặt, mua truyện');
@@ -125,24 +125,37 @@ export function histSection(kidId) {
 
 // ---------- con tự mua thời gian ----------
 // Tab Tài khoản của con: con dùng tiền của mình mua thời gian xem TV, chơi game, điện thoại (các mục Phí sử dụng ở trang Quy định),
-// không cần bố mẹ ghi hộ. Mua là trừ tiền ngay: một khoản phí trong sổ tài khoản có by = mã của con, ghi chú kèm "(con tự mua)".
-// Mua từng 30 phút (FEE_MIN), tối đa 4 giờ một lần; không đủ tiền thì không mua được. Bố mẹ huỷ được khoản đó trong Lịch sử.
-export const buyMins = m => Math.max(FEE_MIN, Math.min(240, Math.round((Number(m) || FEE_MIN) / FEE_MIN) * FEE_MIN));
+// không cần bố mẹ ghi hộ. Mua là trừ tiền ngay: một khoản phí trong sổ tài khoản có by = mã của con, rid = mã mục, mins = số phút.
+// Mua từng 30 phút (FEE_MIN); mỗi mục mỗi ngày tối đa 1 giờ (FEE_DAY_MAX, tính cả phần bố mẹ ghi hộ); không đủ tiền thì không mua được.
+// Mua xong con gửi yêu cầu thêm thời gian trên máy và nhắn bố. Màn của bố mẹ hiện "… vừa mua, hãy thêm thời gian" (buyCard); bố thêm xong
+// bấm Đã thêm (khoản đó có added) thì màn của con hiện "Bố đã thêm". Bố mẹ bấm Huỷ thì xoá khoản đó, tiền về lại tài khoản của con.
+export const buyLeft = (kidId, rid) => Math.max(0, FEE_DAY_MAX - feeMinsOn(kidId, rid));
+export const buyMins = (m, left = FEE_DAY_MAX) => Math.max(FEE_MIN, Math.min(left, Math.round((Number(m) || FEE_MIN) / FEE_MIN) * FEE_MIN));
 export const buyCost = (r, mins) => Math.round(priceVnd(r) * mins / FEE_MIN);
-// keep: đang bấm − hoặc + trong form, vẽ lại tại chỗ.
+// Các lần con tự mua, mới nhất trước. waiting: chỉ những lần bố chưa bấm Đã thêm.
+export const buyList = (kidId, waiting) => Object.entries(S.ledger).filter(([, l]) => l.by && l.kind === 'fee' && S.kids[l.kid] && (!kidId || l.kid === kidId) && (!waiting || !l.added))
+  .map(([id, l]) => ({ id, ...l })).sort((a, b) => String(b.at).localeCompare(String(a.at)));
+export const buyName = l => String(l.note || '').replace(' (con tự mua)', '');
+const clock = iso => { const d = new Date(iso); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+// "lúc 18:30" nếu là hôm nay, ngày khác thì kèm ngày.
+export const buyWhen = iso => { const d = new Date(iso); return key(d) === key(today()) ? `lúc ${clock(iso)}` : `${WDN(d.getDay())} ${dm(d)} ${clock(iso)}`; };
+// Form mua: chọn số phút muốn mua (30 phút, 1 giờ; chỉ hiện mức còn mua được hôm nay). keep: đang đổi số phút trong form, vẽ lại tại chỗ.
 export function buyForm(kidId, rid, m, keep) {
   const r = pricesList('fee').find(x => x.id === rid); if (!r || !S.kids[kidId]) return;
-  const mins = buyMins(m), cost = buyCost(r, mins), bal = balance(kidId), ok = bal >= cost, attr = `data-id="${r.id}" data-kid="${kidId}"`;
+  const left = buyLeft(kidId, rid), had = FEE_DAY_MAX - left;
+  if (left < FEE_MIN) return toast(`Hôm nay con đã mua đủ ${durTxt(FEE_DAY_MAX)} ${r.name} rồi. Mai mua tiếp nhé.`);
+  const mins = buyMins(m, left), cost = buyCost(r, mins), bal = balance(kidId), ok = bal >= cost, opts = [];
+  for (let x = FEE_MIN; x <= left; x += FEE_MIN) opts.push(x);
   openModal(`<h2>Mua ${esc(r.name)}</h2>
   <div class="fg">
-    <div class="fr"><div class="fl"><span class="lbl">Mua bao lâu</span><span class="fs">${money(priceVnd(r))} mỗi ${FEE_MIN} phút</span></div>
-      <div class="stepper"><button class="iconbtn" data-act="buy-form" ${attr} data-m="${mins - FEE_MIN}" aria-label="Bớt ${FEE_MIN} phút" ${mins <= FEE_MIN ? 'disabled' : ''}>−</button><b class="buy-mins num">${durTxt(mins)}</b><button class="iconbtn" data-act="buy-form" ${attr} data-m="${mins + FEE_MIN}" aria-label="Thêm ${FEE_MIN} phút" ${mins >= 240 ? 'disabled' : ''}>+</button></div></div>
+    <div class="fr col"><div class="fl"><span class="lbl">Chọn số phút muốn mua</span><span class="fs">${money(priceVnd(r))} mỗi ${FEE_MIN} phút. Mỗi ngày mua tối đa ${durTxt(FEE_DAY_MAX)}${had ? `, hôm nay con đã mua ${durTxt(had)}` : ''}.</span></div>
+      <div class="seg buy-opts" data-id="${r.id}" data-kid="${kidId}">${opts.map(x => `<label><input type="radio" name="bmins" value="${x}" ${x === mins ? 'checked' : ''}><span>${durTxt(x)}</span></label>`).join('')}</div></div>
     ${frow('Hết', `<b class="num minus">−${money(cost)}</b>`)}
     ${frow('Con đang có', `<b class="num">${money(bal)}</b>`)}
     ${frow('Mua xong còn', ok ? `<b class="num">${money(bal - cost)}</b>` : `<b class="late">Thiếu ${money(cost - bal)}</b>`)}
   </div>
   ${ok ? '' : `<p class="note">Con chưa đủ tiền để mua ${esc(r.name)} ${durTxt(mins)}. Làm thêm việc nhà để có thêm tiền nhé.</p>`}
-  <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="buy-ok" ${attr} data-m="${mins}" ${ok ? '' : 'disabled'}>Mua</button></div>`, false, keep);
+  <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="buy-ok" data-id="${r.id}" data-kid="${kidId}" data-m="${mins}" ${ok ? '' : 'disabled'}>Mua</button></div>`, false, keep);
 }
 // Mua xong: báo đã mua, hết bao nhiêu, còn bao nhiêu, và nhắc con việc cần làm tiếp để được thêm thời gian trên máy.
 export function buyDone(r, mins, cost, left) {
@@ -151,12 +164,19 @@ export function buyDone(r, mins, cost, left) {
     <p class="note buy-next">Con hãy gửi yêu cầu thêm thời gian và nhắn bố thêm.</p></div>
   <div class="foot"><button class="btn primary" data-act="close">Xong</button></div>`);
 }
+// Màn của bố mẹ: con vừa mua thời gian, bố mẹ thêm thời gian trên máy cho con rồi bấm Đã thêm. Huỷ: xoá khoản đó, trả lại tiền cho con.
+function buyCard(kidId) {
+  const list = buyList(kidId, true); if (!list.length) return '';
+  return `<section class="slot tn2">${secHead('📱', 'Hãy thêm thời gian', { cnt: list.length })}<div class="slot-list list">${list.map(l => `<div class="item pend"><span class="ico">${esc(l.icon || '📱')}</span><div class="txt"><div class="t">${esc(kidName(l.kid))} vừa mua ${esc(buyName(l))}</div><div class="s">Mua ${esc(buyWhen(l.at))} · <b class="num minus">−${money(-ledgerVnd(l))}</b> · hãy thêm thời gian</div></div>
+      <div class="acts"><button class="linkbtn undo" data-act="ledger-undo" data-id="${l.id}">Huỷ</button><button class="btn primary sm" data-act="buy-added" data-id="${l.id}">Đã thêm</button></div></div>`).join('')}</div></section>`;
+}
 
 // Thành tích con báo, chờ bố mẹ duyệt. Chưa duyệt thì chưa tính vào số dư.
 // withFun: kèm việc thích làm con xin thêm, xin sửa (màn Hôm nay); màn Tài khoản chỉ có thành tích vì chỉ thành tích mới có tiền.
+// Đứng trước là thẻ Hãy thêm thời gian (buyCard): những lần con tự mua thời gian mà bố mẹ chưa bấm Đã thêm.
 export function pendingCard(kidId, withFun) {
-  const list = pendingList(kidId), asks = withFun ? funAsks(kidId) : []; if (!list.length && !asks.length) return '';
-  return `<section class="slot tn3">${secHead(list.length ? '🏅' : '🎈', 'Chờ bố mẹ duyệt', { cnt: list.length + asks.length })}<div class="slot-list list">${list.map(l => {
+  const list = pendingList(kidId), asks = withFun ? funAsks(kidId) : []; if (!list.length && !asks.length) return buyCard(kidId);
+  return buyCard(kidId) + `<section class="slot tn3">${secHead(list.length ? '🏅' : '🎈', 'Chờ bố mẹ duyệt', { cnt: list.length + asks.length })}<div class="slot-list list">${list.map(l => {
     const dt = new Date(l.at);
     return `<div class="item pend"><span class="ico">${esc(l.icon || '🏅')}</span><div class="txt"><div class="t">${esc(l.note || 'Thành tích')}</div><div class="s">${esc(kidName(l.kid))} báo ${WDN(dt.getDay())} ${dm(dt)} · <b class="num plus">+${money(l.ask)}</b></div></div>
       <div class="acts"><button class="linkbtn undo" data-act="merit-no" data-id="${l.id}">Không</button><button class="btn primary sm" data-act="merit-ok" data-id="${l.id}">Duyệt</button></div></div>`;

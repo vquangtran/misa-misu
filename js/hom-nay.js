@@ -1,11 +1,11 @@
 // Màn Hôm nay: các buổi trong ngày của từng con, đóng dấu việc, thêm việc nhanh, xem cả tuần, in kế hoạch tuần.
-import { $, addDays, CHEV, confetti, DAILY, dateTxt, daysLabel, daysTo, dm, dmy, DOTS, DOWN, esc, hm, key, money, NEXT, nowMin, pad, parse, PLUS,
-  PREV, printHtml, STAR, toast, today, toMin, WD, WDN, WDS, weekStart } from './chung.js';
+import { $, addDays, CHEV, confetti, DAILY, dateTxt, daysLabel, daysTo, dm, dmy, DOTS, DOWN, esc, hm, key, money, NEXT, nowMin, parse, PLUS, PREV,
+  printHtml, STAR, toast, today, toMin, WD, WDN, WDS, weekStart } from './chung.js';
 import { ageOf, choresFor, choresList, choreSlot, choresOff, choreVnd, claimers, claimVal, clearMemo, dayBonusAt, dayBonusIn, dayBonusOf, deviceRole,
   doneVal, doneVnd, earned, eventTitle, isBirthday, isDaily, isDone, isExtra, isFun, isMust, isWeekly, kidName, kidSince, kidsList, lastReadLog,
-  ledgerVnd, lessonsAt, lessonsOffOn, lessonsOn, mustFor, nextSchool, offWhy, onDay, perWeekOf, placeLow, placeName, prepBreak, prepFor, readLogOf,
-  reqIn, RO, S, schoolOn, setDone, skipEntry, skipOn, slotAt, SLOTS, stayInfo, stayLine, stepMask, stepsAll, stepsOf, stepsShow, streakOf, takenBy,
-  tkbOf, todayKid, UI, variantOf, weekBonusAt, weekBonusOf, weekCount, weekStats } from './du-lieu.js';
+  lessonsAt, lessonsOffOn, lessonsOn, mustFor, nextSchool, offWhy, onDay, perWeekOf, placeLow, placeName, prepBreak, prepFor, readLogOf, reqIn, RO, S,
+  schoolOn, setDone, skipEntry, skipOn, slotAt, SLOTS, stayInfo, stayLine, stepMask, stepsAll, stepsOf, stepsShow, streakOf, takenBy, tkbOf, todayKid,
+  UI, variantOf, weekBonusAt, weekBonusOf, weekCount, weekStats } from './du-lieu.js';
 import { ava, barCount, kidTabs, lessonIcon, mini, moneyChip, moreBtn, noKids, pillBar, secHead, secIsOpen, tintOf } from './giao-dien.js';
 import { frow, menuRow, menuSheet, openModal, pillNum } from './form.js';
 import { dayAgenda, eventLines, placeTxt, studyOn, studyRow, studySoon, taskRow, tasksList, tasksSoon } from './hoc-tap.js';
@@ -239,9 +239,6 @@ export function viewToday() {
   // Buổi học thêm hôm nay hoặc hôm qua cô đã ghi nhận xét: một dòng, bấm để mở sổ.
   if (isT) for (const c of classesOf(k.id)) for (const x of sessList(soOf(c.code)).filter(x => x.state !== 'plan' && x.note && x.date && daysTo(x.date) >= -1 && daysTo(x.date) <= 0))
     notes += `<button class="school-line so-line" data-act="cls-open" data-id="${c.id}"><b>📒 ${esc(c.teacher || 'Cô')} nhận xét buổi ${esc(c.name)} ${daysTo(x.date) ? 'hôm qua' : 'hôm nay'}:</b> ${esc(String(x.note).slice(0, 140))}</button>`;
-  // Hôm nay con tự mua thời gian (tab Tài khoản của con): mỗi lần một dòng, để bố mẹ biết mà thêm thời gian trên máy cho con. Bấm sang Tài khoản.
-  if (isT) for (const l of Object.values(S.ledger).filter(l => l.kid === k.id && l.by && l.kind === 'fee' && l.at && key(new Date(l.at)) === key(t)).sort((a, b) => String(a.at).localeCompare(String(b.at)))) { const at = new Date(l.at);
-    notes += `<a class="school-line" href="#tai-khoan" data-act="acct-go" data-kid="${k.id}"><b>${esc(l.icon || '📱')} ${esc(k.name)} tự mua lúc ${pad(at.getHours())}:${pad(at.getMinutes())}:</b> ${esc(String(l.note || '').replace(' (con tự mua)', ''))} <span class="muted">(−${money(-ledgerVnd(l))})</span></a>`; }
   // Nhà chưa có việc nào: một dòng gợi ý bảng mẫu, gọn để các ô thêm việc vẫn nằm ngay bên dưới.
   const seed = Object.keys(S.chores).length ? '' : `<section class="suggest"><div><b>Chưa biết bắt đầu từ đâu?</b><span>Bảng mẫu có sẵn ${SAMPLE_CHORES.length} việc, kèm mục phạt, phí sử dụng và phiếu thưởng. Thêm xong sửa lại tuỳ ý.</span></div><button class="btn primary sm" data-act="seed">Dùng bảng mẫu</button></section>`;
   // Bài cần nộp: cùng kiểu với các buổi, nằm trước để thấy ngay.

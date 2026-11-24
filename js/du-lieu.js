@@ -57,6 +57,11 @@ export const choresList = () => Object.entries(S.chores).map(([id, c]) => ({ id,
 export const priceKind = r => ['penalty', 'fee', 'merit'].includes(r.kind) ? r.kind : 'gift';
 // Phí sử dụng tính cho mỗi FEE_MIN phút dùng: giá của mục là đồng mỗi 30 phút, dùng 1 giờ trừ gấp đôi.
 export const FEE_MIN = 30, FEE_UNIT = '/30 phút';
+// Mỗi mục phí sử dụng, mỗi con mua tối đa FEE_DAY_MAX phút một ngày (con tự mua lẫn bố mẹ ghi hộ).
+export const FEE_DAY_MAX = 60;
+// Số phút con đã mua của một mục trong ngày d: các khoản phí có rid là mục đó (khoản đã huỷ thì không còn trong sổ).
+export const feeMinsOn = (kidId, rid, d = today()) => { const dk = key(d);
+  return Object.values(S.ledger).filter(l => l.kid === kidId && l.kind === 'fee' && l.rid === rid && l.at && key(new Date(l.at)) === dk).reduce((a, l) => a + (Number(l.mins) || Math.round((Number(l.qty) || 0) * 60)), 0); };
 export const priceVnd = r => r.price != null ? Math.max(0, Number(r.price) || 0) : (Number(r.cost) || 0) * STAR_VND;
 export const pricesList = kind => Object.entries(S.rewards).map(([id, r]) => ({ id, ...r })).filter(r => !kind || priceKind(r) === kind)
   .sort((a, b) => (a.all ? 2 : a.week ? 1 : 0) - (b.all ? 2 : b.week ? 1 : 0) || priceVnd(a) - priceVnd(b) || String(a.name).localeCompare(String(b.name), 'vi'));
