@@ -16,7 +16,7 @@ import { HW_PENALTY } from './quy-dinh.js';
 // Mỗi cô dạy thêm có một sổ học riêng cho một con, một môn. Bố mẹ tạo sổ ở Học tập → Học thêm rồi gửi link riêng cho cô.
 // Cô mở link (…?lop=<mã lớp>) là vào thẳng màn của cô: ghi từng buổi học (nội dung, nhận xét, tài liệu), giao bài tập kèm file,
 // nhận bài và cho điểm. Máy của cô chỉ biết mã lớp nên không đọc được gì khác của gia đình (xem js/store.js).
-// Bài cô giao tự hiện trong phần Bài tập của con (tab Bài tập, màn Hôm nay, máy của con); con tick xong thì cô thấy ngay.
+// Buổi vừa học và bài cô giao tự hiện ở tab Học thêm (ngay dưới sổ của cô đó), bài cần nộp còn hiện ở màn Hôm nay và máy của con; con tick xong thì cô thấy ngay.
 export const CLS = {};     // mã lớp → { st: nơi lưu, data: { info, sessions, tasks }, loaded, err }
 const LOP_KEY = 'misa-misu-lop';
 export const getLop = () => { try { return localStorage.getItem(LOP_KEY); } catch (e) { return null; } };
@@ -306,11 +306,12 @@ function hwLine(code, t, mode) {
 }
 // Một buổi trong danh sách: gọn một dòng (tên buổi, ngày, hình thức, thời lượng, tóm tắt), bấm vào thì xổ ra chi tiết ngay tại chỗ
 // (nội dung, nhận xét, sách, mục tiêu buổi sau, bài tập, tài liệu); màn của cô có thêm nút Sửa. Máy nhớ buổi nào đang mở (UI.secOpen).
+// Chi tiết của một buổi: mỗi mục một khối, nhãn nhỏ ở trên, nội dung ở dưới. Nội dung học dạng "Lý thuyết: …" thì tách nhãn ra cho dễ đọc.
+const sbField = (label, html) => html ? `<div class="sb-f"><div class="sb-l">${label}</div><div class="sb-v">${html}</div></div>` : '';
+const sbContent = s => String(s.content || '').split('\n').map(x => x.trim()).filter(Boolean).map(x => { const m = /^([^:]{2,32}):\s*(.+)$/.exec(x); return m ? `<div class="sb-line"><span class="sb-k">${esc(m[1])}</span> ${esc(m[2])}</div>` : `<div class="sb-line">${esc(x)}</div>`; }).join('');
 function sessRow(code, s, hws, mode, inNeed) {
   const edit = mode === 'edit', k = `ss-${code}-${s.id}`, open = !!UI.secOpen[k], att = attView(code, s.files, s.links);
-  // Chi tiết khi mở: mỗi mục một khối, nhãn nhỏ ở trên, nội dung ở dưới. Nội dung học dạng "Lý thuyết: …" thì tách nhãn ra cho dễ đọc.
-  const field = (label, html) => html ? `<div class="sb-f"><div class="sb-l">${label}</div><div class="sb-v">${html}</div></div>` : '';
-  const contentHtml = String(s.content || '').split('\n').map(x => x.trim()).filter(Boolean).map(x => { const m = /^([^:]{2,32}):\s*(.+)$/.exec(x); return m ? `<div class="sb-line"><span class="sb-k">${esc(m[1])}</span> ${esc(m[2])}</div>` : `<div class="sb-line">${esc(x)}</div>`; }).join('');
+  const field = sbField, contentHtml = sbContent(s);
   const body = [field('Nội dung học', contentHtml), field('Nhận xét học sinh', s.note ? esc(s.note) : ''), field('Bài tập về nhà', hws.map(t => hwLine(code, t, mode)).join('')),
     field('Sách, nguồn tham khảo', s.src ? esc(s.src) : ''), field('Mục tiêu buổi sau', s.next ? esc(s.next) : ''), field('Slide, tài liệu', att)].join('');
   const sum = [hws.length ? `${hws.length} bài tập` : '', s.note ? 'có nhận xét' : '', att ? 'có tài liệu' : ''].filter(Boolean).join(' · ');
@@ -698,18 +699,29 @@ export function hwForm(id, sessPre) {
 }
 
 // ----- phần của nhà: danh sách sổ, tạo sổ, gửi link cho cô, xem sổ -----
-export function classesSection(ks) {
-  if (RO) return '';
+// Tab Học thêm: mỗi sổ một thẻ, cô ghi gì trong sổ thì hiện ngay ở đây: buổi vừa học (nội dung học, nhận xét học sinh, mục tiêu buổi sau, tài liệu)
+// và bài tập về nhà con chưa xong; bài đã xong (xem điểm, nhận xét của cô, nộp thêm ảnh) gập lại bên dưới.
+// hwRows(c): { open, nDone, done() } các dòng bài tập của sổ đó, do hoc-tap.js vẽ (cùng kiểu với bài tập ở tab Trên lớp, tick được).
+// Máy bố mẹ: bấm tên sổ để mở cả sổ; bên dưới là học phí của tất cả các cô. Máy của con (RO): chỉ nội dung học, mục tiêu buổi sau, tài liệu
+// và bài tập; không có nhận xét học sinh (cô viết cho bố mẹ), học phí, link của cô và trang sổ.
+export function classesSection(ks, hwRows = () => ({ open: '', nDone: 0, done: () => '' })) {
   const ids = ks.map(k => k.id), list = classesList().filter(c => ids.includes(c.kid)), multi = ks.length > 1, kidAttr = `data-kid="${multi ? '' : ids[0]}"`;
-  const offers = classOffers(ks);
-  const item = c => { const k = CLS[c.code], st = soStats(soOf(c.code)), last = st.done[st.done.length - 1];
-    const sub = !k || !k.loaded ? 'Đang mở sổ…' : !st.ss.length && !st.hw.length ? `Sổ còn trống${feeTxt(feeOf(c)) ? ' · ' + feeTxt(feeOf(c)) : ''}. Gửi link cho cô để cô bắt đầu ghi.`
-      : [`${st.done.length} buổi đã học`, last ? `gần nhất ${dateTxt(last.date)}` : '', st.open ? `${st.open} bài đang làm` : '', st.wait ? `${st.wait} bài chờ cô nhận` : '', soMissing(soOf(c.code)).n ? `${soMissing(soOf(c.code)).n} buổi cô chưa ghi` : ''].filter(Boolean).join(' · ');
-    return `<button class="item nav" data-act="cls-open" data-id="${c.id}">${multi ? ava({ id: c.kid, ...S.kids[c.kid] }, 'sm') : `<span class="ico">${lessonIcon(c.name) === '📚' ? '📒' : lessonIcon(c.name)}</span>`}<span class="txt"><span class="t">${multi ? esc(kidName(c.kid)) + ' · ' : ''}${esc(classTitle(c))}</span><span class="s">${esc(sub)}</span></span>${CHEV}</button>`; };
-  return feeSummary(list, multi) + `<section class="slot tn2">${secHead('📒', 'Sổ học của cô', { cnt: list.length || '', side: list.length ? `<button class="linkbtn so-links" data-act="cls-links" ${kidAttr}>Link cho các cô</button>` : '', add: addBtn('cls-form', 'Thêm sổ học cho một cô', kidAttr) })}
-    ${list.length ? `<div class="slot-list list">${list.map(item).join('')}</div>` : blankAdd('Mời cô ghi sổ học và giao bài: tạo sổ rồi gửi link cho cô', 'cls-form', kidAttr)}
+  if (RO && !list.length) return '';
+  const offers = RO ? [] : classOffers(ks);
+  const card = c => { const k = CLS[c.code], d = soOf(c.code), st = soStats(d), last = st.done[st.done.length - 1], mi = RO ? 0 : soMissing(d).n;
+    const sub = !k || !k.loaded ? 'Đang mở sổ…' : !st.ss.length && !st.hw.length ? (RO ? 'Cô chưa ghi buổi học nào.' : `Sổ còn trống${feeTxt(feeOf(c)) ? ' · ' + feeTxt(feeOf(c)) : ''}. Gửi link cho cô để cô bắt đầu ghi.`)
+      : [`${st.done.length} buổi đã học`, st.wait ? `${st.wait} bài chờ cô nhận` : '', mi ? `${mi} buổi cô chưa ghi` : ''].filter(Boolean).join(' · ');
+    const inner = `${multi ? ava({ id: c.kid, ...S.kids[c.kid] }, 'sm') : `<span class="ico">${lessonIcon(c.name) === '📚' ? '📒' : lessonIcon(c.name)}</span>`}<span class="txt"><span class="t">${multi ? esc(kidName(c.kid)) + ' · ' : ''}${esc(classTitle(c))}</span><span class="s">${esc(sub)}</span></span>`;
+    const parts = last ? [sbField('Nội dung học', sbContent(last)), RO ? '' : sbField('Nhận xét học sinh', last.note ? esc(last.note) : ''), sbField('Mục tiêu buổi sau', last.next ? esc(last.next) : ''), sbField('Slide, tài liệu', attView(c.code, last.files, last.links))].join('') : '';
+    const hw = hwRows(c), dk = `so-done-${c.id}`;
+    return `<div class="slot-list list so-card">${RO ? `<div class="item">${inner}</div>` : `<button class="item nav" data-act="cls-open" data-id="${c.id}">${inner}${CHEV}</button>`}
+      ${last ? `<div class="so-feed"><div class="so-feed-h">Buổi vừa qua · ${esc(dateTxt(last.date))}</div>${parts || '<div class="sb-v muted">Cô chưa ghi nội dung buổi này.</div>'}</div>` : ''}
+      ${hw.open ? `<div class="so-feed"><div class="so-feed-h">Bài tập về nhà chưa xong</div><div class="list">${hw.open}</div></div>` : hw.nDone ? '<div class="so-feed"><div class="so-feed-h">Bài tập về nhà</div><div class="sb-v muted">Không còn bài nào chưa xong 🎉</div></div>' : ''}
+      ${hw.nDone ? `<div class="so-feed so-done">${secHead('', 'Bài đã xong', { cnt: hw.nDone, key: dk, closed: true, sub: true })}${secIsOpen(dk, true) ? `<div class="list">${hw.done()}</div>` : ''}</div>` : ''}</div>`; };
+  return `<section class="slot tn2">${secHead('📒', 'Sổ học của cô', { cnt: list.length || '', side: list.length && !RO ? `<button class="linkbtn so-links" data-act="cls-links" ${kidAttr}>Link cho các cô</button>` : '', add: addBtn('cls-form', 'Thêm sổ học cho một cô', kidAttr) })}
+    ${list.length ? list.map(card).join('') : blankAdd('Mời cô ghi sổ học và giao bài: tạo sổ rồi gửi link cho cô', 'cls-form', kidAttr)}
     ${offers.length ? `<div class="row so-offers"><span class="muted small">Tạo sổ cho buổi học thêm:</span>${offers.map(o => `<button class="btn quiet sm" data-act="cls-form" data-kid="${o.kid}" data-name="${esc(o.name)}">${PLUS}${esc(o.name)}${multi ? ` · ${esc(kidName(o.kid))}` : ''}</button>`).join('')}</div>` : ''}
-    ${list.length ? '' : '<p class="foot-note">Mỗi cô một link riêng, cô chỉ thấy sổ học của lớp mình. Bài cô giao tự hiện trong Bài tập của con.</p>'}</section>`;
+    ${list.length ? '' : '<p class="foot-note">Mỗi cô một link riêng, cô chỉ thấy sổ học của lớp mình. Cô ghi buổi học và giao bài thì hiện ngay ở đây.</p>'}</section>${RO ? '' : feeSummary(list, multi)}`;
 }
 export function classForm(id, kidPre, namePre) {
   const c = id ? S.paid[id] : null, kids = kidsList(); if (!kids.length) return;
@@ -750,7 +762,7 @@ export function classLinksSheet(kidId) {
   ${list.length > 1 ? `<div class="row"><button class="btn quiet sm" data-act="cls-copy" data-link="${esc(all)}" data-who="">Sao chép cả ${list.length} link kèm tên cô</button></div>` : ''}
   <div class="foot"><button class="btn quiet" data-act="close">Xong</button></div>`);
 }
-// Học phí của tất cả các cô, ở đầu mục Sổ học (Học tập › Học thêm): các tháng đã qua mà bố mẹ chưa xác nhận chuyển khoản, bấm Đã chuyển
+// Học phí của tất cả các cô, ngay dưới mục Sổ học của cô (Học tập › Học thêm): các tháng đã qua mà bố mẹ chưa xác nhận chuyển khoản, bấm Đã chuyển
 // ngay tại đây (kèm nút sao chép số tài khoản của cô), và học phí tháng này đến nay. Sổ tạm ẩn học phí hoặc chưa ghi học phí thì không tính.
 function feeSummary(list, multi) {
   const mk = key(today()).slice(0, 7), due = [], cur = [];
@@ -770,7 +782,7 @@ function feeSummary(list, multi) {
   return `<section class="slot tn3">${secHead('💰', 'Học phí')}
     ${due.length ? `${secHead('', 'Chưa đóng', { cnt: due.length, sub: true })}<div class="slot-list list">${due.map(dueRow).join('')}</div>` : ''}
     ${cur.length ? `${secHead('', `${monthTxt(mk)} đến nay`, { cnt: money(total), sub: true })}<div class="slot-list list">${cur.map(curRow).join('')}</div>` : ''}
-    <p class="foot-note" style="margin:0 6px">${due.length ? 'Chuyển khoản xong thì bấm Đã chuyển, cô thấy ngay.' : 'Không có tháng nào chưa đóng.'} Học phí tính theo các buổi cô ghi là Đã học. Bấm vào một sổ bên dưới để xem từng tháng.</p></section>`;
+    <p class="foot-note" style="margin:0 6px">${due.length ? 'Chuyển khoản xong thì bấm Đã chuyển, cô thấy ngay.' : 'Không có tháng nào chưa đóng.'} Học phí tính theo các buổi cô ghi là Đã học. Bấm vào một sổ ở trên để xem từng tháng.</p></section>`;
 }
 // Trang sổ học của một cô (phần bố mẹ xem, #lich-hoc/so/<mã sổ>), mở từ Học tập › Học thêm hoặc từ màn Hôm nay. Nút quay lại ở góc trái.
 // Sửa sổ, ghi tài khoản của cô, xem bài tập mở form nổi trên trang, đóng form là về đúng trang này. In, nhập Excel, sửa sổ nằm trong menu ⋯.
@@ -784,7 +796,7 @@ export function soPage(c) {
     : !st.ss.length && !st.hw.length ? `<div class="card empty"><div class="big">📒</div><h2>Sổ còn trống</h2><p class="muted">Gửi link cho ${esc(c.teacher || 'cô')}. Cô ghi buổi học và giao bài thì hiện ngay ở đây.</p></div><div class="slots">${bankSection(d, false, c.teacher, c.id)}</div>`
     : `${soTiles(st, feeOf(c), d)}<div class="slots">${feeSection(d, feeOf(c), c)}${bankSection(d, false, c.teacher, c.id)}${free.length ? `<section class="slot tn0">${secHead('', 'Bài tập', { cnt: free.length })}<div class="slot-list list">${free.map(t => hwRow(c.code, t, d, 'view')).join('')}</div></section>` : ''}${soMonths(c.code, d, 'view')}</div>`}`;
 }
-// Bài cô giao, mở từ phần Bài tập của nhà hoặc máy của con: hướng dẫn, file đính kèm, điểm và nhận xét của cô. Chỉ xem, tick xong ở ngoài danh sách.
+// Bài cô giao, mở từ tab Học thêm, màn Hôm nay hoặc máy của con: hướng dẫn, file đính kèm, điểm và nhận xét của cô. Chỉ xem, tick xong ở ngoài danh sách.
 // Nhờ bố mẹ in file cô gửi (máy của con): tải sẵn các file khi mở bài, bấm Nhờ bố mẹ in thì mở bảng chia sẻ của điện thoại
 // (có file và lời nhắn sẵn) để con chọn Zalo rồi chọn bố hoặc mẹ. Trang web không mở thẳng được khung chat Zalo của một người kèm file.
 // File phải tải xong trước khi bấm: điện thoại chỉ mở bảng chia sẻ ngay trong lúc bấm.

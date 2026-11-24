@@ -17,7 +17,7 @@ const STAR_VND = 5000;
 
 // ---------- trạng thái ----------
 export let S = Object.fromEntries(COLS.map(c => [c, {}]));
-export const UI = { view: 'hom-nay', date: today(), acctKid: null, acctKind: 'penalty', histAll: false, slotOpen: {}, learn: 'sap-toi', todayMode: 'day', todayKid: null, secOpen: {}, gridWs: null, planNext: false, agDate: null, taskDone: false, tkbKid: null, tkbDay: null, km: { on: false, kid: null }, sheet: false };
+export const UI = { view: 'hom-nay', date: today(), acctKid: null, acctKind: 'penalty', histAll: false, slotOpen: {}, learn: 'tren-lop', truong: 'bai', todayMode: 'day', todayKid: null, secOpen: {}, gridWs: null, planNext: false, tkbKid: null, tkbDay: null, km: { on: false, kid: null }, sheet: false };
 export let store = null, loaded = false, stale = false, family = null;
 // Module khác không gán lại được biến của module này: đổi S, store, loaded, stale, family (mã gia đình), RO bằng các hàm dưới đây.
 export const setData = v => { S = v; }, setStore = v => { store = v; }, setLoaded = v => { loaded = v; }, setStale = v => { stale = v; }, setFamilyCode = v => { family = v; };
@@ -291,6 +291,8 @@ export const eventsList = () => Object.entries(S.events || {}).map(([id, e]) => 
   .filter(e => e.from).sort((a, b) => a.from.localeCompare(b.from) || String(a.name).localeCompare(String(b.name), 'vi'));
 const forKid = (e, kidId) => !(e.kids || []).length || e.kids.includes(kidId);
 export const eventsOf = kidId => eventsList().filter(e => forKid(e, kidId));
+// Tên hiện ra của một mốc: lịch thi có ghi môn thì là "Toán · Kiểm tra học kì I".
+export const eventTitle = e => e.kind === 'exam' && e.subj ? `${e.subj} · ${e.name}` : e.name;
 // Mốc Nghỉ học nghỉ những gì (e.off): 'school' nghỉ học chính (mặc định), 'lessons' chỉ nghỉ học thêm, 'both' nghỉ cả hai.
 // Dữ liệu cũ ghi noLessons: true là nghỉ cả hai.
 export const OFF_KINDS = [['school', 'Nghỉ học chính'], ['lessons', 'Nghỉ học thêm'], ['both', 'Nghỉ cả hai']];

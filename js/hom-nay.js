@@ -2,12 +2,12 @@
 import { $, addDays, CHEV, confetti, DAILY, dateTxt, daysLabel, daysTo, dm, dmy, DOTS, DOWN, esc, hm, key, money, NEXT, nowMin, parse, PLUS, PREV,
   printHtml, STAR, toast, today, toMin, WD, WDN, WDS, weekStart } from './chung.js';
 import { ageOf, choresFor, choresList, choresOff, choreSlot, choreVnd, claimers, claimVal, clearMemo, dayBonusAt, dayBonusIn, dayBonusOf, deviceRole, doneVal,
-  doneVnd, earned, isBirthday, isDaily, isDone, isExtra, isFun, isMust, isWeekly, kidName, kidSince, kidsList, lessonsAt, lessonsOffOn, lessonsOn, mustFor, offWhy, nextSchool, onDay,
+  doneVnd, earned, eventTitle, isBirthday, isDaily, isDone, isExtra, isFun, isMust, isWeekly, kidName, kidSince, kidsList, lessonsAt, lessonsOffOn, lessonsOn, mustFor, offWhy, nextSchool, onDay,
   perWeekOf, placeLow, placeName, prepBreak, prepFor, readLogOf, lastReadLog, reqIn, RO, S, schoolOn, setDone, skipEntry, skipOn, slotAt, SLOTS, stayInfo, stayLine, stepMask, stepsAll,
   stepsOf, stepsShow, streakOf, takenBy, tkbOf, todayKid, UI, variantOf, weekBonusAt, weekBonusOf, weekCount, weekStats } from './du-lieu.js';
 import { ava, barCount, kidTabs, lessonIcon, mini, moneyChip, moreBtn, noKids, pillBar, secHead, secIsOpen, tintOf } from './giao-dien.js';
 import { frow, menuRow, menuSheet, openModal, pillNum } from './form.js';
-import { dayAgenda, eventLines, placeTxt, taskRow, tasksList, tasksSoon } from './hoc-tap.js';
+import { dayAgenda, eventLines, placeTxt, studyOn, studyRow, studySoon, taskRow, tasksList, tasksSoon } from './hoc-tap.js';
 import { classesOf, classTitle, CLS, feeOf, paidOf, sessList, soFees, soMissing, soOf, soStats } from './so-hoc.js';
 import { coins, coinUnit, goalProgress, pendingCard } from './tai-khoan.js';
 import { SAMPLE_CHORES } from './quy-dinh.js';
@@ -243,7 +243,11 @@ export function viewToday() {
   // Bài cần nộp: cùng kiểu với các buổi, nằm trước để thấy ngay.
   let side = '', main = '';
   const ts = isT ? tasksSoon(k.id) : [];
-  if (ts.length) side += `<section class="slot s-task"><div class="slot-h"><a class="slot-pill" href="#lich-hoc" data-act="tkb-go" data-tab="bai-tap" data-kid="${k.id}">📝<span>Bài cần nộp</span><i class="num">${ts.length}</i>${CHEV}</a></div><div class="slot-list list">${ts.map(x => taskRow(x, false, 'mini')).join('')}</div></section>`;
+  // Bấm tiêu đề để sang Học tập: toàn bài cô dạy thêm giao thì mở tab Học thêm, còn lại mở Trên lớp › Bài tập.
+  if (ts.length) side += `<section class="slot s-task"><div class="slot-h"><a class="slot-pill" href="#lich-hoc" data-act="tkb-go" data-tab="${ts.every(x => x.cls) ? 'hoc-them' : 'bai-tap'}" data-kid="${k.id}">📝<span>Bài cần nộp</span><i class="num">${ts.length}</i>${CHEV}</a></div><div class="slot-list list">${ts.map(x => taskRow(x, false, 'mini')).join('')}</div></section>`;
+  // Ôn thi: việc trong kế hoạch ôn tập tới ngày (hoặc đã qua mà chưa ôn), tick là ôn xong. Bấm tiêu đề để sang tab Thi.
+  const study = isT ? studySoon(k.id) : [];
+  if (study.length) side += `<section class="slot s-task"><div class="slot-h"><a class="slot-pill" href="#lich-hoc" data-act="tkb-go" data-tab="thi" data-kid="${k.id}">📖<span>Ôn thi</span><i class="num">${study.length}</i>${CHEV}</a></div><div class="slot-list list">${study.map(x => studyRow(x)).join('')}</div></section>`;
   // Sổ học của cô: mỗi sổ một dòng tóm tắt (buổi gần nhất, nhận xét mới nhất, học phí tháng này, buổi cô chưa ghi), bấm để mở sổ.
   const cls = isT && !RO ? classesOf(k.id) : [];
   if (cls.length) side += `<section class="slot">${secHead('📒', 'Sổ học của cô', { cnt: cls.length, key: 'today-so' })}${secIsOpen('today-so') ? `<div class="slot-list list">${cls.map(soTodayRow).join('')}</div>` : ''}</section>`;
@@ -344,12 +348,13 @@ function weekPlan(k) {
   const item = c => `<li><span class="bx"></span>${esc(c.icon || '')} ${esc(c.name)}<span class="sm">${toMin(c.time) !== null ? ` ${c.by ? 'trước ' : ''}${esc(c.time)}` : ''}${perWeekOf(c) ? ` · ${perWeekOf(c)} lần/tuần` : esc(daysShort(c.days))}${c.place ? ` · chỉ ở ${esc(placeLow(c.place))}` : ''}</span>${(c.steps || []).length ? `<div class="sm">${c.steps.map(esc).join(' · ')}</div>` : ''}</li>`;
   const sched = d => {
     const a = dayAgenda(k.id, d), p = [];
-    for (const e of a.events) p.push(`${esc(e.icon || '📌')} ${esc(e.name)}`);
+    for (const e of a.events) p.push(`${esc(e.icon || '📌')} ${esc(eventTitle(e))}`);
     if (a.hol) p.push(a.lessonsOff ? 'Nghỉ học, nghỉ học thêm' : 'Nghỉ học');
     else if (a.lessonsOff) p.push('Nghỉ học thêm');
     else if (a.school) p.push(`🏫 ${esc(a.school.start)} – ${esc(a.school.end)}`);
     for (const l of a.lessons) p.push(`${lessonIcon(l.name)} ${esc(l.s)} ${esc(l.name)}`);
     for (const t of tasksList().filter(t => t.kid === k.id && t.due === key(d) && !t.done)) p.push(`📝 Nộp: ${esc(t.subj ? t.subj + ' – ' : '')}${esc(t.title)}`);
+    for (const x of studyOn(k.id, key(d))) p.push(`📖 Ôn ${esc(x.e.subj || x.e.name)}: ${esc(x.p.t)}`);
     return p.map(x => `<div>${x}</div>`).join('');
   };
   const g = goalProgress(k.id)[0];
@@ -364,7 +369,7 @@ function weekPlan(k) {
   </section>`;
 }
 export function drawSheet() {
-  openModal(`<h2>Kế hoạch tuần</h2><p class="muted small lead">Mỗi con một trang: việc theo buổi sáng, chiều, tối; ô đánh dấu từng ngày; lịch học thêm, kiểm tra, bài phải nộp; mục tiêu tiết kiệm.</p>
+  openModal(`<h2>Kế hoạch tuần</h2><p class="muted small lead">Mỗi con một trang: việc theo buổi sáng, chiều, tối; ô đánh dấu từng ngày; lịch học thêm, lịch thi và việc ôn thi, bài phải nộp; mục tiêu tiết kiệm.</p>
   <div class="seg modes"><label><input type="radio" name="planw" value="0" ${UI.planNext ? '' : 'checked'}><span>Tuần này (${dm(weekStart(today()))})</span></label><label><input type="radio" name="planw" value="1" ${UI.planNext ? 'checked' : ''}><span>Tuần sau (${dm(addDays(weekStart(today()), 7))})</span></label></div>
   <div class="wp-preview">${kidsList().map(weekPlan).join('')}</div>
   <div class="foot"><button class="btn quiet" data-act="close">Đóng</button><button class="btn primary" data-act="print">In ${kidsList().length > 1 ? `${kidsList().length} trang` : 'kế hoạch'}</button></div>`, true, true);

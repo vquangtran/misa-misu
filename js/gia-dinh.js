@@ -25,7 +25,7 @@ export function stayForm() {
   <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="stay-save">Lưu</button></div>`);
 }
 
-// Lịch các con ở đâu theo thứ (trang Gia đình). Sắp tới và màn Hôm nay hiện chỗ ở của từng ngày.
+// Lịch các con ở đâu theo thứ (trang Gia đình). Màn Hôm nay và lịch đưa đón hiện chỗ ở của từng ngày.
 function staysCard(wd) {
   const head = secHead('🏠', 'Các con ở đâu', { side: hasStays() && !RO ? '<button class="linkbtn" data-act="stay-form">Sửa</button>' : '' });
   return `<section class="slot tn4">${head}${hasStays()

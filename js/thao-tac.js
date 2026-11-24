@@ -4,13 +4,13 @@ import { icon } from './icons.js';
 import { $, addDays, CHEV, confetti, dateTxt, daysTo, dm, dueLabel, esc, hm, key, money, monthTxt, newFamilyCode, norm, parse, toast, today, toMin,
   uid, WDN, weekStart } from './chung.js';
 import { SAMPLE_YEAR } from './nha-minh.js';
-import { againVnd, balance, choresList, choreSlot, DAY_BONUS, dayBonusOf, del, deviceRole, isDaily, isDone, isFun, isWeekly, keepFamilyInUrl, kidName,
+import { againVnd, balance, choresList, choreSlot, DAY_BONUS, dayBonusOf, del, deviceRole, eventTitle, isDaily, isDone, isFun, isWeekly, keepFamilyInUrl, kidName,
   kidsList, offLabel, penaltyTimes, pinHash, placeName, priceKind, pricesList, priceVnd, put, render, S, setDone, setFamily, setRole, SETTINGS_ID, skipOn, SLOTS,
   stepMask, stepsAll, stepsOf, TEACH, tkbOf, TODAY_KID, UI, WEEK_BONUS, weekBonusOf, weekGain } from './du-lieu.js';
 import { avInner, photoOf } from './giao-dien.js';
 import { closeModal, daySet, dismissModal, menuRow, menuSheet, openModal, radioVal, setModalDirty } from './form.js';
-import { dayOffForm, EVENT_HELP, EVENT_KINDS, eventForm, lessonForm, missingYear, nextSubjectDay, openTasks, printTkb, readTkbForm, sampleLabel, sampleTkb,
-  setLearn, taskForm, taskOf, tasksList, tkbDraft, tkbForm, tkbOffer, yearForm } from './hoc-tap.js';
+import { dayOffForm, EVENT_HELP, EVENT_KINDS, eventForm, examForm, examPlan, lessonForm, missingYear, nextSubjectDay, openTasks, printTkb, readTkbForm, sampleLabel, sampleTkb,
+  planRows, setLearn, taskForm, taskOf, tasksList, tkbDraft, tkbForm, tkbOffer, yearForm } from './hoc-tap.js';
 import { ATT, attAdd, attClear, attDraw, attTake, bankForm, bookName, CHK, classesList, classForm, classLinkSheet, classLinksSheet, cleanFiles,
   cleanSteps, CLS, CLS_GONE, clsDel, clsPatch, clsPut, delFiles, feeOf, fileOpen, growTitle, hwDueAfter, hwForm, hwList, hwRowInput, hwView, linkList,
   nextClassDay, offOf, okDate, okId, paidOf, printAsk, printSo, sessDayTitle, sessDefaults, sessForm, sessView, soImportGo, soImportPick, soOf,
@@ -28,13 +28,13 @@ function pageAdd() {
   const kids = kidsList(); if (!kids.length) return kidForm();
   const v = UI.view;
   if (v === 'lich-hoc') {
+    // Học tập: thêm đúng thứ của tab đang xem. Trên lớp theo phần đang chọn (bài tập, thời khoá biểu, mốc năm học); Thi thêm lịch thi.
     const kid = S.kids[UI.tkbKid] ? UI.tkbKid : '', tab = UI.learn;
-    if (tab === 'bai-tap') return taskForm(null, kid);
-    if (tab === 'truong' && UI.truong === 'moc') return eventForm(null, kid);
+    if (tab === 'thi') return examForm(null, kid);
     if (tab === 'hoc-them') return menuSheet('Thêm vào Học thêm', [menuRow(`data-act="lesson-form" data-kid="${kid}"`, '📚', 'Buổi học thêm', 'Học gì, ngày nào, ai đưa đón'), menuRow(`data-act="cls-form" data-kid="${kid}"`, '📒', 'Sổ học của cô', 'Cô có link riêng để ghi buổi học và giao bài')]);
-    if (tab === 'truong') { const ks = kid ? [S.kids[kid] && { id: kid, ...S.kids[kid] }] : kids; const pre = k => !tkbOf(k.id) && tkbOffer(k); return ks.length === 1 ? tkbForm(ks[0].id, pre(ks[0]) ? sampleTkb(tkbOffer(ks[0])) : undefined) : menuSheet('Thời khoá biểu của ai?', ks.map(k => menuRow(`data-act="tkb-form" ${pre(k) ? 'data-sample="1"' : ''} data-kid="${k.id}"`, '🏫', esc(k.name), tkbOf(k.id) ? 'Sửa thời khoá biểu' : pre(k) ? `Có sẵn ${esc(sampleLabel(tkbOffer(k)))}` : 'Chưa có, tạo mới'))); }
-    return menuSheet('Thêm vào Học tập', [menuRow(`data-act="task-form" data-kid="${kid}"`, '📝', 'Bài tập', 'Bài cô giao, hạn nộp, các bước'),
-      menuRow(`data-act="lesson-form" data-kid="${kid}"`, '📚', 'Buổi học thêm', 'Học gì, ngày nào, ai đưa đón'), menuRow(`data-act="event-form" data-kid="${kid}"`, '📌', 'Mốc năm học', 'Kiểm tra, nghỉ học, họp phụ huynh')]);
+    if (UI.truong === 'moc') return eventForm(null, kid);
+    if (UI.truong === 'tkb') { const ks = kid ? [S.kids[kid] && { id: kid, ...S.kids[kid] }] : kids; const pre = k => !tkbOf(k.id) && tkbOffer(k); return ks.length === 1 ? tkbForm(ks[0].id, pre(ks[0]) ? sampleTkb(tkbOffer(ks[0])) : undefined) : menuSheet('Thời khoá biểu của ai?', ks.map(k => menuRow(`data-act="tkb-form" ${pre(k) ? 'data-sample="1"' : ''} data-kid="${k.id}"`, '🏫', esc(k.name), tkbOf(k.id) ? 'Sửa thời khoá biểu' : pre(k) ? `Có sẵn ${esc(sampleLabel(tkbOffer(k)))}` : 'Chưa có, tạo mới'))); }
+    return taskForm(null, kid);
   }
   if (v === 'tai-khoan') {
     const ak = S.kids[UI.acctKid] ? UI.acctKid : kids[0].id, nm = esc(kidName(ak));
@@ -49,9 +49,9 @@ function pageAdd() {
 
 // ---------- máy của con và màn của cô được làm gì ----------
 // Việc máy của con được làm: đánh dấu việc, bài tập của chính mình, gập mở các buổi, xin thêm hoặc xin sửa việc thích làm (bố mẹ duyệt), và xin vào phần bố mẹ.
-// Thêm các nút chỉ để xem ở mục Học tập: đổi tab, chọn ngày, chọn thứ, mở nhóm đã qua.
+// Thêm các nút chỉ để xem ở mục Học tập: đổi tab, chọn thứ, mở nhóm đã qua; và tick việc ôn thi của mình.
 const KID_ACTS = new Set(['close', 'tick', 'step', 'read-save', 'slot-toggle', 'task-done', 'task-step', 'role-kid', 'role-kid-ok', 'role-parent', 'pin-ok',
-  'tkb-go', 'learn-tab', 'tkb-day', 'ag-day', 'ag-week', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel', 'fun-form', 'fun-ask', 'fun-cancel', 'fun-need', 'num-step', 'km-acct', 'task-form', 'task-save', 'task-del', 'task-subj', 'task-due', 'hw-view', 'file-open', 'print-ask', 'sub-del']);
+  'tkb-go', 'learn-tab', 'tkb-day', 'exam-step', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel', 'fun-form', 'fun-ask', 'fun-cancel', 'fun-need', 'num-step', 'km-acct', 'task-form', 'task-save', 'task-del', 'task-subj', 'task-due', 'hw-view', 'file-open', 'print-ask', 'sub-del']);
 // Việc màn của cô được làm: chỉ những gì thuộc sổ học.
 const TEACH_ACTS = new Set(['close', 't-tab', 't-menu', 'sess-form', 'sess-view', 'sess-toggle', 'none', 'so-plan-more', 'so-off', 'sess-save', 'hw-row-add', 'so-import', 'so-import-go', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'sub-dl', 'att-del', 'so-print', 'sec-toggle', 'num-step', 'bank-form', 'bank-save']);
 function kidMay(a, b) {
@@ -60,6 +60,8 @@ function kidMay(a, b) {
   if (a === 'tick' || a === 'step' || a === 'read-save') return b.dataset.kid === r;
   if (a === 'task-done' || a === 'task-step' || a === 'hw-view' || a === 'print-ask' || a === 'sub-del') return taskOf(b.dataset.id)?.kid === r;
   if (a === 'file-open') return classesList().some(c => c.code === b.dataset.code && c.kid === r);
+  // Ôn thi: con chỉ tick việc ôn của kỳ thi ghi cho mình (hoặc chung cả nhà). Thêm, sửa lịch thi là việc của bố mẹ.
+  if (a === 'exam-step') { const x = S.events[b.dataset.id]; return !!x && x.kind === 'exam' && (!(x.kids || []).length || x.kids.includes(r)); }
   // Bài tập: con tự thêm bài cho chính mình; chỉ sửa, xoá được bài do chính con thêm (bài bố mẹ ghi thì chỉ tick).
   if (a === 'task-form' || a === 'task-save' || a === 'task-del') {
     const t = S.tasks[b.dataset.id];
@@ -160,8 +162,6 @@ document.addEventListener('click', e => {
     if (b.dataset.kid) requestAnimationFrame(() => document.querySelector(`[data-tkb="${b.dataset.kid}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
     return;
   }
-  if (a === 'ag-day') { UI.agDate = b.dataset.d ? parse(b.dataset.d) : null; return render(); }
-  if (a === 'ag-week') { UI.agDate = addDays(UI.agDate || today(), Number(b.dataset.n)); return render(); }
   if (a === 'task-form') return taskForm(id, b.dataset.kid, !!b.dataset.lock);
   if (a === 'task-subj') {
     $('#tsubj').value = b.dataset.v;
@@ -187,7 +187,7 @@ document.addEventListener('click', e => {
     const data = { kid, title, kind: $('#tkind').value || 'bt', subj: $('#tsubj').value.trim(), due: $('#tdue').value || '', notes: $('#tnotes').value.trim(), steps,
       done: !!old?.done, doneAt: old?.doneAt || '' };
     if (by && S.kids[by]) data.by = by;
-    closeModal(); put('tasks', id || uid(), data); UI.learn = UI.view === 'lich-hoc' ? 'bai-tap' : UI.learn;
+    closeModal(); put('tasks', id || uid(), data); if (UI.view === 'lich-hoc') setLearn('bai-tap');
     return toast(data.due ? `Đã lưu. Hạn nộp: ${dueLabel(data.due)}.` : 'Đã lưu bài tập.');
   }
   if (a === 'task-del') { if (!armed(b, 'Bấm lần nữa để xoá')) return; closeModal(); del('tasks', id); return toast('Đã xoá bài tập.'); }
@@ -475,6 +475,46 @@ document.addEventListener('click', e => {
     const kids = [...document.querySelectorAll('#modal input[name=ykid]:checked')].map(x => x.value), miss = missingYear();
     miss.forEach(e => put('events', uid(), { ...e, kids }));
     closeModal(); return toast(`Đã thêm ${miss.length} mốc ${SAMPLE_YEAR.label}.`);
+  }
+  // Lịch thi (tab Thi): mốc kind 'exam' có thêm môn, nội dung ôn tập và kế hoạch ôn tập.
+  if (a === 'exam-form') { const like = S.events[b.dataset.like]; return examForm(id, b.dataset.kid, like ? { name: like.name, icon: like.icon, kids: like.kids || [] } : null); }
+  if (a === 'exam-subj') { $('#xsubj').value = b.dataset.v; return; }
+  if (a === 'plan-row-add') { const box = $('#xplan'); if (box.children.length >= 30) return toast('Kế hoạch ôn tập tối đa 30 việc.'); box.insertAdjacentHTML('beforeend', planRows([{}])); box.lastElementChild.querySelector('.plan-t').focus(); return; }
+  if (a === 'plan-row-del') { const box = $('#xplan'); b.closest('.plan-row').remove(); if (!box.children.length) box.innerHTML = planRows([{}]); return; }
+  if (a === 'plan-fill') {
+    const lines = $('#xcontent').value.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 30), from = $('#xfrom').value, box = $('#xplan');
+    if (!lines.length) { $('#xcontent').focus(); return toast('Ghi nội dung ôn tập trước, mỗi dòng một phần.'); }
+    const n = from ? daysTo(from) : 0; if (n < 1) { $('#xfrom').focus(); return toast('Chọn ngày thi sau hôm nay trước nhé.'); }
+    if ([...box.querySelectorAll('.plan-t')].some(x => x.value.trim()) && !armed(b, 'Bấm lần nữa để thay kế hoạch đang có')) return;
+    // Ôn từ ngày mai tới hôm trước ngày thi (mai thi thì ôn hôm nay), các phần chia đều theo thứ tự.
+    const days = Math.max(1, n - 1), first = n > 1 ? 1 : 0;
+    box.innerHTML = planRows(lines.map((t, i) => ({ t: t.slice(0, 120), d: key(addDays(today(), first + Math.floor(i * days / lines.length))) })));
+    b.textContent = 'Chia nội dung đều tới ngày thi';
+    return toast(`Đã chia ${lines.length} phần ôn vào ${Math.min(days, lines.length)} ngày. Sửa lại tuỳ ý rồi bấm Lưu.`);
+  }
+  if (a === 'exam-save') {
+    const subj = $('#xsubj').value.trim(), name = $('#xname').value.trim() || (subj ? 'Kiểm tra' : '');
+    if (!name) { $('#xname').focus(); return toast('Nhập tên kỳ thi hoặc môn thi nhé.'); }
+    const from = $('#xfrom').value, to = $('#xto').value;
+    if (!from) { $('#xfrom').focus(); return toast('Chọn ngày thi nhé.'); }
+    if (to && to < from) return toast('Ngày kết thúc phải sau ngày bắt đầu.');
+    const plan = [...document.querySelectorAll('#modal .plan-row')].map(r => ({ t: r.querySelector('.plan-t').value.trim(), d: r.querySelector('.plan-d').value || '', done: !!r.dataset.done })).filter(p => p.t).slice(0, 30);
+    const data = { name, icon: radioVal('xico') || '📝', kind: 'exam', from, kids: [...document.querySelectorAll('#modal input[name=xkid]:checked')].map(x => x.value) };
+    if (to && to > from) data.to = to;
+    if (subj) data.subj = subj;
+    if ($('#xcontent').value.trim()) data.content = $('#xcontent').value.trim();
+    if (plan.length) data.plan = plan;
+    closeModal(); put('events', id || uid(), data); if (UI.view === 'lich-hoc') setLearn('thi');
+    return toast(`Đã lưu lịch thi${daysTo(from) > 0 ? `, còn ${daysTo(from)} ngày` : ''}.`);
+  }
+  if (a === 'exam-del') { if (!armed(b, 'Bấm lần nữa để xoá')) return; closeModal(); del('events', id); return toast('Đã xoá lịch thi.'); }
+  if (a === 'exam-step') {
+    const x = S.events[id]; if (!x || x.kind !== 'exam') return;
+    const plan = examPlan(x), i = Number(b.dataset.i); if (!plan[i]) return;
+    plan[i].done = !plan[i].done; put('events', id, { ...x, plan });
+    if (!plan[i].done) return;
+    const left = plan.filter(p => !p.done).length; if (!left) confetti();
+    return toast(left ? `Ôn xong “${plan[i].t}”. Còn ${left} việc ôn.` : `Ôn xong hết kế hoạch ${eventTitle({ ...x, kind: 'exam' })}! 🎉`);
   }
   if (a === 'stay-form') return stayForm();
   if (a === 'stay-save') {
@@ -801,10 +841,8 @@ document.addEventListener('change', e => {
   if (e.target.name === 'akind') { UI.acctKind = e.target.value; render(); }
   if (e.target.name === 'planw') { UI.planNext = e.target.value === '1'; drawSheet(); }
   if (e.target.id === 'day-pick' && e.target.value) { UI.date = parse(e.target.value); render(); }
-  if (e.target.id === 'ag-pick' && e.target.value) { UI.agDate = parse(e.target.value); render(); }
   if (e.target.name === 'kmtab') { UI.kmTab = e.target.value; UI.histAll = false; $('#km').scrollTop = 0; render(); }
   if (e.target.name === 'truong') { if ($('#km').hidden) UI.truong = e.target.value; else UI.kmTruong = e.target.value; UI.tkbDay = null; render(); }
-  if (e.target.name === 'tview') { UI.taskDone = e.target.value === '1'; UI.histAll = false; render(); }
   if (e.target.id === 'ckind') {
     const kind = e.target.value;
     $('#modal .cmoney-f').hidden = kind === 'fun' || kind === 'week';
@@ -859,11 +897,11 @@ document.addEventListener('click', e => { if (e.target.matches?.('.day-pick inpu
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'qname') { e.preventDefault(); $('#modal [data-act="qa-save"]')?.click(); } });
 // Dải tuần ở màn Hôm nay: vuốt ngang để sang tuần trước / tuần sau.
 let swipe = null;
-document.addEventListener('touchstart', e => { const w = e.target.closest('[data-swipe]'), p = e.touches[0]; swipe = w && e.touches.length === 1 ? { x: p.clientX, y: p.clientY, ag: w.dataset.swipe === 'ag' } : null; }, { passive: true });
+document.addEventListener('touchstart', e => { const w = e.target.closest('[data-swipe]'), p = e.touches[0]; swipe = w && e.touches.length === 1 ? { x: p.clientX, y: p.clientY } : null; }, { passive: true });
 document.addEventListener('touchend', e => {
   if (!swipe) return;
-  const p = e.changedTouches[0], dx = p.clientX - swipe.x, dy = p.clientY - swipe.y, ag = swipe.ag; swipe = null;
-  if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.5) { const n = dx < 0 ? 7 : -7; if (ag) UI.agDate = addDays(UI.agDate || today(), n); else UI.date = addDays(UI.date, n); render(); }
+  const p = e.changedTouches[0], dx = p.clientX - swipe.x, dy = p.clientY - swipe.y; swipe = null;
+  if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.5) { UI.date = addDays(UI.date, dx < 0 ? 7 : -7); render(); }
 }, { passive: true });
 // Bàn phím điện thoại che mất sheet nằm sát đáy: đẩy ô thêm nhanh lên trên bàn phím.
 if (window.visualViewport) {

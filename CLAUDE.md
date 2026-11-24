@@ -10,19 +10,19 @@ Năm tab của bố mẹ, mỗi tab trả lời một câu hỏi:
 
 | Tab | Câu hỏi | Gồm |
 | --- | --- | --- |
-| Hôm nay (`#hom-nay`) | Hôm nay con cần làm gì? | Theo từng con. Thông báo cần bố mẹ chú ý ở đầu màn (chờ duyệt, sổ học của cô), tiến độ và số dư, khối nhắc, bài cần nộp, các buổi trong ngày, việc làm thêm. Menu ⋯: Xem cả tuần, Chế độ cho bé, In kế hoạch tuần, … nghỉ học (thêm ngày nghỉ cho ngày đang xem), Sửa danh sách việc nhà (mở Quy định). Máy bố mẹ: bấm vào việc hay buổi học thêm để sửa. Máy tính màn rộng chia hai cột (các buổi bên trái, thông báo và nhắc bên phải). |
-| Học tập (`#lich-hoc`) | Các con học gì, nộp gì, ai đưa đón? | Cả nhà hoặc từng con. Bốn tab chia theo nguồn: Sắp tới (lịch gộp từng ngày, kèm các con ở đâu hôm đó, nút Ngày này nghỉ học?), Bài tập, Ở trường (thanh gạt Thời khoá biểu / Mốc năm học), Học thêm (lịch học thêm và đưa đón, Học phí của tất cả các cô, Sổ học của cô). Mỗi sổ học là một trang riêng `#lich-hoc/so/<mã sổ>` có nút quay lại. |
+| Hôm nay (`#hom-nay`) | Hôm nay con cần làm gì? | Theo từng con. Thông báo cần bố mẹ chú ý ở đầu màn (chờ duyệt, sổ học của cô), tiến độ và số dư, khối nhắc, bài cần nộp, việc ôn thi tới ngày, các buổi trong ngày, việc làm thêm. Menu ⋯: Xem cả tuần, Chế độ cho bé, In kế hoạch tuần, … nghỉ học (thêm ngày nghỉ cho ngày đang xem), Sửa danh sách việc nhà (mở Quy định). Máy bố mẹ: bấm vào việc hay buổi học thêm để sửa. Máy tính màn rộng chia hai cột (các buổi bên trái, thông báo và nhắc bên phải). |
+| Học tập (`#lich-hoc`) | Các con học gì, nộp gì, ai đưa đón? | Cả nhà hoặc từng con. Ba tab chia theo nguồn: Trên lớp (thanh gạt Bài tập / Thời khoá biểu / Mốc năm học; bài tập ở đây do bố mẹ hoặc con tự ghi), Học thêm (Sổ học của cô: mỗi sổ một thẻ có buổi vừa qua và bài tập về nhà cô giao; Học phí của tất cả các cô; Lịch học thêm và đưa đón), Thi (lịch thi các môn, nội dung ôn tập, kế hoạch ôn tập). Mỗi sổ học là một trang riêng `#lich-hoc/so/<mã sổ>` có nút quay lại. |
 | Tài khoản (`#tai-khoan`) | Con có bao nhiêu tiền, vì sao? | Theo từng con. Số dư, chờ duyệt thành tích, Ghi cho con (Phạt, Thưởng thêm, Chi tiêu), mục tiêu tiết kiệm, lịch sử. |
 | Quy định (`#quy-dinh`, link cũ `#bang-gia`) | Nhà mình có việc gì, thưởng phạt thế nào? | Nơi duy nhất thêm, sửa, xoá việc nhà (bốn loại) và mục giá (thành tích, phạt, phí sử dụng, phiếu thưởng). Menu ⋯: in bảng giá, phiếu thưởng, kế hoạch tuần. |
 | Gia đình (`#gia-dinh`) | Cài đặt của cả nhà | Các con, các con ở đâu, Chia sẻ và máy của con (link mời người nhà, mã PIN, link riêng cho máy của từng con), Sao lưu. |
 
-- Máy của con (nhà có mã PIN) và Chế độ cho bé dùng chung một màn với ba tab: Hôm nay, Học tập (bốn tab như bố mẹ, chỉ xem, không có sổ học và học phí, nhớ tab riêng), Tài khoản (chỉ xem). Báo thành tích có ở cả tab Hôm nay và tab Tài khoản của con.
+- Máy của con (nhà có mã PIN) và Chế độ cho bé dùng chung một màn với ba tab: Hôm nay, Học tập (ba tab như bố mẹ, chỉ xem, không có trang sổ, nhận xét học sinh và học phí, nhớ tab riêng; con tự thêm bài của mình, tick bài và việc ôn thi), Tài khoản (chỉ xem). Báo thành tích có ở cả tab Hôm nay và tab Tài khoản của con.
 - Màn của cô (`?lop=<mã lớp>`): ba tab Buổi học, Bài tập, Báo cáo (menu ⋯: In báo cáo, Nhập từ file Excel); chỉ đọc và ghi được sổ của lớp đó.
 
 ## Quy tắc đặt chỗ
 
 - Thứ con phải làm hoặc cần biết trong hôm nay: Hôm nay. Thứ không phải việc thì gọn trong một dòng nhắc.
-- Lịch học, bài tập, sổ học của cô, học phí: Học tập.
+- Lịch học, bài tập, sổ học của cô, học phí, lịch thi: Học tập. Bài bố mẹ và con tự ghi ở tab Trên lớp; thứ cô dạy thêm ghi trong sổ tự hiện ở tab Học thêm; lịch thi, kiểm tra ở tab Thi (không nằm trong Mốc năm học).
 - Tiền vào, tiền ra của con: Tài khoản.
 - Có những việc gì, bao nhiêu tiền, phạt gì: Quy định.
 - Cài đặt ít dùng: Gia đình.
@@ -48,6 +48,7 @@ Dùng đúng các tên này trên mọi màn, form, thông báo và bản in.
 | Điểm tốt, được khen (mục giá `kind: 'merit'`) | Thành tích | |
 | Trang việc nhà và mục giá | Quy định | Bảng giá (chỉ là tên tờ in "In bảng giá") |
 | Sổ của cô dạy thêm | Sổ học của cô; mỗi sổ tên "Nhật ký học" kèm môn | |
+| Kỳ thi, bài kiểm tra có ngày (mốc `kind: 'exam'`, có thêm `subj`, `content`, `plan`) | Lịch thi; mỗi môn là một Môn thi, có Nội dung ôn tập và Kế hoạch ôn tập (mỗi dòng là một việc ôn) | mốc kiểm tra |
 
 Trong mã, bốn loại việc nằm ở `CHORE_KINDS` (`week`, `each`, `extra`, `fun`), `choreKindOf(c)` cho biết một việc thuộc loại nào.
 
@@ -64,8 +65,8 @@ Mỗi màn một module ES trong `js/`, không có bước build (GitHub Pages p
 | `js/giao-dien.js` | Mảnh giao diện dùng chung: hình của con, `secHead`, thanh tiến độ, `kidTabs`, nút ⋯ và +, ô trống để thêm |
 | `js/form.js` | `openModal`, `closeModal`, các dòng của form (`frow`, `pillSel`, `titleCard`, `kidRow`…), `menuSheet` |
 | `js/hom-nay.js` | Màn Hôm nay (các buổi, `dayPlan`), thêm việc nhanh, xem cả tuần, in kế hoạch tuần, đóng dấu việc (`markChore`) |
-| `js/hoc-tap.js` | Màn Học tập: Sắp tới, Bài tập, Ở trường (thời khoá biểu, mốc năm học), Học thêm; form thời khoá biểu, buổi học thêm, bài tập, mốc |
-| `js/so-hoc.js` | Sổ học của cô: danh sách sổ, trang sổ, học phí, bài cô giao (`classTasks`), tự trừ tiền Thiếu BTVN, màn của cô (`drawTeacher`), file đính kèm, nhập Excel |
+| `js/hoc-tap.js` | Màn Học tập: Trên lớp (bài tập, thời khoá biểu, mốc năm học), Học thêm, Thi (lịch thi, nội dung và kế hoạch ôn tập, việc ôn tới ngày `studySoon`); form thời khoá biểu, buổi học thêm, bài tập, mốc, lịch thi |
+| `js/so-hoc.js` | Sổ học của cô: thẻ sổ ở tab Học thêm (`classesSection`), trang sổ, học phí, bài cô giao (`classTasks`), tự trừ tiền Thiếu BTVN, màn của cô (`drawTeacher`), file đính kèm, nhập Excel |
 | `js/tai-khoan.js` | Màn Tài khoản, chờ duyệt, việc thích làm con xin, mục tiêu tiết kiệm |
 | `js/quy-dinh.js` | Màn Quy định, bảng mẫu (`SAMPLE_CHORES`, `SAMPLE_PRICES`…), cập nhật theo bảng mẫu, form việc nhà (`CHORE_KINDS`) và mục giá |
 | `js/gia-dinh.js` | Màn Gia đình: các con (form, ảnh, hình đại diện), các con ở đâu, mã PIN, máy của con, sao lưu, lịch mã hoá |

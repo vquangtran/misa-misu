@@ -155,7 +155,6 @@ main{flex:1;min-width:0;padding:calc(8px + env(safe-area-inset-top,0px)) max(16p
 .off-row{opacity:.55}
 .step.off{color:var(--muted);opacity:.6}
 .step.off i{font-style:normal;font-size:13px}
-.dayoff-btn{display:block;margin:6px 0 0;font-size:14px}
 .item.taken .t{color:var(--muted)}
 /* việc có danh sách con: biểu tượng và ngôi sao nằm ngang hàng tên việc, không trôi xuống giữa */
 .item:has(.steps)>.ico,.item:has(.steps)>.stamp{align-self:flex-start}
@@ -576,19 +575,7 @@ button.fun-badge{border:0;font:inherit;font-size:12px;cursor:pointer}
 .ws-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
 .ws-head b{flex:1;text-align:center;font-family:var(--display);font-size:16px;font-weight:600}
 .ws-days{display:grid;grid-template-columns:repeat(7,1fr)}
-.ads{display:flex;gap:3px;height:6px;margin-top:3px}
-.ad{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--muted)}
-.ad.exam{background:var(--bad-fill)} .ad.ev{background:var(--star)} .ad.task{background:var(--accent)} .ad.lesson{background:var(--good-fill)}
-.ws-legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:10px;justify-content:center}
-.ws-legend .ad{margin-right:4px}
-.ag-sec+.ag-sec{margin-top:14px}
-.ag-h{display:block;font-family:var(--display);font-size:13px;font-weight:600;color:var(--muted);margin-bottom:2px}
-.periods{display:flex;flex-direction:column}
-.period{display:flex;align-items:center;gap:10px;padding:4px 0}
-.period .num{width:44px;color:var(--muted);font-size:13px}
-.period .dot{margin-right:0}
 .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:baseline;font-style:normal}
-.dot.lesson{background:var(--good-fill)}
 .item.task{align-items:flex-start}
 .item.task .check{margin-top:3px}
 .item.task .acts{align-self:center}
@@ -1027,9 +1014,6 @@ span.slot-pill{cursor:default}
 .slot>.tiles{margin:0}
 .kid-chip{display:inline-flex;align-items:center;gap:8px;font-family:var(--display);font-size:17px;font-weight:600;line-height:1.1}
 .wrap>.slot-h{margin-bottom:-8px}
-.wk .wd .ads{height:14px;margin:0;align-items:center}
-.ws-legend{margin-top:-6px}
-.ag-sec .cap{display:block;margin-bottom:2px}
 /* hai con số lớn cạnh nhau (Tài khoản) */
 .stat2{display:grid;grid-template-columns:1fr 1fr;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-sm)}
 .stat{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;padding:16px 12px 14px;text-align:center}
@@ -1116,3 +1100,23 @@ textarea.input.ft-input.ft-long{resize:none;overflow:hidden;min-height:0;margin:
 .so-table td.num{white-space:nowrap}
 .so-table.so-fee{width:auto;min-width:50%;margin-bottom:6px}
 .so-table td div+div,.so-table td b+div{margin-top:3px}
+/* Học tập › Học thêm: mỗi sổ học một thẻ; dưới tên sổ là buổi vừa học (cô ghi) và bài tập về nhà chưa xong */
+.so-feed{display:flex;flex-direction:column;gap:10px;padding:12px 0;border-top:1px solid var(--line)}
+.so-feed-h{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.so-feed>.list{margin:-8px 0 -10px}
+.so-feed.so-done{gap:6px;padding:6px 0}
+.so-feed.so-done .slot-h.sub .slot-pill{padding-left:0}
+/* Học tập › Thi: mỗi môn thi một dòng, bên dưới là nội dung và kế hoạch ôn tập (ô tick, ngày ôn đứng trước) */
+.item.exam-it.past{opacity:.6}
+.item.exam-it.now .t{color:var(--accent);font-weight:600}
+.exam-it .sess-body .bar{margin:2px 0 0}
+.plan-day{flex:none;min-width:54px;font-size:13px;line-height:1.6;color:var(--muted)}
+.plan-day.late{color:var(--bad)}
+.linkbtn.exam-more{position:relative;z-index:1;flex:1 1 100%;margin-left:56px;padding:0 0 8px;font-size:14px;text-align:left}
+@media (max-width:480px){.linkbtn.exam-more{margin-left:0}}
+/* form lịch thi: mỗi việc ôn một dòng (ngày ôn, ôn gì, nút xoá) */
+.plan-rows{display:flex;flex-direction:column;gap:8px}
+.plan-row{display:flex;align-items:center;gap:6px}
+.plan-row .plan-d{flex:none;width:132px;padding-left:8px;padding-right:4px}
+.plan-row .plan-t{flex:1;min-width:0}
+.plan-row .iconbtn{width:32px;height:32px}

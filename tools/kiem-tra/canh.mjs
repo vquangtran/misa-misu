@@ -121,12 +121,12 @@ export const CANH = [
       await c.click('#km ' + act('fun-need'));
       await c.click(X);
       await c.check('#km input[name="kmtab"][value="learn"]');
-      for (const v of ['bai-tap', 'truong', 'hoc-them', 'sap-toi']) await c.click('#km ' + act('learn-tab', { v }));
-      await c.click('#km ' + act('learn-tab', { v: 'truong' }));
+      for (const v of ['hoc-them', 'thi', 'tren-lop']) await c.click('#km ' + act('learn-tab', { v }));
+      await c.check('#km input[name="truong"][value="tkb"]');
       await c.click('#km ' + act('tkb-day', { d: '3' }));
       await c.check('#km input[name="truong"][value="moc"]');
-      await c.click('#km ' + act('learn-tab', { v: 'bai-tap' }));
-      await c.check('#km input[name="tview"][value="1"]');
+      await c.check('#km input[name="truong"][value="bai"]');
+      await c.click('#km ' + act('sec-toggle', { key: 'task-done' }), { optional: true });
       await c.check('#km input[name="kmtab"][value="acct"]');
       await c.click('#km ' + act('sec-toggle', { key: 'kr-pen' }));
       await c.click('#km ' + act('merit-open', { kid: 'k-su' }));
@@ -146,17 +146,13 @@ export const CANH = [
     },
   },
 
-  // Học tập: bốn tab, cả nhà và từng con, bài tập, mốc năm học, học thêm, thời khoá biểu, các form.
+  // Học tập: ba tab (Trên lớp, Học thêm, Thi), cả nhà và từng con, bài tập, mốc năm học, học thêm, thời khoá biểu, lịch thi, các form.
   {
     ten: 'hoc-tap',
     async chay(c) {
       await c.go('/#lich-hoc');
-      await c.click(act('ag-day', { d: '2026-11-25' }));
-      await c.click(act('ag-week', { n: '7' }));
-      await c.click(act('ag-day', { d: '' }));
-      await c.click(act('learn-tab', { v: 'bai-tap' }));
-      await c.check('input[name="tview"][value="1"]');
-      await c.check('input[name="tview"][value="0"]');
+      await c.click(act('sec-toggle', { key: 'task-done' }));
+      await c.click(act('sec-toggle', { key: 'task-done' }));
       await c.click(act('task-form', { id: 't2' }));
       await c.fill({ '#ttitle': 'Ôn tập Văn bài 5', '#tsteps': 'Đọc bài\nTrả lời câu hỏi' });
       await c.click('#modal ' + act('task-due', { v: '1' }));
@@ -169,7 +165,6 @@ export const CANH = [
       await c.click('#modal ' + act('task-subj'), { nth: 0 });
       await c.click('#modal ' + act('task-due', { v: 'next' }));
       await c.click('#modal ' + act('task-save'));
-      await c.click(act('learn-tab', { v: 'truong' }));
       await c.check('input[name="truong"][value="moc"]');
       await c.click(act('year-form'));
       await c.click('#modal ' + act('year-add'));
@@ -177,9 +172,12 @@ export const CANH = [
       await c.fill({ '#ename': 'Họp phụ huynh giữa kì', '#eto': '2026-11-29' });
       await c.click('#modal ' + act('event-save'));
       await c.click(act('page-add'));
-      await c.fill({ '#ename': 'Thi vẽ', '#efrom': '2026-12-02' });
-      await c.fill({ '#ekind': 'exam' });
+      await c.fill({ '#ename': 'Hội thi vẽ', '#efrom': '2026-12-02' });
+      await c.fill({ '#ekind': 'meeting' });
+      await c.fill({ '#ekind': 'event' });
       await c.click('#modal ' + act('event-save'));
+      await c.click(act('learn-tab', { v: 'thi' }), { text: 'tab Thi', label: 'dòng lịch thi nằm ở tab Thi' });
+      await c.click(act('learn-tab', { v: 'tren-lop' }));
       await c.check('input[name="truong"][value="tkb"]');
       await c.click(act('page-add'));
       await c.click(X);
@@ -203,17 +201,59 @@ export const CANH = [
       await c.fill({ '#lwhere': 'out' });
       await c.fill({ '#lgo': 'Bố', '#lback': 'Grab', '#lat': 'Nhà văn hoá' });
       await c.click('#modal ' + act('lesson-save'));
-      await c.click(act('learn-tab', { v: 'truong' }));
+      await c.click(act('learn-tab', { v: 'tren-lop' }));
+      await c.check('input[name="truong"][value="tkb"]');
       await c.click(act('tkb-day', { d: '3' }));
       await c.click(act('tkb-day', { d: '5' }));
       await c.click(act('page-add'));
       await c.click('#modal ' + act('tkb-row-add'));
       await c.click('#modal ' + act('tkb-save'));
       await c.check('input[name="truong"][value="moc"]');
-      await c.click(act('learn-tab', { v: 'sap-toi' }));
-      await c.click(act('learn-tab', { v: 'bai-tap' }));
+      await c.check('input[name="truong"][value="bai"]');
+      // Tab Thi: thêm môn thi (chia nội dung ôn đều tới ngày thi), thêm môn thứ hai vào cùng kỳ thi, tick việc ôn, sửa, xoá.
+      await c.click(act('learn-tab', { v: 'thi' }));
+      await c.click(act('page-add'));
+      await c.click('#modal ' + act('plan-fill'), { label: 'chia khi chưa có nội dung: báo' });
+      await c.fill({ '#xname': 'Kiểm tra học kì I', '#xcontent': 'Phân số\nHình bình hành\nGiải toán có lời văn' });
+      await c.click('#modal ' + act('exam-subj'), { nth: 0 });
+      await c.click('#modal ' + act('plan-fill'), { label: 'chia khi chưa có ngày thi: báo' });
+      await c.fill({ '#xfrom': '2026-12-15' });
+      await c.click('#modal ' + act('plan-fill'));
+      await c.click('#modal ' + act('plan-row-add'));
+      await c.fill({ '#xplan .plan-row:last-child .plan-t': 'Làm đề thử', '#xplan .plan-row:last-child .plan-d': '2026-11-23' });
+      await c.click('#modal ' + act('plan-row-del'), { nth: 1 });
+      await c.check('#modal input[name="xkid"][value="k-su"]');
+      await c.click('#modal ' + act('exam-save'));
+      await c.click(act('exam-form') + '[data-like]', { nth: 0, label: 'thêm môn vào kỳ thi đã có' });
+      await c.fill({ '#xsubj': 'Tiếng Việt', '#xfrom': '2026-12-16' });
+      await c.click('#modal ' + act('exam-save'));
+      await c.click(act('exam-step'), { nth: 0 });
+      await c.click(act('exam-step'), { nth: 0, label: 'bỏ tick việc ôn' });
+      await c.click(act('exam-form', { id: 'ev-1' }));
+      await c.fill({ '#xcontent': 'Nhân chia số có nhiều chữ số', '#xplan .plan-row .plan-t': 'Ôn bảng nhân chia', '#xplan .plan-row .plan-d': '2026-11-22' });
+      await c.click('#modal ' + act('exam-save'));
+      await c.click(act('sec-toggle', { key: 'thi-past' }), { optional: true });
       await c.click(act('learn-kid', { kid: 'k-sa' }));
-      for (const v of ['sap-toi', 'truong', 'hoc-them']) await c.click(act('learn-tab', { v }));
+      for (const v of ['tren-lop', 'hoc-them', 'thi']) await c.click(act('learn-tab', { v }));
+      await c.click(act('learn-kid', { kid: 'k-su' }));
+      // Việc ôn tới ngày hiện ở màn Hôm nay (khối Ôn thi) và ở Chế độ cho bé; tick là ôn xong.
+      await c.hash('#hom-nay');
+      await c.click(act('today-kid', { kid: 'k-su' }));
+      await c.click(act('today-menu'));
+      await c.click('#modal ' + act('sheet-open'), { label: 'bản in kế hoạch tuần có lịch thi và việc ôn' });
+      await c.click(X);
+      await c.click(act('today-menu'));
+      await c.click('#modal ' + act('km-open'));
+      await c.click(act('km-kid', { kid: 'k-su' }), { optional: true });
+      await c.click('#km ' + act('exam-step'), { nth: 0, label: 'con tick việc ôn thi' });
+      await c.check('#km input[name="kmtab"][value="learn"]');
+      await c.click('#km ' + act('learn-tab', { v: 'thi' }));
+      await c.hold('#km [data-hold]');
+      await c.click(act('exam-step'), { nth: 0, label: 'bố mẹ tick việc ôn ở Hôm nay' });
+      await c.click(act('tkb-go', { tab: 'thi' }), { nth: 0 });
+      await c.click(act('exam-form', { id: 'ev-1' }));
+      await c.click('#modal ' + act('exam-del'));
+      await c.click('#modal ' + act('exam-del'), { label: 'bấm lần nữa để xoá lịch thi' });
       await c.click(act('learn-kid', { kid: 'all' }));
       // Trang sổ học của từng cô.
       for (const id of ['lop-k-su-0', 'lop-k-su-1', 'lop-k-sa-2', 'lop-k-sa-3']) await c.hash('#lich-hoc/so/' + id);
@@ -247,15 +287,14 @@ export const CANH = [
     ten: 'ngay-nghi',
     async chay(c) {
       await c.go('/#lich-hoc');
-      await c.click(act('learn-tab', { v: 'truong' }));
       await c.check('input[name="truong"][value="moc"]');
       await c.click(act('page-add'));
       await c.fill({ '#ename': 'Nghỉ cả ngày', '#efrom': '2026-11-24' });
       await c.fill({ '#ekind': 'holiday' });
       await c.fill({ '#eoff': 'both' });
       await c.click('#modal ' + act('event-save'));
-      await c.click(act('learn-tab', { v: 'sap-toi' }));
-      await c.click(act('ag-day', { d: '2026-11-24' }));
+      await c.check('input[name="truong"][value="bai"]');
+      await c.click(act('learn-tab', { v: 'hoc-them' }));
       await c.hash('#hom-nay');
       await c.click(act('today-kid', { kid: 'k-sa' }));
       await c.click(act('slot-toggle'), { text: 'Buổi tối' });
@@ -263,21 +302,27 @@ export const CANH = [
       await c.click(act('slot-toggle'), { text: 'Buổi tối' });
       await c.click(act('day-set', { d: '2026-11-24' }));
       await c.hash('#lich-hoc');
-      await c.click(act('learn-tab', { v: 'truong' }));
+      await c.click(act('learn-tab', { v: 'tren-lop' }));
+      await c.check('input[name="truong"][value="moc"]');
       await c.click(act('event-form') + '[aria-label="Sửa: Nghỉ cả ngày"]');
       await c.fill({ '#ekind': 'event' });
       await c.fill({ '#ekind': 'holiday' });
       await c.click(X);
-      // Bấm một ngày ở Sắp tới rồi đánh dấu ngày nghỉ: Thứ Năm 26/11 Sa chỉ nghỉ học thêm, tối Thứ Tư việc chuẩn bị cho buổi học thêm hiện mờ.
-      await c.click(act('learn-tab', { v: 'sap-toi' }));
-      await c.click(act('learn-kid', { kid: 'k-sa' }));
-      await c.click(act('ag-day', { d: '2026-11-26' }));
-      await c.click(act('dayoff-form', { d: '2026-11-26' }));
+      // Thêm ngày nghỉ từ menu ⋯ của Hôm nay: Thứ Năm 26/11 Sa chỉ nghỉ học thêm, tối Thứ Tư việc chuẩn bị cho buổi học thêm hiện mờ.
+      await c.hash('#hom-nay');
+      await c.click(act('today-kid', { kid: 'k-sa' }));
+      await c.click(act('day-set', { d: '2026-11-26' }));
+      await c.click(act('today-menu'));
+      await c.click('#modal ' + act('dayoff-form'));
       await c.fill({ '#eoff': 'lessons' });
+      await c.check('#modal input[name="ekid"][value="k-sa"]');
       await c.click('#modal ' + act('event-save'));
-      await c.click(act('dayoff-form'), { optional: true });
-      await c.click(act('event-form'), { text: 'Nghỉ học' });
+      await c.hash('#lich-hoc');
+      await c.click(act('learn-kid', { kid: 'k-sa' }));
+      await c.click(act('event-form') + '[aria-label="Sửa: Nghỉ học thêm"]');
       await c.click(X);
+      await c.click(act('learn-tab', { v: 'hoc-them' }));
+      await c.click(act('learn-tab', { v: 'tren-lop' }));
       await c.click(act('learn-kid', { kid: 'all' }));
       await c.hash('#hom-nay');
       await c.click(act('today-kid', { kid: 'k-sa' }));
@@ -309,7 +354,6 @@ export const CANH = [
       await c.go('/#hom-nay');
       await c.click(act('today-kid', { kid: 'k-sa' }));
       await c.hash('#lich-hoc');
-      await c.click(act('learn-tab', { v: 'truong' }));
       await c.check('input[name="truong"][value="moc"]');
     },
   },
@@ -454,16 +498,16 @@ export const CANH = [
       const trang = n => ({ name: `trang${n}.png`, mimeType: 'image/png', buffer: png });
       await c.go('/');
       await c.check('#km input[name="kmtab"][value="learn"]');
-      await c.click('#km ' + act('learn-tab', { v: 'bai-tap' }));
-      await c.click('#km ' + act('hw-view'), { label: 'mở bài cô giao' });
+      await c.click('#km ' + act('learn-tab', { v: 'hoc-them' }));
+      await c.click('#km [data-act="hw-view"][data-id$="~hw-thu"]', { label: 'mở bài cô giao' });
       await c.files('#sub-file', [trang(1), trang(2)], 'tải lên 2 trang: chưa nộp');
       await c.click('#modal ' + act('task-done'), { label: 'Nộp bài (2 file)' });
-      await c.check('#km input[name="tview"][value="1"]');
-      await c.click('#km ' + act('hw-view'), { label: 'mở lại bài đã nộp' });
+      await c.click('#km ' + act('sec-toggle', { key: 'so-done-lop-k-su-1' }), { label: 'mở Bài đã xong của sổ' });
+      await c.click('#km [data-act="hw-view"][data-id$="~hw-thu"]', { label: 'mở lại bài đã nộp' });
       await c.files('#sub-file', [trang(3)], 'nộp thêm 1 trang');
       await c.click(X);
       await c.click('#km [data-act="task-done"][data-id$="~hw-thu"]', { label: 'bỏ dấu bài đã nộp: không được' });
-      await c.click('#km ' + act('hw-view'), { label: 'mở lại bài đã nộp' });
+      await c.click('#km [data-act="hw-view"][data-id$="~hw-thu"]', { label: 'mở lại bài đã nộp' });
       await c.click('#modal ' + act('sub-del'), { label: 'bỏ một file' });
       await c.click('#modal ' + act('sub-del'), { label: 'bấm lần nữa để bỏ file' });
       await c.click(X);
@@ -484,8 +528,8 @@ export const CANH = [
       await c.click('#km ' + act('task-done'), { nth: 0 });
       await c.click('#km ' + act('tkb-go'), { nth: 0 });
       await c.check('#km input[name="kmtab"][value="learn"]');
-      for (const v of ['bai-tap', 'truong', 'hoc-them', 'sap-toi']) await c.click('#km ' + act('learn-tab', { v }));
-      await c.click('#km ' + act('learn-tab', { v: 'bai-tap' }));
+      for (const v of ['hoc-them', 'thi', 'tren-lop']) await c.click('#km ' + act('learn-tab', { v }));
+      for (const v of ['tkb', 'moc', 'bai']) await c.check(`#km input[name="truong"][value="${v}"]`);
       await c.click('#km ' + act('task-form'), { nth: 0 });
       await c.fill({ '#ttitle': 'Con tự ghi: học từ mới' });
       await c.click('#modal ' + act('task-save'));
@@ -588,7 +632,7 @@ export const CANH = [
       await c.click(act('today-kid', { kid: 'k-sa' }));
       await c.click(act('tick', { kid: 'k-sa', chore: 'mau-xep-bat-vao-may' }));
       await c.hash('#lich-hoc');
-      for (const v of ['bai-tap', 'truong', 'hoc-them']) await c.click(act('learn-tab', { v }));
+      for (const v of ['hoc-them', 'thi', 'tren-lop']) await c.click(act('learn-tab', { v }));
       await c.hash('#lich-hoc/so/lop-k-su-0');
       await c.click(act('fee-paid'), { nth: 0, label: 'xác nhận học phí' });
       await c.click(act('so-back'));

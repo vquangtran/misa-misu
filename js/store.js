@@ -23,6 +23,7 @@
 //   tasks    bài tập        { kid, title, kind: bt|on|da, subj, due, notes, steps: [{ t, done }], done, doneAt, by: mã của con nếu con tự thêm từ màn của con }
 //   goals    mục tiêu tiết kiệm { kid, name, icon, price (đồng), order, done, doneAt }
 //   events   mốc năm học    { name, icon, kind: exam|holiday|meeting|event, from, to, kids: [] = cả nhà, off: nghỉ gì (holiday: school | lessons | both) }
+//            Mốc kind exam là lịch thi (tab Thi), có thêm { subj: môn thi (không có = cả đợt), content: nội dung ôn tập, plan: [{ t, d: ngày ôn, done }] kế hoạch ôn tập }
 //   Sổ học của cô: danh sách lớp của nhà nằm trong nhóm `paid`, id "lop-<mã>": { lop: 1, kid, name (môn), book (tên sổ, trống = "Sổ học <môn>"), dur (7 số phút theo thứ, CN = 0), hwPen ({ mã bài: 1 } đã trừ tiền Thiếu BTVN), teacher, code (mã lớp), at, fee, feeOn, feeBy, feeOff }.
 //   Cài đặt `caidat` có thêm so: 1 = đã tạo sẵn sổ học cho các cô của nhà; book: 1 = đã đổi tên sổ Tiếng Việt của Su; dur: 1 = đã ghi thời lượng theo thứ cho sổ đó.
 //   Việc thích làm con xin thêm, xin sửa (chờ bố mẹ duyệt) cũng nằm trong nhóm `paid`, id "xin-<mã>": { xin: 'fun', kid, chore (mã việc xin sửa; không có = xin thêm), name, icon, minutes, slot, days, at }.
@@ -134,7 +135,7 @@ export async function firebaseStore(config, family, onData, onStatus) {
 // ---------- sổ học của cô ----------
 // Mỗi lớp (một cô, một con, một môn) là một nhánh riêng families/lop-<mã lớp>/..., tách khỏi nhánh của gia đình.
 // Cô chỉ có mã lớp (trong link riêng của cô) nên chỉ đọc/ghi được sổ của lớp đó: không thấy việc nhà, tiền hay
-// dữ liệu khác của gia đình. Máy của nhà biết mã lớp nên đọc được sổ và đưa bài cô giao vào phần Bài tập của con.
+// dữ liệu khác của gia đình. Máy của nhà biết mã lớp nên đọc được sổ và đưa buổi vừa học, bài cô giao vào tab Học thêm của con.
 // Nhánh lớp dùng lại tên các nhóm đã có trong Rules, nên không phải dán lại Rules:
 //   info     (lưu ở nhóm kids)    id "lop": { name (môn), teacher, student (tên con), days: [{ day, s, e }] lịch học thêm của môn này,
 //                                 fee (đồng), feeBy: buoi|gio: học phí mỗi buổi hoặc mỗi giờ, để tính học phí theo số buổi đã dạy trong tháng;

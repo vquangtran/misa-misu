@@ -3,7 +3,7 @@ import { $, addDays, CHEV, dm, DOWN, esc, key, money, nowMin, PLUS, PREV, signed
 import { againVnd, balance, dayBonusAt, dayBonuses, dayFull, deviceRole, isBirthday, isDaily, isDone, isFun, kidsList, ledgerVnd, mustFor, placeLow,
   pricesList, priceVnd, S, setRO, shortPlace, slotAt, stayNow, stepMask, stepsShow, streakOf, UI, weekBonusOf, weekStats } from './du-lieu.js';
 import { ava, barCount, loading, moneyChip, secHead, secIsOpen, subjChips, tintOf } from './giao-dien.js';
-import { eventLines, learnPage, openTasks, taskRow, tasksSoon } from './hoc-tap.js';
+import { eventLines, learnPage, openTasks, studyRow, studySoon, taskRow, tasksSoon } from './hoc-tap.js';
 import { choreMeta, dayPlan, markRow, needLine, stepOff, schoolNow, SEC_LABEL, skipNote, slotCount, slotMissed, slotOpenDefault, slotSecs, subHead } from './hom-nay.js';
 import { acctStats, coins, funSection, goalProgress, goalsCard, histSection, pendingList } from './tai-khoan.js';
 import { meritList } from './quy-dinh.js';
@@ -65,27 +65,28 @@ export function drawKidMode() {
     <div class="who-grid">${kids.map(who).join('')}</div></div>`;
     return;
   }
-  // Ba tab của con: việc hôm nay, Học tập (thời khoá biểu, bài tập, mốc năm học, học thêm) và Tài khoản (số dư, lịch sử cộng trừ). Hai tab sau là của riêng con, chỉ xem.
+  // Ba tab của con: việc hôm nay, Học tập (Trên lớp, Học thêm, Thi) và Tài khoản (số dư, lịch sử cộng trừ). Hai tab sau là của riêng con, chỉ xem.
   const tab = ['learn', 'acct'].includes(UI.kmTab) ? UI.kmTab : 'today';
   const top = `<div class="km-top">${kids.length > 1 && !lock ? `<button class="linkbtn back" data-act="km-kid" data-kid="">${PREV}Đổi bạn</button>` : '<span></span>'}${hold}</div>
   <div class="seg modes km-tabs" role="tablist" aria-label="Chọn màn">${[['today', '☀️ Hôm nay'], ['learn', '📚 Học tập'], ['acct', '💰 Tài khoản']].map(([v, l]) => `<label><input type="radio" name="kmtab" value="${v}" ${v === tab ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div>`;
   el.classList.toggle('plain', tab !== 'today');
   if (tab !== 'today') {
-    // Tab Học tập của con nhớ tab riêng (UI.kmLearn), mở ở Sắp tới, không theo tab bố mẹ xem lần cuối trên cùng máy.
-    const parent = [UI.learn, UI.truong]; setRO(true); UI.learn = UI.kmLearn || 'sap-toi'; UI.truong = UI.kmTruong || 'tkb';
+    // Tab Học tập của con nhớ tab riêng (UI.kmLearn), mở ở Trên lớp › Bài tập, không theo tab bố mẹ xem lần cuối trên cùng máy.
+    const parent = [UI.learn, UI.truong]; setRO(true); UI.learn = UI.kmLearn || 'tren-lop'; UI.truong = UI.kmTruong || 'bai';
     try { el.innerHTML = `<div class="wrap">${top}${tab === 'learn' ? learnPage([k], false) : kidAcct(k)}</div>`; } finally { setRO(false); [UI.learn, UI.truong] = parent; }
     return;
   }
   const list = mustFor(k.id, t), n = list.filter(c => isDone(t, k.id, c.id)).length, plan = dayPlan(k.id, t), cur = slotAt(nowMin());
   const sc = schoolNow(k, t, true);
   const kst = stayNow(t.getDay());
-  const kts = tasksSoon(k.id), g1 = goalProgress(k.id)[0];
+  const kts = tasksSoon(k.id), study = studySoon(k.id), g1 = goalProgress(k.id)[0];
   const goal = g1 ? `<div class="km-goal"><div class="t">${esc(g1.icon || '🎁')} Con đang để dành mua <b>${esc(g1.name)}</b></div>${coins(g1, true)}<div class="muted">${g1.need ? `Còn thiếu ${money(g1.need)}` : 'Đủ tiền rồi! Nhờ bố mẹ mua cho con nhé 🎉'}</div></div>` : '';
-  // Trên danh sách việc: những gì con phải làm hôm nay (bài cần nộp, soạn cặp). Dưới danh sách: mốc sắp tới và mục tiêu tiết kiệm.
+  // Trên danh sách việc: những gì con phải làm hôm nay (bài cần nộp, việc ôn thi tới ngày, soạn cặp). Dưới danh sách: mốc sắp tới và mục tiêu tiết kiệm.
   // Bài cô vừa giao trong hai ngày qua (chưa tới hạn nên chưa nằm trong Bài cần nộp): báo để con biết có bài mới.
   const fresh = openTasks(k.id).filter(x => x.cls && x.hw.at && Date.now() - new Date(x.hw.at) < 2 * 864e5 && !kts.some(y => y.id === x.id));
   const school = (fresh.length ? `<section class="slot tn2">${secHead('📒', 'Cô mới giao bài', { cnt: fresh.length })}<div class="big-list">${fresh.map(x => taskRow(x, false, 'big')).join('')}</div></section>` : '')
     + (kts.length ? `<section class="slot s-task">${secHead('📝', 'Bài cần nộp', { cnt: kts.length })}<div class="big-list">${kts.map(t => taskRow(t, false, 'big')).join('')}</div></section>` : '')
+    + (study.length ? `<section class="slot s-task">${secHead('📖', 'Ôn thi', { cnt: study.length })}<div class="big-list">${study.map(x => studyRow(x, 'big')).join('')}</div></section>` : '')
     + (sc ? `<section class="slot tn4">${secHead(sc.bag ? '🎒' : '🏫', esc(sc.title))}<div class="slot-list pad"><div class="sj-list">${subjChips(sc.subjects)}</div></div></section>` : '');
   const after = eventLines(k, 'km-event') + goal;
   const merit = meritSection(k) + funSection(k);
