@@ -5,11 +5,11 @@ import { $, addDays, CHEV, confetti, dateTxt, daysTo, dm, dueLabel, esc, hm, key
   uid, WDN, weekStart } from './chung.js';
 import { SAMPLE_YEAR } from './nha-minh.js';
 import { againVnd, balance, choresList, choreSlot, DAY_BONUS, dayBonusOf, del, deviceRole, isDaily, isDone, isFun, isWeekly, keepFamilyInUrl, kidName,
-  kidsList, penaltyTimes, pinHash, placeName, priceKind, pricesList, priceVnd, put, render, S, setDone, setFamily, setRole, SETTINGS_ID, skipOn, SLOTS,
+  kidsList, offLabel, penaltyTimes, pinHash, placeName, priceKind, pricesList, priceVnd, put, render, S, setDone, setFamily, setRole, SETTINGS_ID, skipOn, SLOTS,
   stepMask, stepsAll, stepsOf, TEACH, tkbOf, TODAY_KID, UI, WEEK_BONUS, weekBonusOf, weekGain } from './du-lieu.js';
 import { avInner, photoOf } from './giao-dien.js';
 import { closeModal, daySet, dismissModal, menuRow, menuSheet, openModal, radioVal, setModalDirty } from './form.js';
-import { EVENT_HELP, EVENT_KINDS, eventForm, lessonForm, missingYear, nextSubjectDay, openTasks, printTkb, readTkbForm, sampleLabel, sampleTkb,
+import { dayOffForm, EVENT_HELP, EVENT_KINDS, eventForm, lessonForm, missingYear, nextSubjectDay, openTasks, printTkb, readTkbForm, sampleLabel, sampleTkb,
   setLearn, taskForm, taskOf, tasksList, tkbDraft, tkbForm, tkbOffer, yearForm } from './hoc-tap.js';
 import { ATT, attAdd, attClear, attDraw, attTake, bankForm, bookName, CHK, classesList, classForm, classLinkSheet, classLinksSheet, cleanFiles,
   cleanSteps, CLS, CLS_GONE, clsDel, clsPatch, clsPut, delFiles, feeOf, fileOpen, growTitle, hwDueAfter, hwForm, hwList, hwRowInput, hwView, linkList,
@@ -456,15 +456,18 @@ document.addEventListener('click', e => {
     return;
   }
   if (a === 'event-form') return eventForm(id, b.dataset.kid);
+  if (a === 'dayoff-form') return dayOffForm(b.dataset.d, b.dataset.kid);
   if (a === 'year-form') return yearForm();
   if (a === 'event-save') {
-    const name = $('#ename').value.trim(); if (!name) { $('#ename').focus(); return toast('Nhập tên mốc nhé.'); }
+    // Ngày nghỉ chưa ghi lý do thì lấy tên theo kiểu nghỉ (Nghỉ học, Nghỉ học thêm...).
+    const name = $('#ename').value.trim() || ($('#ekind').value === 'holiday' ? offLabel({ off: $('#eoff')?.value }) : ''); if (!name) { $('#ename').focus(); return toast('Nhập tên mốc nhé.'); }
     const from = $('#efrom').value, to = $('#eto').value;
     if (!from) { $('#efrom').focus(); return toast('Chọn ngày nhé.'); }
     if (to && to < from) return toast('Ngày kết thúc phải sau ngày bắt đầu.');
     const data = { name, icon: radioVal('eico') || '📌', kind: $('#ekind').value || 'event', from, kids: [...document.querySelectorAll('#modal input[name=ekid]:checked')].map(x => x.value) };
     if (to && to > from) data.to = to;
-    if (data.kind === 'holiday' && $('#enolesson')?.checked) data.noLessons = true;
+    // Ngày nghỉ: nghỉ học chính (mặc định, không ghi), nghỉ học thêm, hay cả hai.
+    if (data.kind === 'holiday' && ['lessons', 'both'].includes($('#eoff')?.value)) data.off = $('#eoff').value;
     closeModal(); put('events', id || uid(), data); return toast('Đã lưu mốc.');
   }
   if (a === 'event-del') { if (!armed(b, 'Bấm lần nữa để xoá')) return; closeModal(); del('events', id); return toast('Đã xoá mốc.'); }

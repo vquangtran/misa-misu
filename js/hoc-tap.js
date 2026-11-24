@@ -3,7 +3,7 @@ import { $, addDays, CHEV, daysTo, dm, dmy, dueLabel, durTxt, esc, hm, key, NEXT
   WDS, WEEK_ORDER, weekStart } from './chung.js';
 import { SAMPLE_PERIODS, SAMPLE_TKBS, SAMPLE_YEAR } from './nha-minh.js';
 import { eventsList, eventsOf, holidayOn, kidName, kidsList, lessonMin, lessonsAt, lessonsList, lessonsOf, lessonsOffOn, lessonsOn, memoize, nextSchool,
-  placeLow, placeName, placeNames, RO, S, schoolDay, schoolOn, stayInfo, stayLine, tkbDays, tkbOf, UI } from './du-lieu.js';
+  OFF_KINDS, offOf, offWhy, placeLow, placeName, placeNames, RO, S, schoolDay, schoolOn, stayInfo, stayLine, tkbDays, tkbOf, UI } from './du-lieu.js';
 import { addBtn, ava, barCount, blankAdd, editBtn, kidChip, kidTabs, lessonIcon, mini, noKids, pillBar, plusBtn, secHead, secIsOpen, subjDot, subjTint,
   suggest } from './giao-dien.js';
 import { formFoot, frow, kidRow, openModal, pillSel, radioVal, titleCard, toggle } from './form.js';
@@ -23,7 +23,7 @@ const tkbSig = t => JSON.stringify((t.rows || []).map(r => [r.s, r.e, ...tkbDays
 
 // ---------- mốc năm học ----------
 // events: { name, icon, kind: exam|holiday|meeting|event, from: "YYYY-MM-DD", to: "YYYY-MM-DD" (không bắt buộc), kids: [] = cả nhà,
-//   noLessons: true = mốc Nghỉ học nghỉ cả học thêm }
+//   off: mốc Nghỉ học nghỉ gì, 'school' (mặc định) | 'lessons' | 'both' (dữ liệu cũ: noLessons = 'both'), xem offOf trong du-lieu.js }
 export const EVENT_KINDS = [['exam', 'Kiểm tra', '📝'], ['holiday', 'Nghỉ học', '🏖️'], ['meeting', 'Họp phụ huynh', '👪'], ['event', 'Sự kiện', '🎉']];
 const EVENT_ICONS = ['📝', '🏫', '🎒', '📘', '🌱', '🌸', '🧧', '🎓', '🏆', '👪', '🎉', '🏖️', '⚽', '🎭', '🩺', '📣'];
 function eventRange(e) {
@@ -64,21 +64,37 @@ function eventsCard(kidId) {
   if (past.length) h += `<section class="slot">${secHead('', 'Đã qua', { cnt: past.length, key: 'moc-past', closed: true })}${secIsOpen('moc-past', true) ? `<div class="slot-list list">${past.map(row).join('')}</div>` : ''}</section>`;
   return h + `</div>${list.length || RO ? '' : '<p class="foot-note">App nhắc trước ở màn Hôm nay; những ngày nghỉ học thì không báo giờ ở trường.</p>'}`;
 }
-export const EVENT_HELP = { exam: 'App nhắc trước 14 ngày', holiday: 'Những ngày này app không báo giờ ở trường và soạn cặp', meeting: 'App nhắc trước 7 ngày', event: 'App nhắc trước 7 ngày' };
-export function eventForm(id, kidPre) {
-  const e = id ? S.events[id] : null, kids = kidsList();
-  const sel = e ? (e.kids || []) : S.kids[kidPre] ? [kidPre] : [];
+export const EVENT_HELP = { exam: 'App nhắc trước 14 ngày', holiday: 'Tối hôm trước, việc chuẩn bị cho hôm sau hiện mờ, không cần làm', meeting: 'App nhắc trước 7 ngày', event: 'App nhắc trước 7 ngày' };
+// pre: điền sẵn khi thêm ngày nghỉ từ một ngày ở Sắp tới hay màn Hôm nay ({ from, kind: 'holiday', off, name }).
+export function eventForm(id, kidPre, pre = null) {
+  const e = id ? S.events[id] : pre, kids = kidsList();
+  const sel = e?.kids ? e.kids : S.kids[kidPre] ? [kidPre] : [];
   const kind = e?.kind || 'event';
-  openModal(`<h2>${e ? 'Sửa mốc' : 'Thêm mốc năm học'}</h2>
-  ${titleCard('ename', e?.name, 'Tên mốc', { max: 60, icoName: 'eico', icons: EVENT_ICONS, ico: e?.icon || EVENT_KINDS.find(x => x[0] === kind)[2], attr: e ? '' : 'data-new="1"' })}
+  openModal(`<h2>${id ? 'Sửa mốc' : pre ? 'Thêm ngày nghỉ' : 'Thêm mốc năm học'}</h2>
+  ${titleCard('ename', e?.name, pre ? 'Lý do nghỉ (không bắt buộc)' : 'Tên mốc', { max: 60, icoName: 'eico', icons: EVENT_ICONS, ico: e?.icon || EVENT_KINDS.find(x => x[0] === kind)[2], attr: id ? '' : 'data-new="1"' })}
   <div class="fg">
     ${frow('Loại', pillSel('ekind', EVENT_KINDS.map(([v, l]) => [v, l]), kind), { id: 'ekind', sub: EVENT_HELP[kind], subId: 'ekind-help' })}
-    <div class="fr ehol-f" ${kind === 'holiday' ? '' : 'hidden'}>${toggle('enolesson', 'Nghỉ cả học thêm <span class="fs">Những ngày này không có buổi học thêm, tối hôm trước không hiện việc chuẩn bị cho buổi học thêm</span>', e?.noLessons)}</div>
+    ${frow('Nghỉ gì', pillSel('eoff', OFF_KINDS, offOf(e)), { id: 'eoff', cls: 'ehol-f', hidden: kind !== 'holiday', sub: 'Học chính là ở trường. Nghỉ học thêm thì các buổi học thêm ngày đó nghỉ' })}
     ${frow('Từ ngày', `<input id="efrom" class="pillin num" type="date" value="${esc(e?.from || '')}">`, { id: 'efrom' })}
     ${frow('Đến ngày', `<input id="eto" class="pillin num" type="date" value="${esc(e?.to && e.to !== e.from ? e.to : '')}">`, { id: 'eto', sub: 'Bỏ trống nếu chỉ một ngày' })}
     ${kids.length > 1 ? kidRow('Của con nào', 'ekid', 'checkbox', sel, 'Không chọn ai thì là mốc chung của cả nhà') : ''}
   </div>
-  ${formFoot(e ? 'event-del' : '', id, 'event-save')}`);
+  ${formFoot(id ? 'event-del' : '', id, 'event-save')}`);
+}
+// Bấm "ngày này nghỉ học" ở một ngày: ngày đã có mốc nghỉ (của con này, hoặc của cả nhà) thì mở mốc đó để sửa, chưa có thì thêm ngày nghỉ.
+export function dayOffForm(dk, kidId) {
+  const d = parse(dk), ks = S.kids[kidId] ? [kidId] : kidsList().map(k => k.id);
+  const e = eventsList().find(x => x.kind === 'holiday' && x.from <= dk && dk <= x.to && ks.some(k => !(x.kids || []).length || x.kids.includes(k)));
+  if (e) return eventForm(e.id);
+  eventForm(null, kidId, { kind: 'holiday', off: 'both', from: dk, name: '', kids: S.kids[kidId] ? [kidId] : [] });
+}
+// Dòng ở đầu một ngày của Sắp tới: ngày nghỉ (bấm để sửa), hoặc nút đánh dấu ngày nghỉ (chỉ máy bố mẹ).
+function dayOffLine(ks, d) {
+  const dk = key(d), ids = ks.map(k => k.id);
+  const list = eventsList().filter(e => e.kind === 'holiday' && e.from <= dk && dk <= e.to && ids.some(k => !(e.kids || []).length || e.kids.includes(k)));
+  if (list.length) return list.map(e => { const who = (e.kids || []).length ? ` · ${e.kids.map(kidName).join(', ')}` : ''; const t = `<b>🏖️ ${esc(offWhy(e))}</b>${esc(who)}`;
+    return RO ? `<div class="school-line">${t}</div>` : `<button class="school-line so-line" data-act="event-form" data-id="${esc(e.id)}">${t}</button>`; }).join('');
+  return RO ? '' : `<button class="linkbtn dayoff-btn" data-act="dayoff-form" data-d="${dk}" data-kid="${ids.length === 1 ? ids[0] : ''}">🏖️ Ngày này nghỉ học?</button>`;
 }
 export function yearForm() {
   const kids = kidsList(), miss = missingYear();
@@ -338,7 +354,7 @@ export function dayAgenda(kidId, d) {
     hol: holidayOn(kidId, d),
     school: schoolOn(kidId, d),
     lessons: lessonsAt(kidId, d),
-    lessonsOff: lessonsOffOn(kidId, d) && lessonsOn(kidId, d.getDay()).length > 0,
+    lessonsOff: lessonsOn(kidId, d.getDay()).length ? lessonsOffOn(kidId, d) : null,
     tasks: tasksList().filter(t => t.kid === kidId && (t.due === dk || (isT && !t.done && t.due && t.due < dk))),
   };
 }
@@ -359,15 +375,15 @@ function viewAgenda(ks) {
     <button class="wk-arrow" data-act="ag-week" data-n="7" aria-label="Tuần sau">${NEXT}</button></div>
     <div class="ws-legend muted small"><span><i class="ad exam"></i>Kiểm tra</span><span><i class="ad ev"></i>Mốc</span><span><i class="ad task"></i>Bài phải nộp</span><span><i class="ad lesson"></i>Học thêm</span></div>`;
   const dd = key(sel) === key(t) ? 'Hôm nay' : key(sel) === key(addDays(t, 1)) ? 'Ngày mai' : key(sel) === key(addDays(t, -1)) ? 'Hôm qua' : '';
-  const sl = stayLine(sel.getDay(), key(sel) === key(t));
-  h += `<b class="kid-sum-t">${dd ? dd + ', ' : ''}${dd ? WD[sel.getDay()].toLowerCase() : WD[sel.getDay()]} ${dm(sel)}</b>${sl ? `<div class="notes"><div class="stay-note ${stayInfo(sel.getDay())?.moved ? 'moved' : ''}">${esc(sl)}</div></div>` : ''}<div class="slots">`;
+  const sl = stayLine(sel.getDay(), key(sel) === key(t)), off = dayOffLine(ks, sel);
+  h += `<b class="kid-sum-t">${dd ? dd + ', ' : ''}${dd ? WD[sel.getDay()].toLowerCase() : WD[sel.getDay()]} ${dm(sel)}</b>${sl || off ? `<div class="notes">${sl ? `<div class="stay-note ${stayInfo(sel.getDay())?.moved ? 'moved' : ''}">${esc(sl)}</div>` : ''}${off}</div>` : ''}<div class="slots">`;
   for (const k of ks) {
     const a = dayAgenda(k.id, sel);
     let b = '';
     const part = (title, body) => body ? `<div class="ag-sec"><div class="cap">${title}</div>${body}</div>` : '';
     b += part('Kiểm tra và mốc', a.events.map(e => `<div class="item event"><span class="ico">${esc(e.icon || '📌')}</span><div class="txt"><div class="t">${esc(e.name)}</div><div class="s">${esc(eventRange(e))}</div></div></div>`).join(''));
-    b += part('Ở trường', a.hol ? `<p class="muted small" style="margin:4px 0">Nghỉ: ${esc(a.hol.name)}</p>` : a.school ? `<div class="periods">${a.school.list.map(p => `<div class="period"><span class="num">${esc(p.s)}</span>${subjDot(p.subj)}<span>${esc(p.subj)}</span></div>`).join('')}</div>` : '');
-    b += part('Học thêm', a.lessonsOff ? `<p class="muted small" style="margin:4px 0">Nghỉ học thêm: ${esc(a.hol.name)}</p>` : a.lessons.map(l => `<div class="period"><span class="num">${esc(l.s)}</span><i class="dot lesson"></i><span>${esc(l.name)}${l.at ? ` <span class="muted small">· ${esc(placeName(l.at))}</span>` : ''}</span></div>`).join(''));
+    b += part('Ở trường', a.hol ? `<p class="muted small" style="margin:4px 0">${esc(offWhy(a.hol, 'Nghỉ học'))}</p>` : a.school ? `<div class="periods">${a.school.list.map(p => `<div class="period"><span class="num">${esc(p.s)}</span>${subjDot(p.subj)}<span>${esc(p.subj)}</span></div>`).join('')}</div>` : '');
+    b += part('Học thêm', a.lessonsOff ? `<p class="muted small" style="margin:4px 0">${esc(offWhy(a.lessonsOff, 'Nghỉ học thêm'))}</p>` : a.lessons.map(l => `<div class="period"><span class="num">${esc(l.s)}</span><i class="dot lesson"></i><span>${esc(l.name)}${l.at ? ` <span class="muted small">· ${esc(placeName(l.at))}</span>` : ''}</span></div>`).join(''));
     b += part('Bài phải nộp', a.tasks.length ? `<div class="list">${a.tasks.map(x => taskRow(x, false)).join('')}</div>` : '');
     h += `<section class="slot">${multi ? kidChip(k) : ''}${b ? `<div class="slot-list pad">${b}</div>` : RO ? `<div class="slot-blank ro"><span>Ngày này con không có lịch học, bài tập hay kiểm tra</span></div>` : `<button class="slot-blank" data-act="page-add"><span>Ngày này ${esc(k.name)} không có lịch học, bài tập hay kiểm tra</span>${PLUS}</button>`}</section>`;
   }

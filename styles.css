@@ -151,6 +151,11 @@ main{flex:1;min-width:0;padding:calc(8px + env(safe-area-inset-top,0px)) max(16p
 .item.done .t{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--ring);text-decoration-thickness:1.5px}
 /* Bài có hạn nộp vào ngày nghỉ: chưa phải nộp, hiện mờ */
 .item.task.off,.big-item.task.off{opacity:.55}
+/* Ngày nghỉ: việc chuẩn bị cho hôm sau, buổi học thêm bị nghỉ, mục con "(mai đi học)" hiện mờ, không cần làm */
+.off-row{opacity:.55}
+.step.off{color:var(--muted);opacity:.6}
+.step.off i{font-style:normal;font-size:13px}
+.dayoff-btn{display:block;margin:6px 0 0;font-size:14px}
 .item.taken .t{color:var(--muted)}
 /* việc có danh sách con: biểu tượng và ngôi sao nằm ngang hàng tên việc, không trôi xuống giữa */
 .item:has(.steps)>.ico,.item:has(.steps)>.stamp{align-self:flex-start}

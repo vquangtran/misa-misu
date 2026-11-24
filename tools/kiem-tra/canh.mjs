@@ -252,7 +252,7 @@ export const CANH = [
       await c.click(act('page-add'));
       await c.fill({ '#ename': 'Nghỉ cả ngày', '#efrom': '2026-11-24' });
       await c.fill({ '#ekind': 'holiday' });
-      await c.check('#enolesson');
+      await c.fill({ '#eoff': 'both' });
       await c.click('#modal ' + act('event-save'));
       await c.click(act('learn-tab', { v: 'sap-toi' }));
       await c.click(act('ag-day', { d: '2026-11-24' }));
@@ -268,6 +268,36 @@ export const CANH = [
       await c.fill({ '#ekind': 'event' });
       await c.fill({ '#ekind': 'holiday' });
       await c.click(X);
+      // Bấm một ngày ở Sắp tới rồi đánh dấu ngày nghỉ: Thứ Năm 26/11 Sa chỉ nghỉ học thêm, tối Thứ Tư việc chuẩn bị cho buổi học thêm hiện mờ.
+      await c.click(act('learn-tab', { v: 'sap-toi' }));
+      await c.click(act('learn-kid', { kid: 'k-sa' }));
+      await c.click(act('ag-day', { d: '2026-11-26' }));
+      await c.click(act('dayoff-form', { d: '2026-11-26' }));
+      await c.fill({ '#eoff': 'lessons' });
+      await c.click('#modal ' + act('event-save'));
+      await c.click(act('dayoff-form'), { optional: true });
+      await c.click(act('event-form'), { text: 'Nghỉ học' });
+      await c.click(X);
+      await c.click(act('learn-kid', { kid: 'all' }));
+      await c.hash('#hom-nay');
+      await c.click(act('today-kid', { kid: 'k-sa' }));
+      await c.click(act('day-set', { d: '2026-11-25' }));
+      await c.click(act('slot-toggle'), { text: 'Buổi tối' });
+      await c.click(act('day-set', { d: '2026-11-26' }));
+      // Menu ⋯ của Hôm nay: ngày đang xem đã có ngày nghỉ thì mở ngày nghỉ đó.
+      await c.click(act('today-menu'));
+      await c.click('#modal ' + act('dayoff-form'));
+      await c.click(X);
+      await c.click(act('day-set', { d: '2026-11-27' }));
+      await c.click(act('today-menu'));
+      await c.click('#modal ' + act('dayoff-form'));
+      await c.fill({ '#eoff': 'school' });
+      await c.click('#modal ' + act('event-save'));
+      // Chế độ cho bé tối nay (mai 24/11 nghỉ cả hai): việc chuẩn bị và mục con "(mai đi học)" hiện mờ.
+      await c.click(act('day-set', { d: '2026-11-23' }));
+      await c.click(act('today-menu'));
+      await c.click('#modal ' + act('km-open'));
+      await c.click(act('km-kid', { kid: 'k-sa' }));
     },
   },
 

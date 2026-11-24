@@ -10,8 +10,8 @@ Năm tab của bố mẹ, mỗi tab trả lời một câu hỏi:
 
 | Tab | Câu hỏi | Gồm |
 | --- | --- | --- |
-| Hôm nay (`#hom-nay`) | Hôm nay con cần làm gì? | Theo từng con. Thông báo cần bố mẹ chú ý ở đầu màn (chờ duyệt, sổ học của cô), tiến độ và số dư, khối nhắc, bài cần nộp, các buổi trong ngày, việc làm thêm. Menu ⋯: Xem cả tuần, Chế độ cho bé, In kế hoạch tuần, Sửa danh sách việc nhà (mở Quy định). Máy bố mẹ: bấm vào việc hay buổi học thêm để sửa. Máy tính màn rộng chia hai cột (các buổi bên trái, thông báo và nhắc bên phải). |
-| Học tập (`#lich-hoc`) | Các con học gì, nộp gì, ai đưa đón? | Cả nhà hoặc từng con. Bốn tab chia theo nguồn: Sắp tới (lịch gộp từng ngày, kèm các con ở đâu hôm đó), Bài tập, Ở trường (thanh gạt Thời khoá biểu / Mốc năm học), Học thêm (lịch học thêm và đưa đón, Học phí của tất cả các cô, Sổ học của cô). Mỗi sổ học là một trang riêng `#lich-hoc/so/<mã sổ>` có nút quay lại. |
+| Hôm nay (`#hom-nay`) | Hôm nay con cần làm gì? | Theo từng con. Thông báo cần bố mẹ chú ý ở đầu màn (chờ duyệt, sổ học của cô), tiến độ và số dư, khối nhắc, bài cần nộp, các buổi trong ngày, việc làm thêm. Menu ⋯: Xem cả tuần, Chế độ cho bé, In kế hoạch tuần, … nghỉ học (thêm ngày nghỉ cho ngày đang xem), Sửa danh sách việc nhà (mở Quy định). Máy bố mẹ: bấm vào việc hay buổi học thêm để sửa. Máy tính màn rộng chia hai cột (các buổi bên trái, thông báo và nhắc bên phải). |
+| Học tập (`#lich-hoc`) | Các con học gì, nộp gì, ai đưa đón? | Cả nhà hoặc từng con. Bốn tab chia theo nguồn: Sắp tới (lịch gộp từng ngày, kèm các con ở đâu hôm đó, nút Ngày này nghỉ học?), Bài tập, Ở trường (thanh gạt Thời khoá biểu / Mốc năm học), Học thêm (lịch học thêm và đưa đón, Học phí của tất cả các cô, Sổ học của cô). Mỗi sổ học là một trang riêng `#lich-hoc/so/<mã sổ>` có nút quay lại. |
 | Tài khoản (`#tai-khoan`) | Con có bao nhiêu tiền, vì sao? | Theo từng con. Số dư, chờ duyệt thành tích, Ghi cho con (Phạt, Thưởng thêm, Chi tiêu), mục tiêu tiết kiệm, lịch sử. |
 | Quy định (`#quy-dinh`, link cũ `#bang-gia`) | Nhà mình có việc gì, thưởng phạt thế nào? | Nơi duy nhất thêm, sửa, xoá việc nhà (bốn loại) và mục giá (thành tích, phạt, phí sử dụng, phiếu thưởng). Menu ⋯: in bảng giá, phiếu thưởng, kế hoạch tuần. |
 | Gia đình (`#gia-dinh`) | Cài đặt của cả nhà | Các con, các con ở đâu, Chia sẻ và máy của con (link mời người nhà, mã PIN, link riêng cho máy của từng con), Sao lưu. |
@@ -41,6 +41,8 @@ Dùng đúng các tên này trên mọi màn, form, thông báo và bản in.
 | Việc không bắt buộc, làm lúc nào được tiền lúc đó (`kind: 'extra'`) | Việc làm thêm | |
 | Việc mở khoá khi xong việc phải làm (`kind: 'fun'`) | Việc thích làm | |
 | Thứ con dùng tiền để đổi (mục giá `kind: 'gift'`) | Phiếu thưởng | đổi quà |
+| Mốc `kind: 'holiday'`, `off`: `school` / `lessons` / `both` | Ngày nghỉ: Nghỉ học chính, Nghỉ học thêm, Nghỉ cả hai | |
+| Việc chuẩn bị cho hôm sau mà hôm sau nghỉ (hiện mờ) | Không cần làm | |
 | Tiền trừ theo giờ xem TV, chơi game, điện thoại (`kind: 'fee'`) | Phí sử dụng | |
 | Khoản bố mẹ cộng thêm (`ledger.kind: 'bonus'`) | Thưởng thêm | |
 | Điểm tốt, được khen (mục giá `kind: 'merit'`) | Thành tích | |

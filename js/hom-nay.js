@@ -1,10 +1,10 @@
 // Màn Hôm nay: các buổi trong ngày của từng con, đóng dấu việc, thêm việc nhanh, xem cả tuần, in kế hoạch tuần.
 import { $, addDays, CHEV, confetti, DAILY, dateTxt, daysLabel, daysTo, dm, dmy, DOTS, DOWN, esc, hm, key, money, NEXT, nowMin, parse, PLUS, PREV,
   printHtml, STAR, toast, today, toMin, WD, WDN, WDS, weekStart } from './chung.js';
-import { ageOf, choresFor, choresList, choreSlot, choreVnd, claimers, claimVal, clearMemo, dayBonusAt, dayBonusIn, dayBonusOf, deviceRole, doneVal,
-  doneVnd, earned, isBirthday, isDaily, isDone, isExtra, isFun, isMust, isWeekly, kidName, kidSince, kidsList, lessonsAt, mustFor, nextSchool, onDay,
-  perWeekOf, placeLow, placeName, prepFor, readLogOf, lastReadLog, reqIn, RO, S, schoolOn, setDone, skipEntry, skipOn, slotAt, SLOTS, stayInfo, stayLine, stepMask, stepsAll,
-  stepsOf, streakOf, takenBy, tkbOf, todayKid, UI, variantOf, weekBonusAt, weekBonusOf, weekCount, weekStats } from './du-lieu.js';
+import { ageOf, choresFor, choresList, choresOff, choreSlot, choreVnd, claimers, claimVal, clearMemo, dayBonusAt, dayBonusIn, dayBonusOf, deviceRole, doneVal,
+  doneVnd, earned, isBirthday, isDaily, isDone, isExtra, isFun, isMust, isWeekly, kidName, kidSince, kidsList, lessonsAt, lessonsOffOn, lessonsOn, mustFor, offWhy, nextSchool, onDay,
+  perWeekOf, placeLow, placeName, prepBreak, prepFor, readLogOf, lastReadLog, reqIn, RO, S, schoolOn, setDone, skipEntry, skipOn, slotAt, SLOTS, stayInfo, stayLine, stepMask, stepsAll,
+  stepsOf, stepsShow, streakOf, takenBy, tkbOf, todayKid, UI, variantOf, weekBonusAt, weekBonusOf, weekCount, weekStats } from './du-lieu.js';
 import { ava, barCount, kidTabs, lessonIcon, mini, moneyChip, moreBtn, noKids, pillBar, secHead, secIsOpen, tintOf } from './giao-dien.js';
 import { frow, menuRow, menuSheet, openModal, pillNum } from './form.js';
 import { dayAgenda, eventLines, placeTxt, taskRow, tasksList, tasksSoon } from './hoc-tap.js';
@@ -36,14 +36,15 @@ export const slotOpenDefault = (g, cur, full, nd, hasFun) => g.extra ? nd > 0 : 
 export const slotMissed = (g, cur, full, n) => !!cur && !g.extra && !!g.id && n > 0 && !full && SLOTS.findIndex(x => x[0] === g.id) < SLOTS.findIndex(x => x[0] === cur);
 // Trong mỗi buổi, việc chia thành từng nhóm riêng, theo thứ tự: mốc giờ (vào học, tan học, học thêm), việc quan trọng,
 // việc phải làm (bắt buộc, tính vào tiến độ ngày và thưởng làm đủ việc), việc được thưởng (không bắt buộc, làm lần nào cộng tiền lần đó), việc thích làm.
-const SECS = ['mark', 'imp', 'must', 'paid', 'fun'];
-export const SEC_LABEL = { imp: 'Việc quan trọng', must: 'Việc phải làm', paid: 'Việc được thưởng', fun: 'Việc thích làm' };
+// Cuối mỗi buổi: việc chuẩn bị cho hôm sau mà hôm sau nghỉ (off), hiện mờ, không cần làm.
+const SECS = ['mark', 'imp', 'must', 'paid', 'fun', 'off'];
+export const SEC_LABEL = { imp: 'Việc quan trọng', must: 'Việc phải làm', paid: 'Việc được thưởng', fun: 'Việc thích làm', off: 'Không cần làm' };
 // Việc đã xong với con này: con đã làm, hoặc việc "ai làm trước thì tính" đã có con khác làm.
 const choreOk = (c, kidId, d) => isDone(d, kidId, c.id) || takenBy(c, kidId, d).length > 0;
 // Tiêu đề nhỏ của một nhóm trong buổi, kèm số việc đã xong.
 export function subHead(sec, items, kidId, d) {
   const n = items.filter(x => choreOk(x.c, kidId, d)).length, full = n === items.length;
-  return `<div class="sub-h ${sec}">${SEC_LABEL[sec]}${sec === 'fun' ? '' : `<i class="num ${full ? 'full' : ''}">${full ? '✓ ' : ''}${n}/${items.length}</i>`}</div>`;
+  return `<div class="sub-h ${sec}">${SEC_LABEL[sec]}${sec === 'fun' || sec === 'off' ? '' : `<i class="num ${full ? 'full' : ''}">${full ? '✓ ' : ''}${n}/${items.length}</i>`}</div>`;
 }
 // Các nhóm của một buổi: [{ sec, items }], bỏ nhóm trống. Việc làm thêm không chia nhóm.
 export const slotSecs = g => g.extra ? [{ sec: 'extra', items: g.items }] : SECS.map(sec => ({ sec, items: g.items.filter(x => x.sec === sec) })).filter(x => x.items.length);
@@ -66,6 +67,11 @@ export function dayPlan(kidId, d) {
     items.push({ type: 'mark', t: toMin(info.end), icon: '🏫', text: 'Tan học' });
   }
   for (const l of lessonsAt(kidId, d)) items.push({ type: 'lesson', l, t: toMin(l.s) });
+  // Ngày nghỉ học thêm: các buổi học thêm vẫn hiện, mờ, ghi nghỉ.
+  const loff = lessonsOffOn(kidId, d); if (loff) for (const l of lessonsOn(kidId, d.getDay())) items.push({ type: 'lesson', l, t: toMin(l.s), off: loff });
+  // Việc chuẩn bị cho hôm sau mà hôm sau nghỉ: hiện mờ ở cuối buổi, không tính tiến độ.
+  const mai = key(d) === key(today()) ? 'Mai' : 'Hôm sau';
+  for (const c of choresOff(kidId, d)) { const b = prepBreak(c, kidId, d); items.push({ type: 'off', c, t: toMin(c.time), slot: choreSlot(c), sec: 'off', note: `${mai} ${b.what === 'school' ? 'nghỉ học' : 'nghỉ học thêm'}, không cần làm` }); }
   for (const x of items) if (x.slot === undefined) { x.slot = slotAt(x.t); x.sec = 'mark'; }
   const rank = x => SECS.indexOf(x.sec) * 10000 + (x.t ?? 24 * 60);
   const groups = SLOTS.map(([id, label, icon]) => ({ id, label, icon, items: items.filter(x => x.slot === id)
@@ -127,9 +133,15 @@ export function choreMeta(c, kidId, d, isToday) {
   return p.filter(Boolean).join(' · ');
 }
 // Màn Hôm nay của bố mẹ (big = false): bấm vào buổi học thêm là mở form sửa buổi đó. Màn của con chỉ xem.
-export const markRow = (x, big) => x.type === 'lesson'
-  ? `<div class="${big ? 'big-mark' : 'item mark'}${!big && !RO ? ` edit-row" data-act="lesson-form" data-id="${esc(x.l.id)}` : ''}"><span class="ico">${lessonIcon(x.l.name)}</span><div class="txt"><div class="t"><span class="num">${esc(x.l.s)} – ${esc(x.l.e)}</span> ${esc(x.l.name)}</div>${placeTxt(x.l) ? `<div class="s">${placeTxt(x.l)}</div>` : ''}</div></div>`
+// Việc không cần làm (x.type 'off') và buổi học thêm của ngày nghỉ (x.off) hiện mờ.
+export const markRow = (x, big) => x.type === 'off'
+  ? `<div class="${big ? 'big-item' : 'item'} off-row${!big && !RO ? ` edit-row" data-act="chore-form" data-id="${esc(x.c.id)}` : ''}"><span class="ico">${esc(x.c.icon || '✅')}</span>${big ? `<span><span class="t">${esc(x.c.name)}</span><br><span class="s">${esc(x.note)}</span></span>` : `<div class="txt"><div class="t">${esc(x.c.name)}</div><div class="s">${esc(x.note)}</div></div>`}</div>`
+  : x.type === 'lesson'
+  ? `<div class="${big ? 'big-mark' : 'item mark'}${x.off ? ' off-row' : ''}${!big && !RO ? ` edit-row" data-act="lesson-form" data-id="${esc(x.l.id)}` : ''}"><span class="ico">${lessonIcon(x.l.name)}</span><div class="txt"><div class="t"><span class="num">${esc(x.l.s)} – ${esc(x.l.e)}</span> ${esc(x.l.name)}</div>${x.off ? `<div class="s">${esc(offWhy(x.off, 'Nghỉ học thêm'))}</div>` : placeTxt(x.l) ? `<div class="s">${placeTxt(x.l)}</div>` : ''}</div></div>`
   : `<div class="${big ? 'big-mark' : 'item mark'}"><span class="ico">${x.icon}</span><div class="txt"><div class="t"><span class="num">${hm(x.t)}</span> ${esc(x.text)}</div></div></div>`;
+
+// Mục con "(mai đi học)" mà hôm sau nghỉ học chính: hiện mờ, không bấm được.
+export const stepOff = (st, isToday) => `<span class="step off"><span>${esc(st.t)} <i>(${isToday ? 'mai' : 'hôm sau'} nghỉ, không cần)</i></span></span>`;
 
 // ---------- phiếu nghỉ, xem cả tuần, dải 7 ngày ----------
 export const skipNote = (k, d) => { const e = skipEntry(k.id, d); return e ? `<div class="skip-note">🎟️ ${key(d) === key(today()) ? 'Hôm nay' : 'Ngày này'} ${esc(k.name)} dùng phiếu “Một ngày không làm việc nhà”: việc phải làm được miễn, làm thì vẫn được thưởng.</div>` : ''; };
@@ -255,12 +267,12 @@ export function viewToday() {
       main += `<div class="slot-list list">`;
       for (const x of part.items) {
         if (x.type !== 'chore') { main += markRow(x); continue; }
-        const c = x.c, on = isDone(d, k.id, c.id), steps = stepsOf(c, k.id, d), mask = stepMask(d, k.id, c.id);
+        const c = x.c, on = isDone(d, k.id, c.id), steps = stepsShow(c, k.id, d), mask = stepMask(d, k.id, c.id);
         const right = isFun(c) ? (x.locked ? `<button class="fun-badge" data-act="fun-need" data-kid="${k.id}" data-chore="${c.id}" data-d="${key(d)}" aria-label="Cần làm gì để mở khoá: ${esc(c.name)}">🔒 Chưa mở</button>` : '<span class="fun-badge open">Được làm</span>')
           : `<button class="stamp ${on ? 'on' : ''}" data-act="tick" data-kid="${k.id}" data-chore="${c.id}" ${future ? 'disabled' : ''} aria-pressed="${on}" aria-label="${on ? 'Bỏ dấu' : 'Đóng dấu'}: ${esc(c.name)}">${STAR}</button>`;
         // Bấm vào việc (ngoài nút đóng dấu và các mục con) là mở form sửa việc đó.
         main += `<div class="item edit-row ${on ? 'done' : takenBy(c, k.id, d).length ? 'taken' : ''} ${isFun(c) ? 'fun' + (x.locked ? ' locked' : '') : ''}" data-act="chore-form" data-id="${c.id}"><span class="ico">${esc(c.icon || '✅')}</span><div class="txt"><div class="t">${esc(c.name)}</div><div class="s">${choreMeta(c, k.id, d, isT)}</div>
-          ${steps.length && !isFun(c) ? `<div class="steps">${steps.map(st => { const ok = on || (mask >> st.i) & 1; return `<button class="step ${ok ? 'on' : ''}" data-act="step" data-kid="${k.id}" data-chore="${c.id}" data-i="${st.i}" ${future ? 'disabled' : ''} aria-pressed="${!!ok}">${esc(st.t)}</button>`; }).join('')}</div>` : ''}</div>${right}</div>`;
+          ${steps.length && !isFun(c) ? `<div class="steps">${steps.map(st => { const ok = on || (mask >> st.i) & 1; return st.off ? stepOff(st, isT) : `<button class="step ${ok ? 'on' : ''}" data-act="step" data-kid="${k.id}" data-chore="${c.id}" data-i="${st.i}" ${future ? 'disabled' : ''} aria-pressed="${!!ok}">${esc(st.t)}</button>`; }).join('')}</div>` : ''}</div>${right}</div>`;
       }
       main += `</div>`;
     }
@@ -290,6 +302,7 @@ export function todayMenu() {
   menuSheet('Hôm nay', [menuRow('data-act="today-mode" data-v="week"', '✅', 'Xem cả tuần', 'Mỗi việc một dòng, mỗi ngày một cột', off),
     menuRow('data-act="km-open"', '🙂', 'Chế độ cho bé', 'Chữ và nút to để con tự đánh dấu', off),
     menuRow('data-act="sheet-open"', '🖨️', 'In kế hoạch tuần', 'Mỗi con một trang A4 dán bàn học', off),
+    menuRow(`data-act="dayoff-form" data-d="${key(UI.date)}" data-kid=""`, '🏖️', `${key(UI.date) === key(today()) ? 'Hôm nay' : key(UI.date) === key(addDays(today(), 1)) ? 'Ngày mai' : `${WDN(UI.date.getDay())} ${dm(UI.date)}`} nghỉ học`, 'Nghỉ học chính, nghỉ học thêm hoặc cả hai. Việc chuẩn bị tối hôm trước hiện mờ, không cần làm', off),
     `<a class="item nav" href="#quy-dinh" data-act="close"><span class="ico">✏️</span><span class="txt"><span class="t">Sửa danh sách việc nhà</span><span class="s">Ở trang Quy định: đổi tên, ngày, buổi, tiền thưởng của từng việc</span></span>${CHEV}</a>`]);
 }
 
@@ -333,6 +346,7 @@ function weekPlan(k) {
     const a = dayAgenda(k.id, d), p = [];
     for (const e of a.events) p.push(`${esc(e.icon || '📌')} ${esc(e.name)}`);
     if (a.hol) p.push(a.lessonsOff ? 'Nghỉ học, nghỉ học thêm' : 'Nghỉ học');
+    else if (a.lessonsOff) p.push('Nghỉ học thêm');
     else if (a.school) p.push(`🏫 ${esc(a.school.start)} – ${esc(a.school.end)}`);
     for (const l of a.lessons) p.push(`${lessonIcon(l.name)} ${esc(l.s)} ${esc(l.name)}`);
     for (const t of tasksList().filter(t => t.kid === k.id && t.due === key(d) && !t.done)) p.push(`📝 Nộp: ${esc(t.subj ? t.subj + ' – ' : '')}${esc(t.title)}`);

@@ -1,10 +1,10 @@
 // Màn của con: máy của con (nhà có mã PIN) và Chế độ cho bé dùng chung màn này, với ba tab Hôm nay, Học tập, Tài khoản.
 import { $, addDays, CHEV, dm, DOWN, esc, key, money, nowMin, PLUS, PREV, signed, STAR, today, WD, weekStart } from './chung.js';
 import { againVnd, balance, dayBonusAt, dayBonuses, dayFull, deviceRole, isBirthday, isDaily, isDone, isFun, kidsList, ledgerVnd, mustFor, placeLow,
-  pricesList, priceVnd, S, setRO, shortPlace, slotAt, stayNow, stepMask, stepsOf, streakOf, UI, weekBonusOf, weekStats } from './du-lieu.js';
+  pricesList, priceVnd, S, setRO, shortPlace, slotAt, stayNow, stepMask, stepsShow, streakOf, UI, weekBonusOf, weekStats } from './du-lieu.js';
 import { ava, barCount, loading, moneyChip, secHead, secIsOpen, subjChips, tintOf } from './giao-dien.js';
 import { eventLines, learnPage, openTasks, taskRow, tasksSoon } from './hoc-tap.js';
-import { choreMeta, dayPlan, markRow, needLine, schoolNow, SEC_LABEL, skipNote, slotCount, slotMissed, slotOpenDefault, slotSecs, subHead } from './hom-nay.js';
+import { choreMeta, dayPlan, markRow, needLine, stepOff, schoolNow, SEC_LABEL, skipNote, slotCount, slotMissed, slotOpenDefault, slotSecs, subHead } from './hom-nay.js';
 import { acctStats, coins, funSection, goalProgress, goalsCard, histSection, pendingList } from './tai-khoan.js';
 import { meritList } from './quy-dinh.js';
 
@@ -90,7 +90,7 @@ export function drawKidMode() {
   const after = eventLines(k, 'km-event') + goal;
   const merit = meritSection(k) + funSection(k);
   const bigChore = (x, g) => {
-    const c = x.c, on = isDone(t, k.id, c.id), steps = stepsOf(c, k.id, t), mask = stepMask(t, k.id, c.id);
+    const c = x.c, on = isDone(t, k.id, c.id), steps = stepsShow(c, k.id, t), mask = stepMask(t, k.id, c.id);
     const sub = `<span class="s">${choreMeta(c, k.id, t, true)}</span>`;
     if (isFun(c)) return x.locked
       ? `<button class="big-item fun locked" data-act="fun-need" data-kid="${k.id}" data-chore="${c.id}" data-d="${key(t)}"><span class="ico">${esc(c.icon || '🎈')}</span><span><span class="t">${esc(c.name)}</span><br><span class="s">${esc(needLine(g.need))}. Bấm để xem cần làm gì.</span></span><span class="lockic">🔒</span></button>`
@@ -98,7 +98,7 @@ export function drawKidMode() {
     if (!steps.length) return `<button class="big-item ${on ? 'done' : ''}" data-act="tick" data-kid="${k.id}" data-chore="${c.id}" data-km="1" aria-pressed="${on}"><span class="ico">${esc(c.icon || '✅')}</span><span><span class="t">${esc(c.name)}</span><br>${sub}</span><span class="stamp ${on ? 'on' : ''}">${STAR}</span></button>`;
     return `<div class="big-item has-steps ${on ? 'done' : ''}"><div class="big-top"><span class="ico">${esc(c.icon || '✅')}</span><span><span class="t">${esc(c.name)}</span><br>${sub}</span>
       <button class="stamp ${on ? 'on' : ''}" data-act="tick" data-kid="${k.id}" data-chore="${c.id}" data-km="1" aria-pressed="${on}" aria-label="${on ? 'Bỏ dấu' : 'Xong hết'}: ${esc(c.name)}">${STAR}</button></div>
-      <div class="big-steps">${steps.map(st => { const ok = on || (mask >> st.i) & 1; return `<button class="step ${ok ? 'on' : ''}" data-act="step" data-kid="${k.id}" data-chore="${c.id}" data-i="${st.i}" data-km="1" aria-pressed="${!!ok}">${esc(st.t)}</button>`; }).join('')}</div></div>`;
+      <div class="big-steps">${steps.map(st => { const ok = on || (mask >> st.i) & 1; return st.off ? stepOff(st, true) : `<button class="step ${ok ? 'on' : ''}" data-act="step" data-kid="${k.id}" data-chore="${c.id}" data-i="${st.i}" data-km="1" aria-pressed="${!!ok}">${esc(st.t)}</button>`; }).join('')}</div></div>`;
   };
   // Mỗi buổi một nhãn màu như màn Hôm nay, chữ và nút to hơn. Chỉ buổi đang diễn ra mở sẵn (xem slotOpenDefault trong hom-nay.js); bấm nhãn để mở buổi khác.
   const timeline = plan.map(g => {

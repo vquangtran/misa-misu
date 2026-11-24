@@ -17,7 +17,7 @@
 // Bỏ hay thêm bước thì chạy lại `node tools/kiem-tra/chay.mjs tao-diem-xuat-phat` (dữ liệu sau lần mở đầu sẽ khác).
 import { addDays, DAILY, key, money, newFamilyCode, norm, parse, slug, toast, today } from './chung.js';
 import { isSa, isSu, isSuTV, NGHI_2411, SA, SA_TV_HW_FROM, SAMPLE_CLASSES, SU, SU_TV_BOOK, SU_TV_DUR, SU_TV_HW_FROM, SU_TV_MODE } from './nha-minh.js';
-import { choresList, del, deviceRole, eventsList, isDaily, isDone, isFun, isWeekly, kidName, kidsList, lessonsList, loaded, placeName, pricesList, put, S, setDone,
+import { choresList, del, deviceRole, eventsList, isDaily, isDone, isFun, isWeekly, kidName, kidsList, lessonsList, loaded, offOf, placeName, pricesList, put, S, setDone,
   SETTINGS_ID, stale, stepMask, stepText, TEACH } from './du-lieu.js';
 import { classesList, classesOf, classLessons, classTitle, CLS, clsPut, fixedFor, okDate, onSoData, paidOf, parseSoRows, sessList, soImportApply,
   soImportPlan } from './so-hoc.js';
@@ -223,7 +223,7 @@ export function autoAdds() {
   if (!set.nghi2411) {
     if (key(today()) <= NGHI_2411.from && kidsList().some(k => isSu(k.name) || isSa(k.name))) {
       const dk = NGHI_2411.from, have = eventsList().filter(e => e.kind === 'holiday' && e.from <= dk && dk <= e.to);
-      for (const e of have) if (!e.noLessons) put('events', e.id, { ...S.events[e.id], noLessons: true });
+      for (const e of have) if (offOf(e) !== 'both') put('events', e.id, { ...S.events[e.id], off: 'both' });
       if (!have.some(e => !(e.kids || []).length)) put('events', 'nghi-2026-11-24', { ...NGHI_2411, kids: [] });
       toast('Đã ghi Thứ Ba 24/11 nghỉ học, nghỉ cả học thêm (Mốc năm học).');
     }

@@ -2,7 +2,7 @@
 // lịch (thời khoá biểu, mốc năm học, học thêm, các con ở đâu, các buổi trong ngày). Không import màn nào.
 // Biến trạng thái là biến let: module khác đọc được giá trị mới nhất nhưng không gán lại được, nên đổi bằng các hàm set… ở đây.
 import { COLS } from './store.js';
-import { addDays, dm, key, money, nowMin, parse, toast, today, toMin, WDN, WEEK_ORDER, weekStart } from './chung.js';
+import { addDays, dm, key, money, norm, nowMin, parse, toast, today, toMin, WDN, WEEK_ORDER, weekStart } from './chung.js';
 import { PLACE_ALIAS, PLACE_NAMES } from './nha-minh.js';
 
 // ---------- mức thưởng ----------
@@ -133,11 +133,20 @@ export function weekCount(kid, c, d, beforeOnly = false) {
 // 'school': hôm sau con đi học (theo thời khoá biểu, trừ ngày nghỉ trong Mốc năm học; chưa nhập thời khoá biểu thì tính Thứ Hai đến Thứ Sáu).
 const schoolTomorrow = (kidId, d) => { const x = addDays(d, 1); return tkbOf(kidId) ? !!schoolOn(kidId, x) : !holidayOn(kidId, x) && x.getDay() >= 1 && x.getDay() <= 5; };
 export const prepFor = (c, kidId, d) => !c.prep || (c.prep === 'school' ? schoolTomorrow(kidId, d) : lessonsAt(kidId, addDays(d, 1)).length > 0);
+// Hôm sau lẽ ra đi học (theo thời khoá biểu, chưa có thì Thứ Hai đến Thứ Sáu) mà nghỉ học chính: trả về mốc nghỉ, không thì null.
+export const schoolBreak = (kidId, d) => { const x = addDays(d, 1), h = holidayOn(kidId, x), t = tkbOf(kidId); return h && (t ? schoolDay(t, x.getDay()) : x.getDay() >= 1 && x.getDay() <= 5) ? h : null; };
+// Hôm sau lẽ ra có buổi học thêm mà nghỉ học thêm: trả về mốc nghỉ.
+export const lessonBreak = (kidId, d) => { const x = addDays(d, 1), h = lessonsOffOn(kidId, x); return h && lessonsOn(kidId, x.getDay()).length ? h : null; };
+// Việc chuẩn bị cho hôm sau (c.prep) mà hôm sau nghỉ: { h: mốc nghỉ, what: 'school' | 'lessons' }. Việc này hiện mờ, không cần làm.
+export const prepBreak = (c, kidId, d) => { const h = !c.prep ? null : c.prep === 'school' ? schoolBreak(kidId, d) : lessonBreak(kidId, d); return h ? { h, what: c.prep === 'school' ? 'school' : 'lessons' } : null; };
 // Mục con chỉ áp dụng khi hôm sau đi học: dòng kết thúc bằng "(mai đi học)". Hôm sau không đi học thì mục đó không hiện và không phải tick.
 const STEP_SCHOOL = /\s*\((?:khi\s+)?(?:mai|hôm sau)\s+đi học\)\s*$/i;
 export const stepText = x => String(x).replace(STEP_SCHOOL, '').trim();
 // Các mục con của việc c mà con phải tick trong ngày d. t: chữ hiện ra, i: vị trí trong c.steps (cũng là bit trong mặt nạ đã tick, nên không đổi khi có mục bị ẩn).
 export const stepsOf = (c, kidId, d) => (c.steps || []).filter(Boolean).map((x, i) => ({ t: stepText(x), i, school: STEP_SCHOOL.test(x) })).filter(x => x.t && (!x.school || schoolTomorrow(kidId, d)));
+// Các mục con để hiện: thêm mục "(mai đi học)" mà hôm sau nghỉ học chính, đánh dấu off (hiện mờ, không phải tick, không tính vào stepsOf).
+export const stepsShow = (c, kidId, d) => { const br = schoolBreak(kidId, d), on = stepsOf(c, kidId, d); if (!br) return on;
+  return (c.steps || []).filter(Boolean).map((x, i) => ({ t: stepText(x), i, school: STEP_SCHOOL.test(x) })).filter(x => x.t).map(x => on.some(y => y.i === x.i) ? x : { ...x, off: true }).filter(x => !x.off || x.school); };
 export const stepsAll = list => list.reduce((m, x) => m | (1 << x.i), 0);
 // Phạt tăng nặng (r.again): lần đầu trong tuần trừ r.price, từ lần thứ hai trong cùng tuần (Thứ Hai đến Chủ nhật) trừ r.again.
 // Mỗi lần phạt ghi mã mục (ledger.rid) để đếm.
@@ -146,6 +155,8 @@ export const againVnd = r => r.kind === 'penalty' && !r.all && !r.week ? Math.ma
 export const penaltyVnd = (r, kidId) => againVnd(r) && penaltyTimes(r.id, kidId) > 0 ? againVnd(r) : priceVnd(r);
 export const choresFor = (kidId, d) => choresList().filter(c => (c.kids || []).includes(kidId) && onDay(c, d) && prepFor(c, kidId, d) && placeOk(c, d)
   && (!perWeekOf(c) || isDone(d, kidId, c.id) || weekCount(kidId, c, d, true) < perWeekOf(c)));
+// Việc chuẩn bị cho hôm sau mà hôm sau nghỉ (prepBreak): không nằm trong choresFor, không tính tiến độ, chỉ hiện mờ ở màn Hôm nay.
+export const choresOff = (kidId, d) => choresList().filter(c => (c.kids || []).includes(kidId) && onDay(c, d) && placeOk(c, d) && !isExtra(c) && prepBreak(c, kidId, d));
 // Ngày con dùng phiếu "Một ngày không làm việc nhà": việc phải làm được miễn (làm thì vẫn có tiền).
 export const skipEntry = (kidId, d) => memoize('skips', () => { const m = {}; for (const l of Object.values(S.ledger)) if (l.skip) m[l.kid + '|' + l.skip] = l; return m; })[kidId + '|' + key(d)] || null;
 export const skipOn = (kidId, d) => !!skipEntry(kidId, d);
@@ -280,7 +291,17 @@ export const eventsList = () => Object.entries(S.events || {}).map(([id, e]) => 
   .filter(e => e.from).sort((a, b) => a.from.localeCompare(b.from) || String(a.name).localeCompare(String(b.name), 'vi'));
 const forKid = (e, kidId) => !(e.kids || []).length || e.kids.includes(kidId);
 export const eventsOf = kidId => eventsList().filter(e => forKid(e, kidId));
-export const holidayOn = (kidId, d) => { const dk = key(d); return eventsOf(kidId).find(e => e.kind === 'holiday' && e.from <= dk && dk <= e.to) || null; };
+// Mốc Nghỉ học nghỉ những gì (e.off): 'school' nghỉ học chính (mặc định), 'lessons' chỉ nghỉ học thêm, 'both' nghỉ cả hai.
+// Dữ liệu cũ ghi noLessons: true là nghỉ cả hai.
+export const OFF_KINDS = [['school', 'Nghỉ học chính'], ['lessons', 'Nghỉ học thêm'], ['both', 'Nghỉ cả hai']];
+export const offOf = e => ['school', 'lessons', 'both'].includes(e?.off) ? e.off : e?.noLessons ? 'both' : 'school';
+export const offLabel = e => ({ school: 'Nghỉ học', lessons: 'Nghỉ học thêm', both: 'Nghỉ học, nghỉ học thêm' })[offOf(e)];
+// "Nghỉ học thêm: Nghỉ lễ" (lb: chữ đứng trước); mốc chưa đặt tên riêng (tên chỉ là kiểu nghỉ, như Nghỉ học) thì chỉ ghi lb.
+const OFF_NAMES = ['nghỉ học', 'nghỉ học thêm', 'nghỉ học, nghỉ học thêm', 'nghỉ học chính', 'nghỉ cả hai', 'ngày nghỉ'];
+export const offWhy = (e, lb = offLabel(e)) => !e.name || OFF_NAMES.includes(norm(e.name)) || norm(e.name) === norm(lb) ? lb : `${lb}: ${e.name}`;
+const holidaysOn = (kidId, d) => { const dk = key(d); return eventsOf(kidId).filter(e => e.kind === 'holiday' && e.from <= dk && dk <= e.to); };
+// Ngày nghỉ học chính (ở trường) của con.
+export const holidayOn = (kidId, d) => holidaysOn(kidId, d).find(e => offOf(e) !== 'lessons') || null;
 export const schoolOn = (kidId, d) => holidayOn(kidId, d) ? null : schoolDay(tkbOf(kidId), d.getDay());
 
 // ---------- học thêm ----------
@@ -290,8 +311,8 @@ export const lessonsList = () => Object.entries(S.lessons || {}).map(([id, l]) =
   .sort((a, b) => WEEK_ORDER.indexOf(a.day) - WEEK_ORDER.indexOf(b.day) || toMin(a.s) - toMin(b.s) || (S.kids[a.kid].order ?? 0) - (S.kids[b.kid].order ?? 0));
 export const lessonsOf = kidId => lessonsList().filter(l => l.kid === kidId);
 export const lessonsOn = (kidId, wd) => lessonsOf(kidId).filter(l => l.day === wd);
-// Ngày nghỉ cả học thêm: mốc Nghỉ học có bật e.noLessons. Ngày đó không có buổi học thêm nào.
-export const lessonsOffOn = (kidId, d) => { const dk = key(d); return eventsOf(kidId).find(e => e.kind === 'holiday' && e.noLessons && e.from <= dk && dk <= e.to) || null; };
+// Ngày nghỉ học thêm: mốc Nghỉ học nghỉ học thêm hoặc cả hai. Ngày đó không có buổi học thêm nào.
+export const lessonsOffOn = (kidId, d) => holidaysOn(kidId, d).find(e => offOf(e) !== 'school') || null;
 // Các buổi học thêm của con trong ngày d (theo thứ, trừ ngày nghỉ cả học thêm).
 export const lessonsAt = (kidId, d) => lessonsOffOn(kidId, d) ? [] : lessonsOn(kidId, d.getDay());
 export const lessonMin = l => Math.max(0, toMin(l.e) - toMin(l.s));
