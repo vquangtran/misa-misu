@@ -1,12 +1,12 @@
 // Bộ xử lý thao tác: mọi nút bấm đi qua một bộ xử lý theo data-act; thêm các sự kiện change, input, phím, vuốt, giữ nút.
 // Máy của con chỉ được làm các thao tác trong KID_ACTS, màn của cô trong TEACH_ACTS.
 import { icon } from './icons.js';
-import { $, addDays, CHEV, confetti, dateTxt, daysTo, dm, dueLabel, esc, hm, key, money, monthTxt, newFamilyCode, norm, parse, toast, today, toMin,
-  uid, WDN, weekStart } from './chung.js';
+import { $, addDays, CHEV, confetti, dateTxt, daysTo, dm, dueLabel, durTxt, esc, hm, key, money, monthTxt, newFamilyCode, norm, parse, toast, today,
+  toMin, uid, WDN, weekStart } from './chung.js';
 import { SAMPLE_YEAR } from './nha-minh.js';
-import { againVnd, balance, choresList, choreSlot, DAY_BONUS, dayBonusOf, del, deviceRole, eventTitle, isDaily, isDone, isFun, isWeekly, keepFamilyInUrl, kidName,
-  kidsList, offLabel, penaltyTimes, pinHash, placeName, priceKind, pricesList, priceVnd, put, render, S, setDone, setFamily, setRole, SETTINGS_ID, skipOn, SLOTS,
-  stepMask, stepsAll, stepsOf, TEACH, tkbOf, TODAY_KID, UI, WEEK_BONUS, weekBonusOf, weekGain } from './du-lieu.js';
+import { againVnd, balance, choresList, choreSlot, DAY_BONUS, dayBonusOf, del, deviceRole, eventTitle, FEE_MIN, isDaily, isDone, isFun, isWeekly,
+  keepFamilyInUrl, kidName, kidsList, offLabel, penaltyTimes, pinHash, placeName, priceKind, pricesList, priceVnd, put, render, S, setDone, setFamily,
+  setRole, SETTINGS_ID, skipOn, SLOTS, stepMask, stepsAll, stepsOf, TEACH, tkbOf, TODAY_KID, UI, WEEK_BONUS, weekBonusOf, weekGain } from './du-lieu.js';
 import { avInner, photoOf } from './giao-dien.js';
 import { closeModal, daySet, dismissModal, menuRow, menuSheet, openModal, radioVal, setModalDirty } from './form.js';
 import { dayOffForm, EVENT_HELP, EVENT_KINDS, eventForm, examForm, examIsNearest, examPlan, examSubjChips, lessonForm, missingYear, nextSubjectDay, openTasks, printTkb, readTkbForm, sampleLabel, sampleTkb,
@@ -742,8 +742,9 @@ document.addEventListener('click', e => {
       else if (k === 'penalty') e = { amount: -p, kind: 'penalty', note: r.name };
       else if (k === 'merit') e = { amount: p, kind: 'bonus', note: r.name };
       else if (k === 'fee') {
-        const hrs = Math.max(0.25, Math.round((Number($('#ahours')?.value) || 1) * 100) / 100);
-        e = { amount: -Math.round(p * hrs), kind: 'fee', note: `${r.name} ${String(hrs).replace('.', ',')} giờ`, qty: hrs };
+        // Giá của mục là đồng mỗi 30 phút (FEE_MIN); qty vẫn ghi số giờ như các khoản cũ.
+        const mins = Math.max(5, Math.round(Number($('#amins')?.value) || FEE_MIN));
+        e = { amount: -Math.round(p * mins / FEE_MIN), kind: 'fee', note: `${r.name} ${durTxt(mins)}`, qty: Math.round(mins / 60 * 100) / 100 };
       } else {
         if (bal < p) return toast(`${who} còn thiếu ${money(p - bal)} để đổi “${r.name}”.`);
         e = { amount: p ? -p : 0, kind: 'reward', note: r.name };

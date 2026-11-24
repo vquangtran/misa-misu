@@ -8,7 +8,7 @@
 // giữ nguyên. Bước nào dùng hằng số riêng ở nha-minh.js (SAMPLE_CLASSES, SU_TV_HW_FROM, SA_TV_HW_FROM…) thì xem còn chỗ nào dùng không.
 //   - Giữ: merit, hw (nhà mới cũng được thêm sẵn 5 mục thành tích, hai việc BTVN và mục phạt Thiếu BTVN).
 //   - Bỏ được: autoFill; các cờ bottle, nodone, read, screen, vac, game, so, book, hwfromSa, hwfrom, dur2, trang1745, trangHome,
-//     homeAll, sportOut, dur, water, water5k, readlog, nghi2411, thi1con (chỉ sửa dữ liệu của nhà mình; nhà mới có việc uống nước trong bảng mẫu).
+//     homeAll, sportOut, dur, water, water5k, readlog, nghi2411, thi1con, phi30 (chỉ sửa dữ liệu của nhà mình; nhà mới có việc uống nước trong bảng mẫu).
 //   - Đổi tên nơi ở cũ (Nhà mẹ, Nhà bố) không có cờ, chạy mỗi lần mở app: bỏ được khi không còn nạp bản sao lưu cũ (lúc hiện,
 //     placeName vẫn đổi tên cũ sang tên mới).
 //   - Sổ học: suAutoImport, suFixes, suTeachFix (sổ Tiếng Việt của Su) và planAuto (kế hoạch Toán của Su, sổ Tiếng Việt của Sa)
@@ -17,8 +17,8 @@
 // Bỏ hay thêm bước thì chạy lại `node tools/kiem-tra/chay.mjs tao-diem-xuat-phat` (dữ liệu sau lần mở đầu sẽ khác).
 import { addDays, DAILY, key, money, newFamilyCode, norm, parse, slug, toast, today } from './chung.js';
 import { isSa, isSu, isSuTV, NGHI_2411, SA, SA_TV_HW_FROM, SAMPLE_CLASSES, SU, SU_TV_BOOK, SU_TV_DUR, SU_TV_HW_FROM, SU_TV_MODE } from './nha-minh.js';
-import { choresList, del, deviceRole, eventsList, isDaily, isDone, isFun, isWeekly, kidName, kidsList, lessonsList, loaded, offOf, placeName, pricesList, put, S, setDone,
-  SETTINGS_ID, stale, stepMask, stepText, TEACH } from './du-lieu.js';
+import { choresList, del, deviceRole, eventsList, isDaily, isDone, isFun, isWeekly, kidName, kidsList, lessonsList, loaded, offOf, placeName,
+  pricesList, priceVnd, put, S, setDone, SETTINGS_ID, stale, stepMask, stepText, TEACH } from './du-lieu.js';
 import { classesList, classesOf, classLessons, classTitle, CLS, clsPut, fixedFor, okDate, onSoData, paidOf, parseSoRows, sessList, soImportApply,
   soImportPlan } from './so-hoc.js';
 import { FUN_DEFAULT, HW_CHORES, HW_PENALTY, SAMPLE_MERITS, sampleAdds, TABLE_VER, WATER_CHORE } from './quy-dinh.js';
@@ -57,6 +57,7 @@ const classSamples = () => kidsList().flatMap(k => SAMPLE_CLASSES.map((sp, i) =>
 //   water5k: việc uống nước đã thêm là việc phải làm thì đổi sang việc được thưởng 5.000đ.
 //   readlog: việc đọc sách, đọc báo hỏi con đã đọc gì, bao nhiêu trang khi bấm xong.
 //   nghi2411: mốc Nghỉ học 24/11/2026 cho cả nhà, nghỉ cả học thêm (NGHI_2411 ở nha-minh.js).
+//   phi30: phí sử dụng đổi từ giá mỗi giờ sang giá mỗi 30 phút; Điện thoại, Xem TV, Chơi game là 25.000đ mỗi 30 phút, mục phí khác chia đôi.
 //   thi1con: lịch thi (mốc kind exam) ghi chung cả nhà hoặc cho nhiều con được tách ra, mỗi con một bản.
 //   Các cờ còn lại ghi ngay ở từng đoạn bên dưới.
 let addsChecked = false;
@@ -131,7 +132,7 @@ export function autoAdds() {
     for (const c of choresList()) if (!isFun(c) && /^đọc (sách|báo|truyện)/.test(norm(c.name)) && !c.readLog) edit(c.id, { readLog: true });
     flags.readlog = 1;
   }
-  // Chi tiêu có Xem TV và Chơi game (tính theo giờ, một lần): đổi tên mục "Tivi" thành "Xem TV", thêm "Chơi game" nếu chưa có.
+  // Chi tiêu có Xem TV và Chơi game (phí sử dụng, một lần): đổi tên mục "Tivi" thành "Xem TV", thêm "Chơi game" nếu chưa có.
   if (!set.screen) {
     const fees = pricesList('fee'), tv = fees.find(r => norm(r.name) === 'tivi');
     if (tv && !fees.some(r => norm(r.name) === 'xem tv')) { const { id, ...o } = tv; put('rewards', id, { ...o, name: 'Xem TV', icon: o.icon || '📺' }); }
@@ -239,6 +240,15 @@ export function autoAdds() {
       del('events', e.id);
     }
     flags.thi1con = 1;
+  }
+  // Phí sử dụng tính cho mỗi 30 phút (trước là mỗi giờ). Điện thoại, Xem TV, Chơi game: 25.000đ mỗi 30 phút.
+  // Mục phí khác do bố mẹ tự thêm giữ nguyên mức thật: giá mỗi giờ chia đôi thành giá mỗi 30 phút (làm tròn 500đ).
+  if (!set.phi30) {
+    for (const r of pricesList('fee')) {
+      const named = ['điện thoại', 'xem tv', 'tivi', 'chơi game', 'game'].includes(norm(r.name)), want = named ? 25000 : Math.round(priceVnd(r) / 2 / 500) * 500;
+      if (priceVnd(r) !== want) put('rewards', r.id, { ...S.rewards[r.id], price: want });
+    }
+    flags.phi30 = 1;
   }
   if (Object.keys(flags).length) put('paid', SETTINGS_ID, { ...set, ...flags });
 }

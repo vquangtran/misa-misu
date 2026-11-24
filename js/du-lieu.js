@@ -51,10 +51,12 @@ export const setDone = (d, kid, chore, val) => { Promise.resolve(store.setDone(d
 // ---------- việc nhà, tiền, thưởng, chuỗi ngày ----------
 export const kidsList = () => Object.entries(S.kids).map(([id, k]) => ({ id, ...k })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || String(a.name).localeCompare(String(b.name), 'vi'));
 export const choresList = () => Object.entries(S.chores).map(([id, c]) => ({ id, ...c })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || String(a.name).localeCompare(String(b.name), 'vi'));
-// Mục giá (trang Quy định): { name, icon, kind: 'merit' | 'gift' | 'penalty' | 'fee', price (đồng; phí sử dụng là đồng/giờ; phiếu thưởng giá 0 là miễn phí),
+// Mục giá (trang Quy định): { name, icon, kind: 'merit' | 'gift' | 'penalty' | 'fee', price (đồng; phí sử dụng là đồng mỗi 30 phút (FEE_MIN); phiếu thưởng giá 0 là miễn phí),
 //   all: true = phạt mất hết tiền đang có, week: true = phạt mất hết tiền được thưởng trong tuần }.
 // Mục cũ chỉ có cost (sao) và không có kind là phiếu thưởng.
 export const priceKind = r => ['penalty', 'fee', 'merit'].includes(r.kind) ? r.kind : 'gift';
+// Phí sử dụng tính cho mỗi FEE_MIN phút dùng: giá của mục là đồng mỗi 30 phút, dùng 1 giờ trừ gấp đôi.
+export const FEE_MIN = 30, FEE_UNIT = '/30 phút';
 export const priceVnd = r => r.price != null ? Math.max(0, Number(r.price) || 0) : (Number(r.cost) || 0) * STAR_VND;
 export const pricesList = kind => Object.entries(S.rewards).map(([id, r]) => ({ id, ...r })).filter(r => !kind || priceKind(r) === kind)
   .sort((a, b) => (a.all ? 2 : a.week ? 1 : 0) - (b.all ? 2 : b.week ? 1 : 0) || priceVnd(a) - priceVnd(b) || String(a.name).localeCompare(String(b.name), 'vi'));

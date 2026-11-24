@@ -43,7 +43,7 @@ Dùng đúng các tên này trên mọi màn, form, thông báo và bản in.
 | Thứ con dùng tiền để đổi (mục giá `kind: 'gift'`) | Phiếu thưởng | đổi quà |
 | Mốc `kind: 'holiday'`, `off`: `school` / `lessons` / `both` | Ngày nghỉ: Nghỉ học chính, Nghỉ học thêm, Nghỉ cả hai | |
 | Việc chuẩn bị cho hôm sau mà hôm sau nghỉ (hiện mờ) | Không cần làm | |
-| Tiền trừ theo giờ xem TV, chơi game, điện thoại (`kind: 'fee'`) | Phí sử dụng | |
+| Tiền trừ theo thời gian xem TV, chơi game, điện thoại (`kind: 'fee'`, giá là đồng mỗi 30 phút, hiện ra là "25.000đ/30 phút") | Phí sử dụng | giá mỗi giờ |
 | Khoản bố mẹ cộng thêm (`ledger.kind: 'bonus'`) | Thưởng thêm | |
 | Điểm tốt, được khen (mục giá `kind: 'merit'`) | Thành tích | |
 | Trang việc nhà và mục giá | Quy định | Bảng giá (chỉ là tên tờ in "In bảng giá") |

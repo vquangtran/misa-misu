@@ -7,7 +7,7 @@
 //                             dayBonus (đồng, thưởng mỗi ngày đủ việc), dayFrom: thứ Hai của tuần bắt đầu thưởng theo ngày, dbLog: như wbLog, tableVer: bản bảng mẫu đã xem }
 //   chores   việc nhà       { name, icon, money (đồng; kind must có money = 0 là việc bắt buộc mỗi ngày, quyết định thưởng đủ tuần), kind: must|extra|fun, kids: [kidId], days: [0..6], order,
 //                             since: ngày thêm việc, weeklyFrom: thứ Hai của tuần việc bắt đầu là việc bắt buộc, claim: ai làm trước thì tính, cùng làm thì chia đều tiền }
-//   rewards  bảng giá       { name, icon, kind: merit|penalty|fee|gift (merit: thành tích học tập ở trường và ở lớp học thêm, con tự báo, bố mẹ duyệt), price (đồng; fee là đồng/giờ), all: mất hết tiền, week: mất hết tiền được thưởng trong tuần,
+//   rewards  bảng giá       { name, icon, kind: merit|penalty|fee|gift (merit: thành tích học tập ở trường và ở lớp học thêm, con tự báo, bố mẹ duyệt), price (đồng; fee là đồng mỗi 30 phút), all: mất hết tiền, week: mất hết tiền được thưởng trong tuần,
 //                             again (đồng): mức phạt từ lần thứ hai trong cùng tuần; mỗi lần phạt ghi ledger.rid = mã mục để đếm }
 //   done     việc đã xong   id = "YYYY-MM-DD", { [kidId]: { [choreId]: số tiền nhận được (0 = chưa),
 //                             [choreId + '~s']: các mục con đã tick (mặt nạ bit), [choreId + '~r']: { what, pages } con đã đọc gì, bao nhiêu trang } }

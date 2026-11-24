@@ -1,8 +1,8 @@
 // Màn Tài khoản: số dư, ghi cho con (phạt, thưởng thêm, chi tiêu), chờ duyệt thành tích, việc thích làm con xin, lịch sử, mục tiêu tiết kiệm.
 import { $, addDays, CHEV, DAILY, daysLabel, dm, esc, key, money, norm, nowMin, pad, parse, PLUS, signed, today, WDN, weekStart } from './chung.js';
-import { againVnd, balance, choresList, choreSlot, choreVnd, dayBonuses, dayBonusIn, dayBonusOf, doneVnd, earned, isDaily, isExtra, isFun, kidName,
-  kidsList, ledgerVnd, memoize, penaltyTimes, penaltyVnd, priceKind, pricesList, priceVnd, readLogOf, RO, S, slotAt, slotName, SLOTS, streakOf, todayKid, UI,
-  weekBonuses, weekBonusOf, weekStats } from './du-lieu.js';
+import { againVnd, balance, choresList, choreSlot, choreVnd, dayBonuses, dayBonusIn, dayBonusOf, doneVnd, earned, FEE_MIN, isDaily, isExtra, isFun,
+  kidName, kidsList, ledgerVnd, memoize, penaltyTimes, penaltyVnd, priceKind, pricesList, priceVnd, readLogOf, RO, S, slotAt, slotName, SLOTS,
+  streakOf, todayKid, UI, weekBonuses, weekBonusOf, weekStats } from './du-lieu.js';
 import { addBtn, bar, barCount, blankAdd, kidTabs, mini, moreBtn, noKids, pillBar, plusBtn, secHead, secIsOpen } from './giao-dien.js';
 import { DAY_SETS, formFoot, frow, kidRow, openModal, pillNum, pillSel, titleCard } from './form.js';
 import { meritList, priceTag } from './quy-dinh.js';
@@ -35,7 +35,7 @@ const LEDGER_KIND = {
   bonus: ['Thưởng', '⭐'], penalty: ['Phạt', '⚠️'], fee: ['Phí sử dụng', '📱'], spend: ['Chi tiêu', '💸'],
   reward: ['Đổi phiếu thưởng', '🎁'], week: ['Thưởng đủ tuần', '🏆'], day: ['Thưởng ngày đủ việc', '⭐'], chores: ['Việc nhà', '🧹'], adjust: ['Khớp số dư', '🏦'],
 };
-// Ghi cho con: ba mục. Phí sử dụng (xem TV, chơi game, điện thoại theo giờ) nằm trong Chi tiêu, vẫn ghi là khoản phí (kind 'fee').
+// Ghi cho con: ba mục. Phí sử dụng (xem TV, chơi game, điện thoại, tính theo mỗi 30 phút) nằm trong Chi tiêu, vẫn ghi là khoản phí (kind 'fee').
 const ACCT_KINDS = [['penalty', 'Phạt'], ['bonus', 'Thưởng thêm'], ['spend', 'Chi tiêu']];
 // Lịch sử tài khoản của một con: sổ tài khoản, thưởng làm đủ việc (theo ngày hoặc cả tuần) và tiền việc nhà gộp theo ngày.
 function statement(kidId) {
@@ -86,9 +86,9 @@ export function viewAccount() {
   const custom = (label, btn, ph) => `<div class="row2"><div class="field"><label for="aamt">${label}</label><input id="aamt" class="input num" type="number" min="0" step="1000" inputmode="numeric" placeholder="Ví dụ: 10000"></div>
     <div class="field"><label for="anote">Lý do</label><input id="anote" class="input" maxlength="80" placeholder="${ph}"></div></div>
     <div class="row"><button class="btn ${kind === 'bonus' ? 'primary' : 'danger'}" data-act="acct-custom">${btn}</button></div>`;
-  // Ô số giờ cho phí sử dụng (xem TV, chơi game, điện thoại): dùng ở cả mục Phí và mục Chi tiêu.
-  const hoursField = `<div class="field"><label for="ahours">Đã dùng bao lâu (giờ)</label><div class="stepper"><button class="iconbtn" data-act="num-step" data-t="ahours" data-n="-0.5" data-min="0.5" aria-label="Bớt nửa giờ">−</button><input id="ahours" class="input num" type="number" min="0.5" step="0.5" value="1" inputmode="decimal"><button class="iconbtn" data-act="num-step" data-t="ahours" data-n="0.5" data-min="0.5" aria-label="Thêm nửa giờ">+</button></div>
-      <span class="muted small">Nửa giờ là 0,5. Tiền trừ = giá mỗi giờ × số giờ.</span></div>`;
+  // Ô số phút cho phí sử dụng (xem TV, chơi game, điện thoại): giá ở trang Quy định tính cho mỗi 30 phút, nút − và + nhảy 30 phút.
+  const hoursField = `<div class="field"><label for="amins">Đã dùng bao lâu (phút)</label><div class="stepper"><button class="iconbtn" data-act="num-step" data-t="amins" data-n="-${FEE_MIN}" data-min="${FEE_MIN}" aria-label="Bớt ${FEE_MIN} phút">−</button><input id="amins" class="input num" type="number" min="5" step="5" value="${FEE_MIN}" inputmode="numeric"><button class="iconbtn" data-act="num-step" data-t="amins" data-n="${FEE_MIN}" data-min="${FEE_MIN}" aria-label="Thêm ${FEE_MIN} phút">+</button></div>
+      <span class="muted small">Giá tính cho mỗi ${FEE_MIN} phút: dùng 60 phút thì trừ gấp đôi.</span></div>`;
   if (kind === 'penalty') {
     const ps = pricesList('penalty');
     h += ps.length ? `<p class="muted small" style="margin:0">Bấm vào lỗi để trừ tiền của ${kidName1}. Bấm nhầm thì bấm Hoàn tác ngay sau đó, hoặc Huỷ trong lịch sử.</p>${presets(ps)}` : `<p class="muted small" style="margin:0">Chưa có mục phạt nào. Thêm ở trang <a href="#quy-dinh">Quy định</a>.</p>`;
@@ -98,8 +98,8 @@ export function viewAccount() {
   } else {
     const gs = pricesList('gift'), fs = pricesList('fee');
     h += `<p class="muted small" style="margin:0">Con tiêu tiền trong tài khoản: xem TV, chơi game, đổi phiếu thưởng, mua đồ hoặc rút tiền mặt.</p>`;
-    // Phí sử dụng (xem TV, chơi game, điện thoại): tính theo giờ, giá mỗi giờ ở trang Quy định.
-    if (fs.length) h += `<div class="sub-h">Phí sử dụng (tính theo giờ)</div>${hoursField}${presets(fs)}${gs.length ? '<div class="sub-h">Phiếu thưởng</div>' : ''}`;
+    // Phí sử dụng (xem TV, chơi game, điện thoại): tính theo thời gian dùng, giá mỗi 30 phút ở trang Quy định.
+    if (fs.length) h += `<div class="sub-h">Phí sử dụng (tính theo mỗi ${FEE_MIN} phút)</div>${hoursField}${presets(fs)}${gs.length ? '<div class="sub-h">Phiếu thưởng</div>' : ''}`;
     if (gs.length) h += presets(gs);
     if (!fs.length && !gs.length) h += `<p class="muted small" style="margin:0">Chưa có mục phí sử dụng hay phiếu thưởng nào. Thêm ở trang <a href="#quy-dinh">Quy định</a>.</p>`;
     h += custom('Số tiền chi (đồng)', 'Ghi chi tiêu', 'Ví dụ: Rút tiền mặt, mua truyện');

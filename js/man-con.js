@@ -1,7 +1,7 @@
 // Màn của con: máy của con (nhà có mã PIN) và Chế độ cho bé dùng chung màn này, với ba tab Hôm nay, Học tập, Tài khoản.
 import { $, addDays, CHEV, dm, DOWN, esc, key, money, nowMin, PLUS, PREV, signed, STAR, today, WD, weekStart } from './chung.js';
-import { againVnd, balance, dayBonusAt, dayBonuses, dayFull, deviceRole, isBirthday, isDaily, isDone, isFun, kidsList, ledgerVnd, mustFor, placeLow,
-  pricesList, priceVnd, S, setRO, shortPlace, slotAt, stayNow, stepMask, stepsShow, streakOf, UI, weekBonusOf, weekStats } from './du-lieu.js';
+import { againVnd, balance, dayBonusAt, dayBonuses, dayFull, deviceRole, FEE_UNIT, isBirthday, isDaily, isDone, isFun, kidsList, ledgerVnd, mustFor,
+  placeLow, pricesList, priceVnd, S, setRO, shortPlace, slotAt, stayNow, stepMask, stepsShow, streakOf, UI, weekBonusOf, weekStats } from './du-lieu.js';
 import { ava, barCount, loading, moneyChip, secHead, secIsOpen, subjChips, tintOf } from './giao-dien.js';
 import { eventLines, learnPage, openTasks, studyRow, studySoon, taskRow, tasksSoon } from './hoc-tap.js';
 import { choreMeta, dayPlan, markRow, needLine, stepOff, schoolNow, SEC_LABEL, skipNote, slotCount, slotMissed, slotOpenDefault, slotSecs, subHead } from './hom-nay.js';
@@ -25,13 +25,13 @@ function kmNews(k, t) {
   const card = (cls, title, list, when) => list.length ? `<button class="km-news ${cls}" data-act="km-acct"><b>${title}</b>${list.map(l => `<span>${day(when(l))} · ${esc(l.note || '')} <i class="num">${signed(ledgerVnd(l))}</i></span>`).join('')}${CHEV}</button>` : '';
   return card('cut', `⚠️ Con bị trừ ${money(-cuts.reduce((a, l) => a + ledgerVnd(l), 0))}`, cuts, l => l.at) + card('ok', `🏅 Bố mẹ đã duyệt, con được cộng ${money(oks.reduce((a, l) => a + ledgerVnd(l), 0))}`, oks, l => l.okAt);
 }
-// Bảng phạt và phí cho con xem (lấy từ trang Quy định của bố mẹ): lỗi nào bị trừ bao nhiêu, dùng gì mất bao nhiêu mỗi giờ, để con biết mà tránh.
+// Bảng phạt và phí cho con xem (lấy từ trang Quy định của bố mẹ): lỗi nào bị trừ bao nhiêu, dùng gì mất bao nhiêu mỗi 30 phút, để con biết mà tránh.
 function kidRules() {
   const row = (r, ic, tag, sub) => `<div class="item"><span class="ico">${esc(r.icon || ic)}</span><div class="txt"><div class="t">${esc(r.name)}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div><div class="acts"><span class="delta num minus">${tag}</span></div></div>`;
   const ps = pricesList('penalty'), fs = pricesList('fee');
   return (ps.length ? `<section class="slot s-late">${secHead('⚠️', 'Lỗi bị phạt', { cnt: ps.length, key: 'kr-pen' })}${secIsOpen('kr-pen') ? `<div class="slot-list list">${ps.map(r => row(r, '⚠️', r.all ? 'Mất hết tiền' : r.week ? 'Mất thưởng tuần' : '−' + money(priceVnd(r)),
     r.all ? 'Trừ hết số tiền con đang có' : r.week ? 'Mất tiền việc nhà và tiền thưởng từ Thứ Hai tới lúc bị phạt' : againVnd(r) ? `Từ lần 2 trong tuần: <b class="num minus">−${money(againVnd(r))}</b>` : '')).join('')}</div><p class="foot-note" style="margin:0 6px">Mỗi lần mắc lỗi là bị trừ một lần.</p>` : ''}</section>` : '')
-    + (fs.length ? `<section class="slot tn2">${secHead('📱', 'Phí sử dụng', { cnt: fs.length, key: 'kr-fee' })}${secIsOpen('kr-fee') ? `<div class="slot-list list">${fs.map(r => row(r, '📱', '−' + money(priceVnd(r)) + '/giờ', '')).join('')}</div><p class="foot-note" style="margin:0 6px">Dùng bao lâu trừ bấy nhiêu, nửa giờ trừ một nửa.</p>` : ''}</section>` : '');
+    + (fs.length ? `<section class="slot tn2">${secHead('📱', 'Phí sử dụng', { cnt: fs.length, key: 'kr-fee' })}${secIsOpen('kr-fee') ? `<div class="slot-list list">${fs.map(r => row(r, '📱', '−' + money(priceVnd(r)) + FEE_UNIT, '')).join('')}</div><p class="foot-note" style="margin:0 6px">Giá tính cho mỗi 30 phút, dùng 1 giờ thì trừ gấp đôi.</p>` : ''}</section>` : '');
 }
 // Tab Tài khoản của con: đang có bao nhiêu, bảng phạt và phí, mục tiêu tiết kiệm và toàn bộ lịch sử cộng trừ (kể cả các lần bị phạt), chỉ xem.
 function kidAcct(k) {

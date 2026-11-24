@@ -2,9 +2,9 @@
 import { icon } from './icons.js';
 import { DAILY, daysLabel, DOWN, esc, key, money, norm, printHtml, slug, toast, today, toMin, uid, WDS, WEEK_ORDER, weekStart } from './chung.js';
 import { TABLE_BAL_DATE, TABLE_BALANCES } from './nha-minh.js';
-import { againVnd, balance, bonusRules, choresList, choreSlot, choreVnd, clearMemo, DAY_BONUS, dayBonusOf, del, isDaily, isExtra, isFun, isMust,
-  isWeekly, kidName, kidsList, perWeekOf, placeLow, placeName, placeNames, priceKind, pricesList, priceVnd, put, S, SLOTS, stepText, WEEK_BONUS,
-  weekBonusOf } from './du-lieu.js';
+import { againVnd, balance, bonusRules, choresList, choreSlot, choreVnd, clearMemo, DAY_BONUS, dayBonusOf, del, FEE_UNIT, isDaily, isExtra, isFun,
+  isMust, isWeekly, kidName, kidsList, perWeekOf, placeLow, placeName, placeNames, priceKind, pricesList, priceVnd, put, S, SLOTS, stepText,
+  WEEK_BONUS, weekBonusOf } from './du-lieu.js';
 import { addBtn, blankAdd, editBtn, moreBtn, pillBar, plusBtn, secHead, secIsOpen, suggest } from './giao-dien.js';
 import { DAY_SETS, daySet, formFoot, frow, kidRow, openModal, pickGrid, pillNum, pillSel, titleCard, toggle } from './form.js';
 
@@ -118,10 +118,10 @@ const ICON_GUESS = [[/nhảy dây/, '🪢'], [/uống|nước lọc/, '💧'], [
   [/rác/, '🗑️'], [/tắm|gội/, '🛁'], [/đàn|piano/, '🎹'], [/chạy|đi bộ|thể dục|bơi/, '🏃'], [/nghe/, '🎧'], [/sách|đọc|truyện/, '📚'], [/bài|học|viết|toán/, '✏️'], [/bàn/, '🪑'], [/ngủ/, '🌙'], [/phim/, '🎬'], [/tivi|tv/, '📺'],
   [/game|chơi/, '🎮'], [/giày|dép/, '👟'], [/tất|vớ/, '🧦'], [/chó|mèo/, '🐶'], [/cá/, '🐟'], [/cơm|ăn/, '🍚'], [/giúp/, '🤝'], [/phơi|giặt/, '🧺']];
 export const guessIcon = name => (ICON_GUESS.find(([rx]) => rx.test(String(name).toLowerCase())) || [0, '✅'])[1];
-const giftTagOf = (kind, vnd) => kind === 'gift' && !vnd ? 'miễn phí' : money(vnd) + (kind === 'fee' ? '/giờ' : '');
+const giftTagOf = (kind, vnd) => kind === 'gift' && !vnd ? 'miễn phí' : money(vnd) + (kind === 'fee' ? FEE_UNIT : '');
 const giftTag = r => priceVnd(r) ? money(priceVnd(r)) : 'Miễn phí';
 export const priceTag = r => priceKind(r) === 'merit' ? '+' + money(priceVnd(r)) : priceKind(r) === 'penalty' ? (r.all ? 'Mất hết tiền' : r.week ? 'Mất tiền thưởng tuần' : '−' + money(priceVnd(r)))
-  : priceKind(r) === 'fee' ? money(priceVnd(r)) + '/giờ' : giftTag(r);
+  : priceKind(r) === 'fee' ? money(priceVnd(r)) + FEE_UNIT : giftTag(r);
 
 
 // ---------- thêm theo bảng mẫu, cập nhật theo bảng mẫu ----------
@@ -277,7 +277,7 @@ export function viewPrices() {
   h += sec('bg-each', 'tn1', 'each', each.length || '', list(each, ['Việc nằm trong lịch mỗi ngày, làm lần nào cộng tiền lần đó', 'each']), each.length && weekly.length ? 'Làm lần nào cộng tiền lần đó. Không tính vào thưởng làm đủ việc.' : '');
   h += sec('bg-extra', 'tn4', 'extra', extra.length || '', list(extra, ['Việc không bắt buộc, làm lúc nào được tiền lúc đó', 'extra']));
   h += sec('bg-fun', 'tn2', 'fun', fun.length || '', list(fun, ['Con thích làm gì khi xong việc? Ví dụ: chơi game 15 phút', 'fun']), fun.length ? 'Không có tiền. Mở khoá khi xong việc phải làm của buổi đó và các việc mở khoá (ví dụ đọc sách 30 phút). Con xin thêm, xin sửa ở màn của con, bố mẹ duyệt ở màn Hôm nay.' : '');
-  const EMPTY = { merit: 'Con tự báo, bố mẹ duyệt mới cộng tiền. Ví dụ: được điểm 10 ở trường hay ở lớp học thêm', penalty: 'Lỗi nào thì bị trừ tiền. Ví dụ: nổi nóng, trì hoãn', fee: 'Dùng điện thoại, xem tivi mất bao nhiêu tiền mỗi giờ', gift: 'Con dùng tiền để đổi. Ví dụ: chọn phim tối nay' }, TINT = { merit: 'tn3', penalty: 's-late', fee: 'tn2', gift: 'tn5' };
+  const EMPTY = { merit: 'Con tự báo, bố mẹ duyệt mới cộng tiền. Ví dụ: được điểm 10 ở trường hay ở lớp học thêm', penalty: 'Lỗi nào thì bị trừ tiền. Ví dụ: nổi nóng, trì hoãn', fee: 'Dùng điện thoại, xem tivi mất bao nhiêu tiền mỗi 30 phút', gift: 'Con dùng tiền để đổi. Ví dụ: chọn phim tối nay' }, TINT = { merit: 'tn3', penalty: 's-late', fee: 'tn2', gift: 'tn5' };
   for (const [kind, label, ic] of PRICE_KINDS) {
     const list = pricesList(kind);
     h += `<section class="slot ${TINT[kind]}">${secHead(ic, label, { cnt: list.length || '', key: 'bg-' + kind, add: addBtn('price-form', `Thêm: ${label}`, `data-kind="${kind}"`) })}${!secIsOpen('bg-' + kind) ? '' : list.length
@@ -297,7 +297,7 @@ export function printPrices() {
     ${rules && !chores.some(isWeekly) ? `<div class="pp-line">🏆 Việc phải làm: <b>${rules}</b></div>` : ''}
     ${sec('Thành tích học tập, ở trường và học thêm (con báo, bố mẹ duyệt)', meritList().map(r => cell(r.icon, r.name, '+' + money(priceVnd(r)))))}
     ${sec('Phạt', pricesList('penalty').map(r => cell(r.icon, r.name, r.all ? 'mất hết tiền' : r.week ? 'mất tiền thưởng của tuần' : 'trừ ' + money(priceVnd(r)) + (againVnd(r) ? `, từ lần 2 trong tuần ${money(againVnd(r))}` : ''), 'minus')))}
-    ${sec('Phí sử dụng', pricesList('fee').map(r => cell(r.icon, r.name, money(priceVnd(r)) + '/giờ', 'minus')))}
+    ${sec('Phí sử dụng', pricesList('fee').map(r => cell(r.icon, r.name, money(priceVnd(r)) + FEE_UNIT, 'minus')))}
     ${sec('Phiếu thưởng', pricesList('gift').map(r => cell(r.icon, r.name, giftTag(r))))}</div>`);
 }
 export function printCoupons() {
@@ -361,7 +361,7 @@ export function choreForm(id, kindPre, pre) {
   </details>
   <div class="foot">${c ? `<button class="btn danger left" data-act="chore-del" data-id="${id}">Xoá việc này</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="chore-save" data-id="${id || ''}">Lưu</button></div>`);
 }
-export const PRICE_HELP = { merit: 'Con tự báo khi đạt được, bố mẹ duyệt thì mới cộng tiền', penalty: 'Trừ tiền khi con mắc lỗi', fee: 'Trừ tiền theo số giờ dùng điện thoại, tivi…', gift: 'Con dùng tiền trong tài khoản để đổi' }, PRICE_FEE = 'Tính cho mỗi giờ sử dụng';
+export const PRICE_HELP = { merit: 'Con tự báo khi đạt được, bố mẹ duyệt thì mới cộng tiền', penalty: 'Trừ tiền khi con mắc lỗi', fee: 'Trừ tiền theo thời gian dùng điện thoại, tivi…', gift: 'Con dùng tiền trong tài khoản để đổi' }, PRICE_FEE = 'Tính cho mỗi 30 phút sử dụng';
 export function priceForm(id, kindPre) {
   const r = id ? S.rewards[id] : null, kind = r ? priceKind(r) : PRICE_KINDS.some(x => x[0] === kindPre) ? kindPre : 'penalty';
   const icons = [...new Set([...PRICE_ICONS[kind], ...Object.values(PRICE_ICONS).flat()])];

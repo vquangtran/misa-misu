@@ -395,8 +395,8 @@ export const CANH = [
       await c.click(act('acct-custom'));
       await c.click(act('acct-preset', { id: 'merit-3' }), { optional: true });
       await c.check('input[name="akind"][value="spend"]');
-      await c.fill({ '#ahours': '1.5' });
-      await c.click(act('acct-preset', { id: 'gia-xem-tv' }), { label: 'phí sử dụng Xem TV 1,5 giờ' });
+      await c.click(act('num-step', { t: 'amins', n: '30' }), { label: 'nút + của số phút: 30 lên 60' });
+      await c.click(act('acct-preset', { id: 'gia-xem-tv' }), { label: 'phí sử dụng Xem TV 1 giờ: trừ 50.000đ (25.000đ mỗi 30 phút)' });
       await c.click(act('acct-preset', { id: 'gia-chon-mon-an-sang' }), { optional: true });
       await c.click(act('acct-preset', { id: 'gia-mot-ngay-khong-lam-viec-nha' }), { optional: true });
       await c.fill({ '#askip': '2026-11-25' });

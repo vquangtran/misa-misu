@@ -39,7 +39,7 @@ export function duLieuThu() {
     ledger: {
       l1: { kid: 'k-su', amount: 50000, kind: 'bonus', note: 'Thưởng thêm', icon: '⭐', at: '2026-11-18T05:00:00.000Z' },
       l2: { kid: 'k-sa', amount: -10000, kind: 'penalty', note: 'Nổi nóng', icon: '😤', rid: 'gia-noi-nong', at: '2026-11-19T12:00:00.000Z' },
-      l3: { kid: 'k-su', amount: -25000, kind: 'fee', note: 'Xem TV 1 giờ', qty: 1, icon: '📺', at: '2026-11-21T12:00:00.000Z' },
+      l3: { kid: 'k-su', amount: -25000, kind: 'fee', note: 'Xem TV 30 phút', qty: 0.5, icon: '📺', at: '2026-11-21T12:00:00.000Z' },
       l4: { kid: 'k-sa', amount: 0, ask: 10000, kind: 'bonus', note: 'Được 9', icon: '⭐', at: '2026-11-23T05:00:00.000Z', pending: true },
       l5: { kid: 'k-sa', amount: -20000, kind: 'spend', note: 'Mua bút', icon: '', at: '2026-11-20T09:00:00.000Z' },
       l6: { kid: 'k-sa', amount: -20000, kind: 'reward', note: 'Một ngày không làm việc nhà (Thứ 5 19/11)', icon: '🧹', skip: '2026-11-19', at: '2026-11-18T13:00:00.000Z' },
