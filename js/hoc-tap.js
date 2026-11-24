@@ -356,9 +356,10 @@ export function taskForm(id, kidPre, lock) {
 }
 
 // ---------- thi: lịch thi, nội dung ôn tập, kế hoạch ôn tập ----------
+// Lịch thi luôn là của một con (kids có đúng một con): mỗi lớp thi môn khác, ngày khác. Dữ liệu cũ ghi chung được tách ra một lần (cờ thi1con, mot-lan.js).
 // Lịch thi là mốc kind 'exam' trong nhóm events, có thêm: subj (môn thi; không có là cả đợt, ví dụ Kiểm tra học kì I, 14/12 – 27/12),
 //   content (nội dung ôn tập, mỗi dòng một phần), plan (kế hoạch ôn tập): [{ t: ôn gì, d: "YYYY-MM-DD" ngày ôn (không bắt buộc), done }].
-// Các môn cùng tên kỳ thi (name) trong một năm học gom thành một nhóm. Việc ôn tới ngày thì hiện ở màn Hôm nay (studySoon), ôn xong thì tick.
+// Các môn cùng tên kỳ thi (name) của một con trong một năm học gom thành một nhóm. Việc ôn tới ngày thì hiện ở màn Hôm nay (studySoon), ôn xong thì tick.
 const EXAM_NAMES = ['Kiểm tra giữa kì I', 'Kiểm tra học kì I', 'Kiểm tra giữa kì II', 'Kiểm tra học kì II', 'Kiểm tra 15 phút', 'Kiểm tra 1 tiết'];
 const EXAM_ICONS = ['📝', '📘', '🎒', '🏫', '🎓', '🏆'];
 // Năm học của một ngày (bắt đầu từ tháng 8).
@@ -366,7 +367,7 @@ const schoolYear = dk => Number(dk.slice(0, 4)) - (Number(dk.slice(5, 7)) < 8 ? 
 const examKey = e => `${norm(e.name)}|${schoolYear(e.from)}`;
 export const examPlan = e => (Array.isArray(e?.plan) ? e.plan : []).filter(p => p && typeof p.t === 'string' && p.t.trim()).slice(0, 30)
   .map(p => ({ t: p.t.trim(), d: /^\d{4}-\d{2}-\d{2}$/.test(p.d || '') ? p.d : '', done: !!p.done }));
-const examsOf = ids => eventsList().filter(e => e.kind === 'exam' && (!(e.kids || []).length || e.kids.some(k => ids.includes(k))));
+const examsOf = kidId => eventsOf(kidId).filter(e => e.kind === 'exam');
 const planDay = dk => dk === key(today()) ? 'Hôm nay' : `${WDS[parse(dk).getDay()]} ${dm(parse(dk))}`;
 // Việc ôn thi cần nhắc ở màn Hôm nay: việc trong kế hoạch ôn tập có ngày là hôm nay, hoặc đã qua mà chưa ôn, của các kỳ thi chưa qua.
 export function studySoon(kidId) {
@@ -383,56 +384,57 @@ export function studyRow({ e, i, p }, mode = '') {
     <div class="txt"><div class="t">📖 ${esc(p.t)}</div><div class="s">${e.subj ? subjDot(e.subj) : ''}${esc(eventTitle(e))} · thi ${esc(eventShort(e))}${late ? ` · <span class="late">lẽ ra ôn ${esc(planDay(p.d))}</span>` : ''}</div></div></div>`;
 }
 // Một môn thi (hoặc cả đợt): ngày thi, còn mấy ngày, nội dung ôn tập và kế hoạch ôn tập có ô tick. grouped: kỳ thi này có ghi từng môn.
-function examRow(e, multi, grouped) {
+function examRow(e, grouped) {
   const w = eventWhen(e), plan = examPlan(e), nd = plan.filter(p => p.done).length, tk = key(today());
-  const who = (e.kids || []).length && multi ? e.kids.map(kidName).join(', ') : '';
   const lines = String(e.content || '').split('\n').map(x => x.trim()).filter(Boolean);
-  const sub = [e.subj ? eventRange(e) : grouped ? 'Cả đợt thi' : '', who].filter(Boolean).join(' · ');
+  const sub = e.subj ? eventRange(e) : grouped ? 'Cả đợt thi' : '';
   const body = (lines.length ? `<div class="sb-f"><div class="sb-l">Nội dung ôn tập</div><div class="sb-v">${lines.map(x => `<div class="sb-line">${esc(x)}</div>`).join('')}</div></div>` : '')
     + (plan.length ? `<div class="sb-f"><div class="sb-l">Kế hoạch ôn tập · xong ${nd}/${plan.length}</div>${barCount(nd, plan.length)}<div class="steps">${plan.map((p, i) => `<button class="step ${p.done ? 'on' : ''}" data-act="exam-step" data-id="${esc(e.id)}" data-i="${i}" aria-pressed="${p.done}">${p.d ? `<span class="num plan-day ${!p.done && p.d < tk ? 'late' : ''}">${esc(planDay(p.d))}</span>` : ''}<span>${esc(p.t)}</span></button>`).join('')}</div></div>` : '');
   return `<div class="item sess exam-it ${w.now ? 'now' : ''} ${w.past ? 'past' : ''}"><span class="ico">${e.subj ? lessonIcon(e.subj) : esc(e.icon || '📝')}</span><div class="txt"><div class="t">${esc(e.subj || eventRange(e))}</div><div class="s num">${esc(sub)}</div></div>
     <div class="acts">${w.past ? '' : `<span class="badge ${w.now ? 'ok' : ''}">${esc(w.txt)}</span>`}${editBtn('exam-form', e.id, eventTitle(e))}</div>
     ${body ? `<div class="sess-body">${body}</div>` : RO || w.past || (grouped && !e.subj) ? '' : `<button class="linkbtn exam-more" data-act="exam-form" data-id="${esc(e.id)}">Thêm nội dung và kế hoạch ôn tập</button>`}</div>`;
 }
-// Tab Thi: mỗi kỳ thi một nhóm, mỗi môn một dòng. Kỳ thi đã qua gập lại ở cuối.
+// Tab Thi: lịch thi của từng con (xem cả nhà thì mỗi con một phần), mỗi kỳ thi một nhóm, mỗi môn một dòng. Kỳ thi đã qua gập lại ở cuối.
 function examsView(ks) {
-  const ids = ks.map(k => k.id), multi = ks.length > 1, kidAttr = `data-kid="${multi ? '' : ids[0]}"`, tk = key(today()), groups = [];
-  for (const e of examsOf(ids)) { const g = groups.find(x => x.key === examKey(e)); if (g) g.items.push(e); else groups.push({ key: examKey(e), items: [e] }); }
-  for (const g of groups) g.to = g.items.reduce((a, e) => e.to > a ? e.to : a, '');
-  const past = groups.filter(g => g.to < tk).reverse(), rest = groups.filter(g => g.to >= tk);
-  // Nút + của một kỳ thi: thêm môn vào kỳ thi đó (điền sẵn tên kỳ thi, hình và các con).
-  const group = g => { const e0 = g.items[0], subs = g.items.filter(e => e.subj);
-    return `<section class="slot ${g.to < tk ? '' : 'tn3'}">${secHead(esc(e0.icon || '📝'), esc(e0.name), { cnt: subs.length ? `${subs.length} môn` : '', add: addBtn('exam-form', `Thêm môn thi: ${esc(e0.name)}`, `${kidAttr} data-like="${esc(e0.id)}"`) })}
-      <div class="slot-list list">${g.items.map(e => examRow(e, multi, subs.length > 0)).join('')}</div></section>`; };
-  let h = rest.length ? '' : blankAdd('Có lịch thi thì thêm vào đây: môn nào, ngày nào, cần ôn gì', 'exam-form', kidAttr, 'Chưa có lịch thi nào sắp tới')
-    + (RO ? '' : '<p class="foot-note">App nhắc trước 14 ngày ở màn Hôm nay. Việc ôn theo kế hoạch hiện ở màn Hôm nay đúng ngày, ôn xong thì tick.</p>');
-  if (!rest.length && !past.length) return h;
-  h += `<div class="slots">${rest.map(group).join('')}`;
-  if (past.length) h += `<section class="slot">${secHead('', 'Đã qua', { cnt: past.length, key: 'thi-past', closed: true })}</section>${secIsOpen('thi-past', true) ? past.map(group).join('') : ''}`;
-  return h + `</div>`;
+  const multi = ks.length > 1, tk = key(today());
+  const kidPart = k => {
+    const kidAttr = `data-kid="${k.id}"`, groups = [];
+    for (const e of examsOf(k.id)) { const g = groups.find(x => x.key === examKey(e)); if (g) g.items.push(e); else groups.push({ key: examKey(e), items: [e] }); }
+    for (const g of groups) g.to = g.items.reduce((a, e) => e.to > a ? e.to : a, '');
+    const past = groups.filter(g => g.to < tk).reverse(), rest = groups.filter(g => g.to >= tk), pk = `thi-past-${k.id}`;
+    // Nút + của một kỳ thi: thêm môn vào kỳ thi đó (điền sẵn tên kỳ thi và hình).
+    const group = g => { const e0 = g.items[0], subs = g.items.filter(e => e.subj);
+      return `<section class="slot ${g.to < tk ? '' : 'tn3'}">${secHead(esc(e0.icon || '📝'), esc(e0.name), { cnt: subs.length ? `${subs.length} môn` : '', add: addBtn('exam-form', `Thêm môn thi: ${esc(e0.name)}`, `${kidAttr} data-like="${esc(e0.id)}"`) })}
+        <div class="slot-list list">${g.items.map(e => examRow(e, subs.length > 0)).join('')}</div></section>`; };
+    return `${multi ? kidChip(k) : ''}<div class="slots">${rest.length ? rest.map(group).join('') : `<section class="slot">${blankAdd(`Có lịch thi của ${esc(k.name)} thì thêm vào đây: môn nào, ngày nào, cần ôn gì`, 'exam-form', kidAttr, 'Chưa có lịch thi nào sắp tới')}</section>`}
+      ${past.length ? `<section class="slot">${secHead('', 'Đã qua', { cnt: past.length, key: pk, closed: true })}</section>${secIsOpen(pk, true) ? past.map(group).join('') : ''}` : ''}</div>`;
+  };
+  return ks.map(kidPart).join('') + (RO || ks.some(k => examsOf(k.id).length) ? '' : '<p class="foot-note">Lịch thi ghi riêng cho từng con. App nhắc trước 14 ngày ở màn Hôm nay; việc ôn theo kế hoạch hiện ở màn Hôm nay đúng ngày, ôn xong thì tick.</p>');
 }
 const planRow = (p = {}) => `<div class="plan-row" ${p.done ? 'data-done="1"' : ''}><input type="date" class="input num plan-d" value="${esc(p.d || '')}" aria-label="Ngày ôn"><input class="input plan-t" maxlength="120" value="${esc(p.t || '')}" placeholder="Ôn gì?" aria-label="Ôn gì"><button class="iconbtn del" data-act="plan-row-del" aria-label="Xoá việc ôn này">×</button></div>`;
 export const planRows = list => list.map(planRow).join('');
-// pre: điền sẵn khi thêm một môn vào kỳ thi đã có ({ name, icon, kids }).
+// Môn gợi ý trong form lịch thi: các môn trong thời khoá biểu ở trường của con đó (bỏ các môn ít khi thi). Đổi con thì đổi theo.
+const examSubjects = kidId => tkbOf(kidId) ? tkbStats(tkbOf(kidId)).subjects.map(x => x[0]).filter(x => !rareHw(x)) : [];
+export const examSubjChips = kidId => examSubjects(kidId).map(x => `<button class="btn quiet sm" data-act="exam-subj" data-v="${esc(x)}">${subjDot(x)}${esc(x)}</button>`).join('');
+// Lịch thi luôn của một con: mở từ phần của con nào thì là của con đó, xem cả nhà thì chọn con trong form.
+// pre: điền sẵn khi thêm một môn vào kỳ thi đã có ({ name, icon }).
 export function examForm(id, kidPre, pre = null) {
   const e = id ? S.events[id] : pre, kids = kidsList(); if (!kids.length) return;
-  const sel = e?.kids ? e.kids : S.kids[kidPre] ? [kidPre] : [];
-  // Môn gợi ý: các môn trong thời khoá biểu ở trường của những con được chọn (bỏ các môn ít khi thi).
-  const src = sel.length ? kids.filter(k => sel.includes(k.id)) : kids;
-  const subs = [...new Set(src.flatMap(k => tkbOf(k.id) ? tkbStats(tkbOf(k.id)).subjects.map(x => x[0]) : []))].filter(x => !rareHw(x));
+  const kid = (e?.kids || []).find(k => S.kids[k]) || (S.kids[kidPre] ? kidPre : S.kids[UI.tkbKid] ? UI.tkbKid : kids[0].id);
+  const subs = examSubjects(kid);
   const names = [...new Set([...eventsList().filter(x => x.kind === 'exam').map(x => x.name), ...EXAM_NAMES])];
   const plan = examPlan(e);
   openModal(`<h2>${id ? 'Sửa lịch thi' : 'Thêm lịch thi'}</h2>
   ${titleCard('xname', e?.name, 'Kỳ thi gì? Ví dụ: Kiểm tra học kì I', { max: 60, icoName: 'xico', icons: EXAM_ICONS, ico: e?.icon || '📝', attr: 'list="xname-list"' })}
   <datalist id="xname-list">${names.map(x => `<option value="${esc(x)}">`).join('')}</datalist>
   <div class="fg">
-    <div class="fr col">${frow('Môn thi', `<input id="xsubj" class="pillin txt" list="xsubj-list" maxlength="40" value="${esc(e?.subj || '')}" placeholder="Toán">`, { id: 'xsubj', cls: 'in' })}
+    <div class="fr col exam-subj">${frow('Môn thi', `<input id="xsubj" class="pillin txt" list="xsubj-list" maxlength="40" value="${esc(e?.subj || '')}" placeholder="Toán">`, { id: 'xsubj', cls: 'in' })}
       <datalist id="xsubj-list">${[...new Set([...subs, ...SUBJECTS])].map(x => `<option value="${esc(x)}">`).join('')}</datalist>
-      ${subs.length ? `<div class="row">${subs.map(x => `<button class="btn quiet sm" data-act="exam-subj" data-v="${esc(x)}">${subjDot(x)}${esc(x)}</button>`).join('')}</div>` : ''}
+      <div class="row" id="xsubj-chips">${examSubjChips(kid)}</div>
       <span class="fs">Mỗi môn thi một dòng riêng. Bỏ trống nếu ghi cả đợt thi nhiều ngày.</span></div>
     ${frow('Ngày thi', `<input id="xfrom" class="pillin num" type="date" value="${esc(e?.from || '')}">`, { id: 'xfrom' })}
     ${frow('Đến ngày', `<input id="xto" class="pillin num" type="date" value="${esc(e?.to && e.to !== e.from ? e.to : '')}">`, { id: 'xto', sub: 'Bỏ trống nếu chỉ một ngày' })}
-    ${kids.length > 1 ? kidRow('Của con nào', 'xkid', 'checkbox', sel, 'Không chọn ai thì là lịch thi chung của cả nhà') : ''}
+    ${kids.length > 1 ? kidRow('Của con nào', 'xkid', 'radio', [kid]) : `<input type="hidden" name="xkid" value="${kid}">`}
   </div>
   <div class="fg">${frow('Nội dung ôn tập', `<textarea id="xcontent" class="input" rows="4" maxlength="2000" placeholder="Phân số&#10;Hình bình hành, hình thoi&#10;Đề cương cô phát">${esc(e?.content || '')}</textarea>`, { id: 'xcontent', cls: 'col', sub: 'Mỗi dòng một phần cần ôn' })}</div>
   <div class="fg"><div class="fr col"><div class="fl"><span class="lbl">Kế hoạch ôn tập</span><span class="fs">Ngày nào ôn gì. Tới ngày, việc ôn hiện ở màn Hôm nay để con tick.</span></div>

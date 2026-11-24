@@ -8,7 +8,7 @@
 // giữ nguyên. Bước nào dùng hằng số riêng ở nha-minh.js (SAMPLE_CLASSES, SU_TV_HW_FROM, SA_TV_HW_FROM…) thì xem còn chỗ nào dùng không.
 //   - Giữ: merit, hw (nhà mới cũng được thêm sẵn 5 mục thành tích, hai việc BTVN và mục phạt Thiếu BTVN).
 //   - Bỏ được: autoFill; các cờ bottle, nodone, read, screen, vac, game, so, book, hwfromSa, hwfrom, dur2, trang1745, trangHome,
-//     homeAll, sportOut, dur, water, water5k, readlog, nghi2411 (chỉ sửa dữ liệu của nhà mình; nhà mới có việc uống nước trong bảng mẫu).
+//     homeAll, sportOut, dur, water, water5k, readlog, nghi2411, thi1con (chỉ sửa dữ liệu của nhà mình; nhà mới có việc uống nước trong bảng mẫu).
 //   - Đổi tên nơi ở cũ (Nhà mẹ, Nhà bố) không có cờ, chạy mỗi lần mở app: bỏ được khi không còn nạp bản sao lưu cũ (lúc hiện,
 //     placeName vẫn đổi tên cũ sang tên mới).
 //   - Sổ học: suAutoImport, suFixes, suTeachFix (sổ Tiếng Việt của Su) và planAuto (kế hoạch Toán của Su, sổ Tiếng Việt của Sa)
@@ -57,6 +57,7 @@ const classSamples = () => kidsList().flatMap(k => SAMPLE_CLASSES.map((sp, i) =>
 //   water5k: việc uống nước đã thêm là việc phải làm thì đổi sang việc được thưởng 5.000đ.
 //   readlog: việc đọc sách, đọc báo hỏi con đã đọc gì, bao nhiêu trang khi bấm xong.
 //   nghi2411: mốc Nghỉ học 24/11/2026 cho cả nhà, nghỉ cả học thêm (NGHI_2411 ở nha-minh.js).
+//   thi1con: lịch thi (mốc kind exam) ghi chung cả nhà hoặc cho nhiều con được tách ra, mỗi con một bản.
 //   Các cờ còn lại ghi ngay ở từng đoạn bên dưới.
 let addsChecked = false;
 export function autoAdds() {
@@ -228,6 +229,16 @@ export function autoAdds() {
       toast('Đã ghi Thứ Ba 24/11 nghỉ học, nghỉ cả học thêm (Mốc năm học).');
     }
     flags.nghi2411 = 1;
+  }
+  // Lịch thi luôn là của một con (lớp 4 và lớp 7 không thi chung). Lịch thi đang ghi chung cả nhà hoặc cho nhiều con thì tách ra, mỗi con một bản
+  // (mã cố định theo mốc cũ và con, hai máy cùng chạy vẫn chỉ ra một bản); bản nào không đúng thì bố mẹ xoá ở tab Thi.
+  if (!set.thi1con) {
+    for (const e of eventsList().filter(e => e.kind === 'exam')) {
+      const ks = (e.kids || []).filter(k => S.kids[k]), to = ks.length ? ks : kidsList().map(k => k.id); if (ks.length === 1 || !to.length) continue;
+      for (const k of to) put('events', `${e.id}-${k}`, { ...S.events[e.id], kids: [k] });
+      del('events', e.id);
+    }
+    flags.thi1con = 1;
   }
   if (Object.keys(flags).length) put('paid', SETTINGS_ID, { ...set, ...flags });
 }

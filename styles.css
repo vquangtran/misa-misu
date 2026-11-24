@@ -1115,6 +1115,7 @@ textarea.input.ft-input.ft-long{resize:none;overflow:hidden;min-height:0;margin:
 .linkbtn.exam-more{position:relative;z-index:1;flex:1 1 100%;margin-left:56px;padding:0 0 8px;font-size:14px;text-align:left}
 @media (max-width:480px){.linkbtn.exam-more{margin-left:0}}
 /* form lịch thi: mỗi việc ôn một dòng (ngày ôn, ôn gì, nút xoá) */
+#xsubj-chips:empty{display:none}
 .plan-rows{display:flex;flex-direction:column;gap:8px}
 .plan-row{display:flex;align-items:center;gap:6px}
 .plan-row .plan-d{flex:none;width:132px;padding-left:8px;padding-right:4px}

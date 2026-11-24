@@ -9,7 +9,7 @@ import { againVnd, balance, choresList, choreSlot, DAY_BONUS, dayBonusOf, del, d
   stepMask, stepsAll, stepsOf, TEACH, tkbOf, TODAY_KID, UI, WEEK_BONUS, weekBonusOf, weekGain } from './du-lieu.js';
 import { avInner, photoOf } from './giao-dien.js';
 import { closeModal, daySet, dismissModal, menuRow, menuSheet, openModal, radioVal, setModalDirty } from './form.js';
-import { dayOffForm, EVENT_HELP, EVENT_KINDS, eventForm, examForm, examPlan, lessonForm, missingYear, nextSubjectDay, openTasks, printTkb, readTkbForm, sampleLabel, sampleTkb,
+import { dayOffForm, EVENT_HELP, EVENT_KINDS, eventForm, examForm, examPlan, examSubjChips, lessonForm, missingYear, nextSubjectDay, openTasks, printTkb, readTkbForm, sampleLabel, sampleTkb,
   planRows, setLearn, taskForm, taskOf, tasksList, tkbDraft, tkbForm, tkbOffer, yearForm } from './hoc-tap.js';
 import { ATT, attAdd, attClear, attDraw, attTake, bankForm, bookName, CHK, classesList, classForm, classLinkSheet, classLinksSheet, cleanFiles,
   cleanSteps, CLS, CLS_GONE, clsDel, clsPatch, clsPut, delFiles, feeOf, fileOpen, growTitle, hwDueAfter, hwForm, hwList, hwRowInput, hwView, linkList,
@@ -60,8 +60,8 @@ function kidMay(a, b) {
   if (a === 'tick' || a === 'step' || a === 'read-save') return b.dataset.kid === r;
   if (a === 'task-done' || a === 'task-step' || a === 'hw-view' || a === 'print-ask' || a === 'sub-del') return taskOf(b.dataset.id)?.kid === r;
   if (a === 'file-open') return classesList().some(c => c.code === b.dataset.code && c.kid === r);
-  // Ôn thi: con chỉ tick việc ôn của kỳ thi ghi cho mình (hoặc chung cả nhà). Thêm, sửa lịch thi là việc của bố mẹ.
-  if (a === 'exam-step') { const x = S.events[b.dataset.id]; return !!x && x.kind === 'exam' && (!(x.kids || []).length || x.kids.includes(r)); }
+  // Ôn thi: con chỉ tick việc ôn của lịch thi ghi cho mình. Thêm, sửa lịch thi là việc của bố mẹ.
+  if (a === 'exam-step') { const x = S.events[b.dataset.id]; return !!x && x.kind === 'exam' && (x.kids || []).includes(r); }
   // Bài tập: con tự thêm bài cho chính mình; chỉ sửa, xoá được bài do chính con thêm (bài bố mẹ ghi thì chỉ tick).
   if (a === 'task-form' || a === 'task-save' || a === 'task-del') {
     const t = S.tasks[b.dataset.id];
@@ -473,11 +473,13 @@ document.addEventListener('click', e => {
   if (a === 'event-del') { if (!armed(b, 'Bấm lần nữa để xoá')) return; closeModal(); del('events', id); return toast('Đã xoá mốc.'); }
   if (a === 'year-add') {
     const kids = [...document.querySelectorAll('#modal input[name=ykid]:checked')].map(x => x.value), miss = missingYear();
-    miss.forEach(e => put('events', uid(), { ...e, kids }));
+    // Đợt kiểm tra là lịch thi, luôn của từng con: mỗi con được chọn một bản (không chọn ai thì mỗi con một bản). Mốc khác vẫn ghi chung.
+    const each = kids.length ? kids : kidsList().map(k => k.id);
+    miss.forEach(e => e.kind === 'exam' ? each.forEach(k => put('events', uid(), { ...e, kids: [k] })) : put('events', uid(), { ...e, kids }));
     closeModal(); return toast(`Đã thêm ${miss.length} mốc ${SAMPLE_YEAR.label}.`);
   }
   // Lịch thi (tab Thi): mốc kind 'exam' có thêm môn, nội dung ôn tập và kế hoạch ôn tập.
-  if (a === 'exam-form') { const like = S.events[b.dataset.like]; return examForm(id, b.dataset.kid, like ? { name: like.name, icon: like.icon, kids: like.kids || [] } : null); }
+  if (a === 'exam-form') { const like = S.events[b.dataset.like]; return examForm(id, b.dataset.kid, like ? { name: like.name, icon: like.icon } : null); }
   if (a === 'exam-subj') { $('#xsubj').value = b.dataset.v; return; }
   if (a === 'plan-row-add') { const box = $('#xplan'); if (box.children.length >= 30) return toast('Kế hoạch ôn tập tối đa 30 việc.'); box.insertAdjacentHTML('beforeend', planRows([{}])); box.lastElementChild.querySelector('.plan-t').focus(); return; }
   if (a === 'plan-row-del') { const box = $('#xplan'); b.closest('.plan-row').remove(); if (!box.children.length) box.innerHTML = planRows([{}]); return; }
@@ -499,7 +501,9 @@ document.addEventListener('click', e => {
     if (!from) { $('#xfrom').focus(); return toast('Chọn ngày thi nhé.'); }
     if (to && to < from) return toast('Ngày kết thúc phải sau ngày bắt đầu.');
     const plan = [...document.querySelectorAll('#modal .plan-row')].map(r => ({ t: r.querySelector('.plan-t').value.trim(), d: r.querySelector('.plan-d').value || '', done: !!r.dataset.done })).filter(p => p.t).slice(0, 30);
-    const data = { name, icon: radioVal('xico') || '📝', kind: 'exam', from, kids: [...document.querySelectorAll('#modal input[name=xkid]:checked')].map(x => x.value) };
+    // Lịch thi luôn của đúng một con.
+    const kid = radioVal('xkid') || document.querySelector('#modal input[name=xkid]')?.value; if (!S.kids[kid]) return toast('Chọn lịch thi của con nào nhé.');
+    const data = { name, icon: radioVal('xico') || '📝', kind: 'exam', from, kids: [kid] };
     if (to && to > from) data.to = to;
     if (subj) data.subj = subj;
     if ($('#xcontent').value.trim()) data.content = $('#xcontent').value.trim();
@@ -861,6 +865,8 @@ document.addEventListener('change', e => {
     const ic = EVENT_KINDS.find(x => x[0] === e.target.value)?.[2], r = $('#ename').dataset.new && [...document.querySelectorAll('#modal input[name=eico]')].find(x => x.value === ic);
     if (r) { r.checked = true; $('#modal .ico-now').innerHTML = icon(ic); }
   }
+  // Form lịch thi: đổi con thì môn gợi ý đổi theo thời khoá biểu của con đó.
+  if (e.target.name === 'xkid') { const box = $('#xsubj-chips'); if (box) box.innerHTML = examSubjChips(e.target.value); }
   if (e.target.id === 'lwhere') { const g = $('#modal .lgo'); if (g) g.hidden = e.target.value !== 'out'; }
   if ((e.target.id === 'tsat' || e.target.id === 'tlunch' || e.target.name === 'tday') && tkbDraft && !$('#modal').hidden) tkbForm(tkbDraft.kid, { ...readTkbForm(), keep: true });
   if (e.target.id === 'import-file' && e.target.files[0]) importBackup(e.target.files[0]);
