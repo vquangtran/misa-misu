@@ -554,6 +554,15 @@ export const CANH = [
       await c.fill({ '#ttitle': 'Con tự ghi: học từ mới' });
       await c.click('#modal ' + act('task-save'));
       await c.check('#km input[name="kmtab"][value="acct"]');
+      // Con tự mua thời gian: chọn số phút, mua, màn Đã mua thành công; mua quá số tiền đang có thì không được.
+      await c.click('#km ' + act('buy-form', { id: 'gia-choi-game' }));
+      await c.click('#modal ' + act('buy-form', { m: '60' }), { label: 'mua 1 giờ' });
+      await c.click('#modal ' + act('buy-form', { m: '30' }), { label: 'về 30 phút' });
+      await c.click('#modal ' + act('buy-ok'), { label: 'Mua Chơi game 30 phút' });
+      await c.click(X, { label: 'Xong' });
+      await c.click('#km ' + act('buy-form', { id: 'gia-xem-tv' }));
+      for (const m of ['60', '90', '120', '150', '180', '210', '240']) await c.click('#modal ' + act('buy-form', { m }), { label: 'thêm tới ' + m + ' phút' });
+      await c.click(X);
       await c.click('#km ' + act('merit-open', { kid: 'k-su' }));
       await c.click('#modal ' + act('merit-pick'), { nth: 0 });
       await c.click('#modal ' + act('merit-ask'));

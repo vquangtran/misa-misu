@@ -1,5 +1,5 @@
 // Màn Tài khoản: số dư, ghi cho con (phạt, thưởng thêm, chi tiêu), chờ duyệt thành tích, việc thích làm con xin, lịch sử, mục tiêu tiết kiệm.
-import { $, addDays, CHEV, DAILY, daysLabel, dm, esc, key, money, norm, nowMin, pad, parse, PLUS, signed, today, WDN, weekStart } from './chung.js';
+import { $, addDays, CHEV, DAILY, daysLabel, dm, durTxt, esc, key, money, norm, nowMin, pad, parse, PLUS, signed, today, WDN, weekStart } from './chung.js';
 import { againVnd, balance, choresList, choreSlot, choreVnd, dayBonuses, dayBonusIn, dayBonusOf, doneVnd, earned, FEE_MIN, isDaily, isExtra, isFun,
   kidName, kidsList, ledgerVnd, memoize, penaltyTimes, penaltyVnd, priceKind, pricesList, priceVnd, readLogOf, RO, S, slotAt, slotName, SLOTS,
   streakOf, todayKid, UI, weekBonuses, weekBonusOf, weekStats } from './du-lieu.js';
@@ -121,6 +121,35 @@ export function histSection(kidId) {
     <div class="acts"><span class="delta num ${plus ? 'plus' : 'minus'}">${signed(l.vnd)}</span>${l.id && !RO ? `<button class="linkbtn undo" data-act="ledger-undo" data-id="${l.id}">Huỷ</button>` : ''}</div></div>`;
   }).join('')}</div>${rows.length > shown.length ? `<div class="row"><button class="btn quiet sm" data-act="hist-all">Xem thêm ${rows.length - shown.length} dòng</button></div>` : ''}`;
   return h + `</section>`;
+}
+
+// ---------- con tự mua thời gian ----------
+// Tab Tài khoản của con: con dùng tiền của mình mua thời gian xem TV, chơi game, điện thoại (các mục Phí sử dụng ở trang Quy định),
+// không cần bố mẹ ghi hộ. Mua là trừ tiền ngay: một khoản phí trong sổ tài khoản có by = mã của con, ghi chú kèm "(con tự mua)".
+// Mua từng 30 phút (FEE_MIN), tối đa 4 giờ một lần; không đủ tiền thì không mua được. Bố mẹ huỷ được khoản đó trong Lịch sử.
+export const buyMins = m => Math.max(FEE_MIN, Math.min(240, Math.round((Number(m) || FEE_MIN) / FEE_MIN) * FEE_MIN));
+export const buyCost = (r, mins) => Math.round(priceVnd(r) * mins / FEE_MIN);
+// keep: đang bấm − hoặc + trong form, vẽ lại tại chỗ.
+export function buyForm(kidId, rid, m, keep) {
+  const r = pricesList('fee').find(x => x.id === rid); if (!r || !S.kids[kidId]) return;
+  const mins = buyMins(m), cost = buyCost(r, mins), bal = balance(kidId), ok = bal >= cost, attr = `data-id="${r.id}" data-kid="${kidId}"`;
+  openModal(`<h2>Mua ${esc(r.name)}</h2>
+  <div class="fg">
+    <div class="fr"><div class="fl"><span class="lbl">Mua bao lâu</span><span class="fs">${money(priceVnd(r))} mỗi ${FEE_MIN} phút</span></div>
+      <div class="stepper"><button class="iconbtn" data-act="buy-form" ${attr} data-m="${mins - FEE_MIN}" aria-label="Bớt ${FEE_MIN} phút" ${mins <= FEE_MIN ? 'disabled' : ''}>−</button><b class="buy-mins num">${durTxt(mins)}</b><button class="iconbtn" data-act="buy-form" ${attr} data-m="${mins + FEE_MIN}" aria-label="Thêm ${FEE_MIN} phút" ${mins >= 240 ? 'disabled' : ''}>+</button></div></div>
+    ${frow('Hết', `<b class="num minus">−${money(cost)}</b>`)}
+    ${frow('Con đang có', `<b class="num">${money(bal)}</b>`)}
+    ${frow('Mua xong còn', ok ? `<b class="num">${money(bal - cost)}</b>` : `<b class="late">Thiếu ${money(cost - bal)}</b>`)}
+  </div>
+  ${ok ? '' : `<p class="note">Con chưa đủ tiền để mua ${esc(r.name)} ${durTxt(mins)}. Làm thêm việc nhà để có thêm tiền nhé.</p>`}
+  <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="buy-ok" ${attr} data-m="${mins}" ${ok ? '' : 'disabled'}>Mua</button></div>`, false, keep);
+}
+// Mua xong: báo đã mua, hết bao nhiêu, còn bao nhiêu, và nhắc con việc cần làm tiếp để được thêm thời gian trên máy.
+export function buyDone(r, mins, cost, left) {
+  openModal(`<div class="empty buy-done"><div class="big">✅</div><h2>Đã mua thành công</h2>
+    <p class="buy-what">${esc(r.icon || '📱')} ${esc(r.name)} ${durTxt(mins)} · <b class="num minus">−${money(cost)}</b></p><p class="muted">Con còn ${money(left)}</p>
+    <p class="note buy-next">Con hãy gửi yêu cầu thêm thời gian và nhắn bố thêm.</p></div>
+  <div class="foot"><button class="btn primary" data-act="close">Xong</button></div>`);
 }
 
 // Thành tích con báo, chờ bố mẹ duyệt. Chưa duyệt thì chưa tính vào số dư.

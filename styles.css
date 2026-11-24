@@ -1114,6 +1114,11 @@ textarea.input.ft-input.ft-long{resize:none;overflow:hidden;min-height:0;margin:
 .plan-day.late{color:var(--bad)}
 .linkbtn.exam-more{position:relative;z-index:1;flex:1 1 100%;margin-left:56px;padding:0 0 8px;font-size:14px;text-align:left}
 @media (max-width:480px){.linkbtn.exam-more{margin-left:0}}
+/* con tự mua thời gian: số phút đang chọn nằm giữa nút − và +; màn Đã mua thành công */
+.buy-mins{min-width:96px;text-align:center;font-family:var(--display);font-size:17px;font-weight:600}
+.buy-done{padding:18px 6px 8px}
+.buy-done .buy-what{font-size:17px;font-weight:500;margin-top:6px}
+.buy-done .buy-next{margin-top:14px;font-size:16px;font-weight:600;color:var(--ink)}
 /* form lịch thi: mỗi việc ôn một dòng (ngày ôn, ôn gì, nút xoá) */
 #xsubj-chips:empty{display:none}
 .plan-rows{display:flex;flex-direction:column;gap:8px}

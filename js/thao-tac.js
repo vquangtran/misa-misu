@@ -16,7 +16,7 @@ import { ATT, attAdd, attClear, attDraw, attTake, bankForm, bookName, CHK, class
   nextClassDay, offOf, okDate, okId, paidOf, printAsk, printSo, sessDayTitle, sessDefaults, sessForm, sessView, soImportGo, soImportPick, soOf,
   soStats, subAdd, subMay } from './so-hoc.js';
 import { drawSheet, funNeedForm, markChore, printSheet, QA, QA_PAY, qaChips, qaData, qaReps, qaWho, quickAdd, readForm, todayMenu } from './hom-nay.js';
-import { balForm, funAsks, funDiff, funForm, funOf, goalForm, goalsOf, meritForm, meritSheet, skipForm } from './tai-khoan.js';
+import { balForm, buyCost, buyDone, buyForm, buyMins, funAsks, funDiff, funForm, funOf, goalForm, goalsOf, meritForm, meritSheet, skipForm } from './tai-khoan.js';
 import { addSamples, CHORE_KIND_SUB, CHORE_KINDS, choreForm, guessIcon, kindHelp, meritList, PRICE_FEE, PRICE_HELP, PRICE_KINDS, priceForm,
   printCoupons, printPrices, TABLE_VER, tableUpdate, tableUpdateForm, tableUpdateRun, weeklyCandidates } from './quy-dinh.js';
 import { decryptSeed, exportBackup, hashPin, importBackup, importData, kidForm, kidLink, photoEdit, photoLoad, photoRender, pinForm, roleKidForm,
@@ -51,7 +51,7 @@ function pageAdd() {
 // Việc máy của con được làm: đánh dấu việc, bài tập của chính mình, gập mở các buổi, xin thêm hoặc xin sửa việc thích làm (bố mẹ duyệt), và xin vào phần bố mẹ.
 // Thêm các nút chỉ để xem ở mục Học tập: đổi tab, chọn thứ, mở nhóm đã qua; và tick việc ôn thi của mình.
 const KID_ACTS = new Set(['close', 'tick', 'step', 'read-save', 'slot-toggle', 'task-done', 'task-step', 'role-kid', 'role-kid-ok', 'role-parent', 'pin-ok',
-  'tkb-go', 'learn-tab', 'tkb-day', 'exam-step', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel', 'fun-form', 'fun-ask', 'fun-cancel', 'fun-need', 'num-step', 'km-acct', 'task-form', 'task-save', 'task-del', 'task-subj', 'task-due', 'hw-view', 'file-open', 'print-ask', 'sub-del']);
+  'tkb-go', 'learn-tab', 'tkb-day', 'exam-step', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel', 'fun-form', 'fun-ask', 'fun-cancel', 'fun-need', 'num-step', 'km-acct', 'task-form', 'task-save', 'task-del', 'task-subj', 'task-due', 'hw-view', 'file-open', 'print-ask', 'sub-del', 'buy-form', 'buy-ok']);
 // Việc màn của cô được làm: chỉ những gì thuộc sổ học.
 const TEACH_ACTS = new Set(['close', 't-tab', 't-menu', 'sess-form', 'sess-view', 'sess-toggle', 'none', 'so-plan-more', 'so-off', 'sess-save', 'hw-row-add', 'so-import', 'so-import-go', 'sess-del', 'hw-form', 'hw-save', 'hw-del', 'hw-due', 'file-open', 'sub-dl', 'att-del', 'so-print', 'sec-toggle', 'num-step', 'bank-form', 'bank-save']);
 function kidMay(a, b) {
@@ -71,6 +71,8 @@ function kidMay(a, b) {
   // Thành tích: con chỉ báo cho chính mình và chỉ huỷ mục của mình đang chờ duyệt. Duyệt là việc của bố mẹ.
   if (a === 'merit-open' || a === 'merit-pick' || a === 'merit-ask') return b.dataset.kid === r;
   if (a === 'merit-cancel') { const l = S.ledger[b.dataset.id]; return !!l && !!l.pending && l.kid === r; }
+  // Mua thời gian: con chỉ mua cho chính mình, bằng tiền của mình.
+  if (a === 'buy-form' || a === 'buy-ok') return b.dataset.kid === r;
   // Việc thích làm: con chỉ xin thêm, xin sửa cho chính mình và chỉ huỷ yêu cầu của mình. Duyệt là việc của bố mẹ.
   if (a === 'fun-form' || a === 'fun-ask') return b.dataset.kid === r;
   if (a === 'fun-cancel') return funAsks(r).some(x => x.id === b.dataset.id);
@@ -787,6 +789,15 @@ document.addEventListener('click', e => {
   if (a === 'km-acct') { UI.kmTab = 'acct'; UI.histAll = false; UI.secOpen['acct-hist'] = true; $('#km').scrollTop = 0; return render(); }
   if (a === 'merit-open') return meritSheet(b.dataset.kid);
   if (a === 'merit-pick') return meritForm(b.dataset.kid, id);
+  // Con tự mua thời gian (tab Tài khoản của con): trừ tiền ngay, ghi khoản phí có by = mã của con, rồi báo đã mua và việc cần làm tiếp.
+  if (a === 'buy-form') return buyForm(b.dataset.kid, id, b.dataset.m, !!b.closest('#modal'));
+  if (a === 'buy-ok') {
+    const kid = b.dataset.kid, r = pricesList('fee').find(x => x.id === id); if (!r || !S.kids[kid]) return;
+    const mins = buyMins(b.dataset.m), cost = buyCost(r, mins), bal = balance(kid);
+    if (bal < cost) return toast(`Con còn thiếu ${money(cost - bal)} để mua ${r.name} ${durTxt(mins)}.`);
+    put('ledger', uid(), { kid, amount: -cost, kind: 'fee', note: `${r.name} ${durTxt(mins)} (con tự mua)`, icon: r.icon || '', qty: Math.round(mins / 60 * 100) / 100, at: new Date().toISOString(), by: kid });
+    return buyDone(r, mins, cost, bal - cost);
+  }
   if (a === 'merit-ask') {
     const kid = b.dataset.kid, r = meritList().find(x => x.id === id); if (!r || !S.kids[kid]) return;
     const extra = ($('#mnote')?.value || '').trim(), vnd = priceVnd(r);

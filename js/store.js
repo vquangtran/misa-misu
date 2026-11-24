@@ -12,6 +12,7 @@
 //   done     việc đã xong   id = "YYYY-MM-DD", { [kidId]: { [choreId]: số tiền nhận được (0 = chưa),
 //                             [choreId + '~s']: các mục con đã tick (mặt nạ bit), [choreId + '~r']: { what, pages } con đã đọc gì, bao nhiêu trang } }
 //   ledger   sổ tài khoản   { kid, amount (đồng), kind: bonus|penalty|fee|spend|reward, note, icon, at, skip: ngày được miễn việc, wipe: thứ Hai của tuần bị phạt mất tiền thưởng,
+//                             by: mã của con nếu con tự mua thời gian (khoản fee) ở tab Tài khoản của con,
 //                             pending: true = thành tích con báo đang chờ bố mẹ duyệt (amount = 0, số tiền sẽ cộng ở ask); duyệt xong thì amount = ask, có okAt }
 //   paid     (cũ, không dùng nữa) tiền tiêu vặt đã trả theo tuần
 //            Riêng id "caidat" là cài đặt của gia đình: { pin: mã PIN bố mẹ đã băm, merit: 1 = đã thêm sẵn các mục thành tích, hw: 1 = đã thêm sẵn hai việc BTVN và mục phạt Thiếu BTVN, bottle: 1 = đã gắn "(mai đi học)" cho mục con tráng bình nước,
