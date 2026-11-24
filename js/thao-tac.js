@@ -9,7 +9,7 @@ import { againVnd, balance, choresList, choreSlot, DAY_BONUS, dayBonusOf, del, d
   stepMask, stepsAll, stepsOf, TEACH, tkbOf, TODAY_KID, UI, WEEK_BONUS, weekBonusOf, weekGain } from './du-lieu.js';
 import { avInner, photoOf } from './giao-dien.js';
 import { closeModal, daySet, dismissModal, menuRow, menuSheet, openModal, radioVal, setModalDirty } from './form.js';
-import { dayOffForm, EVENT_HELP, EVENT_KINDS, eventForm, examForm, examPlan, examSubjChips, lessonForm, missingYear, nextSubjectDay, openTasks, printTkb, readTkbForm, sampleLabel, sampleTkb,
+import { dayOffForm, EVENT_HELP, EVENT_KINDS, eventForm, examForm, examIsNearest, examPlan, examSubjChips, lessonForm, missingYear, nextSubjectDay, openTasks, printTkb, readTkbForm, sampleLabel, sampleTkb,
   planRows, setLearn, taskForm, taskOf, tasksList, tkbDraft, tkbForm, tkbOffer, yearForm } from './hoc-tap.js';
 import { ATT, attAdd, attClear, attDraw, attTake, bankForm, bookName, CHK, classesList, classForm, classLinkSheet, classLinksSheet, cleanFiles,
   cleanSteps, CLS, CLS_GONE, clsDel, clsPatch, clsPut, delFiles, feeOf, fileOpen, growTitle, hwDueAfter, hwForm, hwList, hwRowInput, hwView, linkList,
@@ -473,9 +473,7 @@ document.addEventListener('click', e => {
   if (a === 'event-del') { if (!armed(b, 'Bấm lần nữa để xoá')) return; closeModal(); del('events', id); return toast('Đã xoá mốc.'); }
   if (a === 'year-add') {
     const kids = [...document.querySelectorAll('#modal input[name=ykid]:checked')].map(x => x.value), miss = missingYear();
-    // Đợt kiểm tra là lịch thi, luôn của từng con: mỗi con được chọn một bản (không chọn ai thì mỗi con một bản). Mốc khác vẫn ghi chung.
-    const each = kids.length ? kids : kidsList().map(k => k.id);
-    miss.forEach(e => e.kind === 'exam' ? each.forEach(k => put('events', uid(), { ...e, kids: [k] })) : put('events', uid(), { ...e, kids }));
+    miss.forEach(e => put('events', uid(), { ...e, kids }));
     closeModal(); return toast(`Đã thêm ${miss.length} mốc ${SAMPLE_YEAR.label}.`);
   }
   // Lịch thi (tab Thi): mốc kind 'exam' có thêm môn, nội dung ôn tập và kế hoạch ôn tập.
@@ -508,7 +506,9 @@ document.addEventListener('click', e => {
     if (subj) data.subj = subj;
     if ($('#xcontent').value.trim()) data.content = $('#xcontent').value.trim();
     if (plan.length) data.plan = plan;
-    closeModal(); put('events', id || uid(), data); if (UI.view === 'lich-hoc') setLearn('thi');
+    // Tab Thi chỉ hiện kỳ thi gần nhất: lịch thi vừa lưu thuộc kỳ thi khác thì mở sẵn mục Kỳ thi khác để thấy ngay.
+    const xid = id || uid(); if (!examIsNearest(kid, xid, data)) UI.secOpen['thi-khac-' + kid] = true;
+    closeModal(); put('events', xid, data); if (UI.view === 'lich-hoc') setLearn('thi');
     return toast(`Đã lưu lịch thi${daysTo(from) > 0 ? `, còn ${daysTo(from)} ngày` : ''}.`);
   }
   if (a === 'exam-del') { if (!armed(b, 'Bấm lần nữa để xoá')) return; closeModal(); del('events', id); return toast('Đã xoá lịch thi.'); }

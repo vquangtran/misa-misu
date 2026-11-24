@@ -71,7 +71,7 @@ function eventsCard(kidId) {
       <div class="acts">${w.past ? '' : `<span class="badge ${w.now ? 'ok' : ''}">${esc(w.txt)}</span>`}${editBtn('event-form', e.id, e.name)}</div></div>`;
   };
   const kidAttr = `data-kid="${kidId || ''}"`;
-  let h = miss.length && kids.length && !RO ? suggest(`Có sẵn ${miss.length} mốc ${SAMPLE_YEAR.label}`, 'Khai giảng, các đợt kiểm tra, nghỉ Tết, họp phụ huynh, bế giảng.', 'Xem và thêm', 'year-form') : '';
+  let h = miss.length && kids.length && !RO ? suggest(`Có sẵn ${miss.length} mốc ${SAMPLE_YEAR.label}`, 'Khai giảng, nghỉ Tết, họp phụ huynh, bế giảng.', 'Xem và thêm', 'year-form') : '';
   h += `<div class="slots"><section class="slot tn3">${secHead('📌', 'Sắp tới', { cnt: rest.length || '', add: addBtn('event-form', 'Thêm mốc năm học', kidAttr) })}${rest.length ? `<div class="slot-list list">${rest.map(row).join('')}</div>` : blankAdd('Ghi ngày nghỉ Tết, họp phụ huynh, sự kiện ở trường', 'event-form', kidAttr, 'Chưa có mốc nào sắp tới')}</section>`;
   if (past.length) h += `<section class="slot">${secHead('', 'Đã qua', { cnt: past.length, key: 'moc-past', closed: true })}${secIsOpen('moc-past', true) ? `<div class="slot-list list">${past.map(row).join('')}</div>` : ''}</section>`;
   // Lịch thi, kiểm tra nằm ở tab Thi: ở đây chỉ một dòng để bấm sang.
@@ -359,7 +359,8 @@ export function taskForm(id, kidPre, lock) {
 // Lịch thi luôn là của một con (kids có đúng một con): mỗi lớp thi môn khác, ngày khác. Dữ liệu cũ ghi chung được tách ra một lần (cờ thi1con, mot-lan.js).
 // Lịch thi là mốc kind 'exam' trong nhóm events, có thêm: subj (môn thi; không có là cả đợt, ví dụ Kiểm tra học kì I, 14/12 – 27/12),
 //   content (nội dung ôn tập, mỗi dòng một phần), plan (kế hoạch ôn tập): [{ t: ôn gì, d: "YYYY-MM-DD" ngày ôn (không bắt buộc), done }].
-// Các môn cùng tên kỳ thi (name) của một con trong một năm học gom thành một nhóm. Việc ôn tới ngày thì hiện ở màn Hôm nay (studySoon), ôn xong thì tick.
+// Các môn cùng tên kỳ thi (name) của một con trong một năm học gom thành một nhóm. Tab Thi chỉ hiện kỳ thi gần nhất của mỗi con;
+// kỳ thi sau đó và kỳ thi đã qua gập lại ở mục Kỳ thi khác. Có kỳ thi mới thì bố mẹ nhập, app không thêm sẵn. Việc ôn tới ngày thì hiện ở màn Hôm nay (studySoon), ôn xong thì tick.
 const EXAM_NAMES = ['Kiểm tra giữa kì I', 'Kiểm tra học kì I', 'Kiểm tra giữa kì II', 'Kiểm tra học kì II', 'Kiểm tra 15 phút', 'Kiểm tra 1 tiết'];
 const EXAM_ICONS = ['📝', '📘', '🎒', '🏫', '🎓', '🏆'];
 // Năm học của một ngày (bắt đầu từ tháng 8).
@@ -394,22 +395,30 @@ function examRow(e, grouped) {
     <div class="acts">${w.past ? '' : `<span class="badge ${w.now ? 'ok' : ''}">${esc(w.txt)}</span>`}${editBtn('exam-form', e.id, eventTitle(e))}</div>
     ${body ? `<div class="sess-body">${body}</div>` : RO || w.past || (grouped && !e.subj) ? '' : `<button class="linkbtn exam-more" data-act="exam-form" data-id="${esc(e.id)}">Thêm nội dung và kế hoạch ôn tập</button>`}</div>`;
 }
-// Tab Thi: lịch thi của từng con (xem cả nhà thì mỗi con một phần), mỗi kỳ thi một nhóm, mỗi môn một dòng. Kỳ thi đã qua gập lại ở cuối.
+// Các kỳ thi của một con: rest là kỳ thi chưa qua, gần nhất đứng đầu (next: ngày thi sớm nhất chưa qua của kỳ đó); past là kỳ thi đã qua, mới nhất đứng đầu.
+function examGroups(list) {
+  const tk = key(today()), groups = [];
+  for (const e of list) { const g = groups.find(x => x.key === examKey(e)); if (g) g.items.push(e); else groups.push({ key: examKey(e), items: [e] }); }
+  for (const g of groups) g.next = g.items.filter(e => e.to >= tk).map(e => e.from).sort()[0] || '';
+  return { rest: groups.filter(g => g.next).sort((a, b) => a.next.localeCompare(b.next)), past: groups.filter(g => !g.next).reverse() };
+}
+// Lịch thi sắp lưu (data, mã id) có thuộc kỳ thi gần nhất của con không: không thì lưu xong nó nằm ở mục Kỳ thi khác, app mở sẵn mục đó.
+export const examIsNearest = (kidId, id, data) => examGroups([...examsOf(kidId).filter(e => e.id !== id), { ...data, id, to: data.to || data.from }]
+  .sort((a, b) => a.from.localeCompare(b.from))).rest[0]?.key === examKey(data);
+// Tab Thi: lịch thi của từng con (xem cả nhà thì mỗi con một phần). Chỉ hiện kỳ thi gần nhất, mỗi môn một dòng;
+// các kỳ thi sau đó và kỳ thi đã qua gập lại ở mục Kỳ thi khác.
 function examsView(ks) {
-  const multi = ks.length > 1, tk = key(today());
+  const multi = ks.length > 1;
   const kidPart = k => {
-    const kidAttr = `data-kid="${k.id}"`, groups = [];
-    for (const e of examsOf(k.id)) { const g = groups.find(x => x.key === examKey(e)); if (g) g.items.push(e); else groups.push({ key: examKey(e), items: [e] }); }
-    for (const g of groups) g.to = g.items.reduce((a, e) => e.to > a ? e.to : a, '');
-    const past = groups.filter(g => g.to < tk).reverse(), rest = groups.filter(g => g.to >= tk), pk = `thi-past-${k.id}`;
+    const kidAttr = `data-kid="${k.id}"`, { rest, past } = examGroups(examsOf(k.id)), more = [...rest.slice(1), ...past], mk = `thi-khac-${k.id}`;
     // Nút + của một kỳ thi: thêm môn vào kỳ thi đó (điền sẵn tên kỳ thi và hình).
     const group = g => { const e0 = g.items[0], subs = g.items.filter(e => e.subj);
-      return `<section class="slot ${g.to < tk ? '' : 'tn3'}">${secHead(esc(e0.icon || '📝'), esc(e0.name), { cnt: subs.length ? `${subs.length} môn` : '', add: addBtn('exam-form', `Thêm môn thi: ${esc(e0.name)}`, `${kidAttr} data-like="${esc(e0.id)}"`) })}
+      return `<section class="slot ${g.next ? 'tn3' : ''}">${secHead(esc(e0.icon || '📝'), esc(e0.name), { cnt: subs.length ? `${subs.length} môn` : '', add: addBtn('exam-form', `Thêm môn thi: ${esc(e0.name)}`, `${kidAttr} data-like="${esc(e0.id)}"`) })}
         <div class="slot-list list">${g.items.map(e => examRow(e, subs.length > 0)).join('')}</div></section>`; };
-    return `${multi ? kidChip(k) : ''}<div class="slots">${rest.length ? rest.map(group).join('') : `<section class="slot">${blankAdd(`Có lịch thi của ${esc(k.name)} thì thêm vào đây: môn nào, ngày nào, cần ôn gì`, 'exam-form', kidAttr, 'Chưa có lịch thi nào sắp tới')}</section>`}
-      ${past.length ? `<section class="slot">${secHead('', 'Đã qua', { cnt: past.length, key: pk, closed: true })}</section>${secIsOpen(pk, true) ? past.map(group).join('') : ''}` : ''}</div>`;
+    return `${multi ? kidChip(k) : ''}<div class="slots">${rest.length ? group(rest[0]) : `<section class="slot">${blankAdd(`Có lịch thi của ${esc(k.name)} thì thêm vào đây: môn nào, ngày nào, cần ôn gì`, 'exam-form', kidAttr, 'Chưa có lịch thi nào sắp tới')}</section>`}
+      ${more.length ? `<section class="slot">${secHead('', 'Kỳ thi khác', { cnt: more.length, key: mk, closed: true })}</section>${secIsOpen(mk, true) ? more.map(group).join('') : ''}` : ''}</div>`;
   };
-  return ks.map(kidPart).join('') + (RO || ks.some(k => examsOf(k.id).length) ? '' : '<p class="foot-note">Lịch thi ghi riêng cho từng con. App nhắc trước 14 ngày ở màn Hôm nay; việc ôn theo kế hoạch hiện ở màn Hôm nay đúng ngày, ôn xong thì tick.</p>');
+  return ks.map(kidPart).join('') + (RO || ks.some(k => examsOf(k.id).length) ? '' : '<p class="foot-note">Lịch thi ghi riêng cho từng con, có kỳ thi thì nhập vào. App nhắc trước 14 ngày ở màn Hôm nay; việc ôn theo kế hoạch hiện ở màn Hôm nay đúng ngày, ôn xong thì tick.</p>');
 }
 const planRow = (p = {}) => `<div class="plan-row" ${p.done ? 'data-done="1"' : ''}><input type="date" class="input num plan-d" value="${esc(p.d || '')}" aria-label="Ngày ôn"><input class="input plan-t" maxlength="120" value="${esc(p.t || '')}" placeholder="Ôn gì?" aria-label="Ôn gì"><button class="iconbtn del" data-act="plan-row-del" aria-label="Xoá việc ôn này">×</button></div>`;
 export const planRows = list => list.map(planRow).join('');

@@ -233,7 +233,8 @@ export const CANH = [
       await c.click(act('exam-form', { id: 'ev-1' }));
       await c.fill({ '#xcontent': 'Nhân chia số có nhiều chữ số', '#xplan .plan-row .plan-t': 'Ôn bảng nhân chia', '#xplan .plan-row .plan-d': '2026-11-22' });
       await c.click('#modal ' + act('exam-save'));
-      await c.click(act('sec-toggle', { key: 'thi-past-k-su' }), { optional: true });
+      await c.click(act('sec-toggle', { key: 'thi-khac-k-su' }), { label: 'gập mục Kỳ thi khác' });
+      await c.click(act('sec-toggle', { key: 'thi-khac-k-su' }));
       await c.click(act('learn-kid', { kid: 'k-sa' }));
       for (const v of ['tren-lop', 'hoc-them', 'thi']) await c.click(act('learn-tab', { v }));
       await c.click(act('learn-kid', { kid: 'k-su' }));
@@ -368,7 +369,9 @@ export const CANH = [
     async chay(c) {
       await c.go('/#lich-hoc');
       await c.click(act('learn-tab', { v: 'thi' }));
-      await c.click(act('exam-step'), { nth: 0, label: 'Su tick việc ôn: bản của Sa không đổi' });
+      // Su có bài kiểm tra 26/11 gần hơn nên Kiểm tra học kì I nằm ở Kỳ thi khác; Sa chỉ có kỳ này nên hiện luôn.
+      await c.click(act('sec-toggle', { key: 'thi-khac-k-su' }));
+      await c.click(act('exam-step', { id: 'ev-7-k-su' }), { label: 'Su tick việc ôn: bản của Sa không đổi' });
       await c.click(act('exam-form', { kid: 'k-sa' }) + '[data-like]', { label: 'thêm môn cho Sa: form chọn sẵn Sa' });
       await c.click(X);
       await c.reload('tải lại: không tách thêm lần nữa');
