@@ -13,11 +13,11 @@ import { meritList } from './quy-dinh.js';
 function meritSection(k) {
   const pend = pendingList(k.id);
   return meritList().length ? `<section class="slot tn3">${secHead('🏅', 'Thành tích học tập', { cnt: pend.length || '' })}
-    ${pend.length ? `<div class="slot-list list">${pend.map(l => `<div class="item pend"><span class="ico">${esc(l.icon || '🏅')}</span><div class="txt"><div class="t">${esc(l.note || 'Thành tích')}</div><div class="s">⏳ Chờ bố mẹ duyệt · ${dm(new Date(l.at))}</div></div>
+    ${pend.length ? `<div class="slot-list list">${pend.map(l => `<div class="item pend"><span class="ico">${esc(l.icon || '🏅')}</span><div class="txt"><div class="t">${esc(l.note || 'Thành tích')}</div><div class="s">⏳ Chờ bố duyệt · ${dm(new Date(l.at))}</div></div>
       <div class="acts col"><span class="delta num wait">+${money(l.ask)}</span><button class="linkbtn undo" data-act="merit-cancel" data-id="${l.id}">Huỷ</button></div></div>`).join('')}</div>` : ''}
-    <button class="slot-blank" data-act="merit-open" data-kid="${k.id}"><span>Được cô khen, được điểm 9, điểm 10 ở trường hay ở lớp học thêm? Bấm để báo bố mẹ</span>${PLUS}</button></section>` : '';
+    <button class="slot-blank" data-act="merit-open" data-kid="${k.id}"><span>Được cô khen, được điểm 9, điểm 10 ở trường hay ở lớp học thêm? Bấm để báo bố</span>${PLUS}</button></section>` : '';
 }
-// Tin mới trên tab Hôm nay của con: hôm nay, hôm qua bị trừ tiền vì gì (phạt, phí sử dụng bố mẹ ghi; thời gian con tự mua thì báo đang chờ bố thêm hay bố đã thêm) và thành tích nào bố mẹ vừa duyệt. Bấm để sang tab Tài khoản.
+// Tin mới trên tab Hôm nay của con: hôm nay, hôm qua bị trừ tiền vì gì (phạt, phí sử dụng bố mẹ ghi; thời gian con tự mua thì báo đang chờ bố thêm hay bố đã thêm) và thành tích nào bố vừa duyệt. Bấm để sang tab Tài khoản.
 function kmNews(k, t) {
   const tk = key(t), yk = key(addDays(t, -1)), day = iso => { const dk = iso ? key(new Date(iso)) : ''; return dk === tk ? 'Hôm nay' : dk === yk ? 'Hôm qua' : ''; };
   const mine = Object.values(S.ledger).filter(l => l.kid === k.id && !l.pending).sort((a, b) => String(b.at).localeCompare(String(a.at)));
@@ -27,7 +27,7 @@ function kmNews(k, t) {
   const buys = buyList(k.id), wait = buys.filter(l => !l.added), added = buys.filter(l => l.added && key(new Date(l.added)) === tk);
   const buyNews = (cls, title, list, line) => list.length ? `<button class="km-news ${cls}" data-act="km-acct"><b>${title}</b>${list.map(l => `<span>${esc(buyName(l))} · ${line(l)}</span>`).join('')}${CHEV}</button>` : '';
   return buyNews('ok', '✅ Bố đã thêm thời gian', added, l => esc(buyWhen(l.added))) + buyNews('', '⏳ Chờ bố thêm thời gian', wait, l => `mua ${esc(buyWhen(l.at))}`)
-    + card('cut', `⚠️ Con bị trừ ${money(-cuts.reduce((a, l) => a + ledgerVnd(l), 0))}`, cuts, l => l.at) + card('ok', `🏅 Bố mẹ đã duyệt, con được cộng ${money(oks.reduce((a, l) => a + ledgerVnd(l), 0))}`, oks, l => l.okAt);
+    + card('cut', `⚠️ Con bị trừ ${money(-cuts.reduce((a, l) => a + ledgerVnd(l), 0))}`, cuts, l => l.at) + card('ok', `🏅 Bố đã duyệt, con được cộng ${money(oks.reduce((a, l) => a + ledgerVnd(l), 0))}`, oks, l => l.okAt);
 }
 // Bảng phạt cho con xem (lấy từ trang Quy định của bố mẹ): lỗi nào bị trừ bao nhiêu, để con biết mà tránh.
 function kidRules() {

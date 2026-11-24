@@ -7,13 +7,13 @@
 //                             dayBonus (đồng, thưởng mỗi ngày đủ việc), dayFrom: thứ Hai của tuần bắt đầu thưởng theo ngày, dbLog: như wbLog, tableVer: bản bảng mẫu đã xem }
 //   chores   việc nhà       { name, icon, money (đồng; kind must có money = 0 là việc bắt buộc mỗi ngày, quyết định thưởng đủ tuần), kind: must|extra|fun, kids: [kidId], days: [0..6], order,
 //                             since: ngày thêm việc, weeklyFrom: thứ Hai của tuần việc bắt đầu là việc bắt buộc, claim: ai làm trước thì tính, cùng làm thì chia đều tiền }
-//   rewards  bảng giá       { name, icon, kind: merit|penalty|fee|gift (merit: thành tích học tập ở trường và ở lớp học thêm, con tự báo, bố mẹ duyệt), price (đồng; fee là đồng mỗi 30 phút), all: mất hết tiền, week: mất hết tiền được thưởng trong tuần,
+//   rewards  bảng giá       { name, icon, kind: merit|penalty|fee|gift (merit: thành tích học tập ở trường và ở lớp học thêm, con tự báo, bố duyệt), price (đồng; fee là đồng mỗi 30 phút), all: mất hết tiền, week: mất hết tiền được thưởng trong tuần,
 //                             again (đồng): mức phạt từ lần thứ hai trong cùng tuần; mỗi lần phạt ghi ledger.rid = mã mục để đếm }
 //   done     việc đã xong   id = "YYYY-MM-DD", { [kidId]: { [choreId]: số tiền nhận được (0 = chưa),
 //                             [choreId + '~s']: các mục con đã tick (mặt nạ bit), [choreId + '~r']: { what, pages } con đã đọc gì, bao nhiêu trang } }
 //   ledger   sổ tài khoản   { kid, amount (đồng), kind: bonus|penalty|fee|spend|reward, note, icon, at, skip: ngày được miễn việc, wipe: thứ Hai của tuần bị phạt mất tiền thưởng,
 //                             khoản fee: rid = mã mục phí, mins = số phút mua; by: mã của con nếu con tự mua thời gian ở tab Tài khoản của con, added: lúc bố mẹ bấm Đã thêm (đã thêm thời gian trên máy cho con),
-//                             pending: true = thành tích con báo đang chờ bố mẹ duyệt (amount = 0, số tiền sẽ cộng ở ask); duyệt xong thì amount = ask, có okAt }
+//                             pending: true = thành tích con báo đang chờ bố duyệt (amount = 0, số tiền sẽ cộng ở ask); duyệt xong thì amount = ask, có okAt }
 //   paid     (cũ, không dùng nữa) tiền tiêu vặt đã trả theo tuần
 //            Riêng id "caidat" là cài đặt của gia đình: { pin: mã PIN bố mẹ đã băm, merit: 1 = đã thêm sẵn các mục thành tích, hw: 1 = đã thêm sẵn hai việc BTVN và mục phạt Thiếu BTVN, bottle: 1 = đã gắn "(mai đi học)" cho mục con tráng bình nước,
 //                             nodone: 1 = đã bỏ mục con "Việc ngày hôm nay đã hoàn thành" }. Có PIN thì mỗi máy phải chọn là máy của bố mẹ hay của một con.
@@ -27,7 +27,7 @@
 //            Mốc kind exam là lịch thi (tab Thi), luôn của một con (kids có đúng một con), có thêm { subj: môn thi (không có = cả đợt), content: nội dung ôn tập, plan: [{ t, d: ngày ôn, done }] kế hoạch ôn tập }
 //   Sổ học của cô: danh sách lớp của nhà nằm trong nhóm `paid`, id "lop-<mã>": { lop: 1, kid, name (môn), book (tên sổ, trống = "Sổ học <môn>"), dur (7 số phút theo thứ, CN = 0), hwPen ({ mã bài: 1 } đã trừ tiền Thiếu BTVN), teacher, code (mã lớp), at, fee, feeOn, feeBy, feeOff }.
 //   Cài đặt `caidat` có thêm so: 1 = đã tạo sẵn sổ học cho các cô của nhà; book: 1 = đã đổi tên sổ Tiếng Việt của Su; dur: 1 = đã ghi thời lượng theo thứ cho sổ đó.
-//   Việc thích làm con xin thêm, xin sửa (chờ bố mẹ duyệt) cũng nằm trong nhóm `paid`, id "xin-<mã>": { xin: 'fun', kid, chore (mã việc xin sửa; không có = xin thêm), name, icon, minutes, slot, days, at }.
+//   Việc thích làm con xin thêm, xin sửa (chờ bố duyệt) cũng nằm trong nhóm `paid`, id "xin-<mã>": { xin: 'fun', kid, chore (mã việc xin sửa; không có = xin thêm), name, icon, minutes, slot, days, at }.
 //   Nội dung sổ (buổi học, bài cô giao, file đính kèm) nằm ở một nhánh riêng cho từng lớp, xem classStore ở cuối file.
 
 export const COLS = ['kids', 'chores', 'rewards', 'done', 'ledger', 'paid', 'timetables', 'lessons', 'stays', 'events', 'tasks', 'goals'];

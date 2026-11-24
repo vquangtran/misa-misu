@@ -48,7 +48,7 @@ function pageAdd() {
 }
 
 // ---------- máy của con và màn của cô được làm gì ----------
-// Việc máy của con được làm: đánh dấu việc, bài tập của chính mình, gập mở các buổi, xin thêm hoặc xin sửa việc thích làm (bố mẹ duyệt), và xin vào phần bố mẹ.
+// Việc máy của con được làm: đánh dấu việc, bài tập của chính mình, gập mở các buổi, xin thêm hoặc xin sửa việc thích làm (bố duyệt), và xin vào phần bố mẹ.
 // Thêm các nút chỉ để xem ở mục Học tập: đổi tab, chọn thứ, mở nhóm đã qua; và tick việc ôn thi của mình.
 const KID_ACTS = new Set(['close', 'tick', 'step', 'read-save', 'slot-toggle', 'task-done', 'task-step', 'role-kid', 'role-kid-ok', 'role-parent', 'pin-ok',
   'tkb-go', 'learn-tab', 'tkb-day', 'exam-step', 'hist-all', 'sec-toggle', 'merit-open', 'merit-pick', 'merit-ask', 'merit-cancel', 'fun-form', 'fun-ask', 'fun-cancel', 'fun-need', 'num-step', 'km-acct', 'task-form', 'task-save', 'task-del', 'task-subj', 'task-due', 'hw-view', 'file-open', 'print-ask', 'sub-del', 'buy-form', 'buy-ok']);
@@ -807,7 +807,7 @@ document.addEventListener('click', e => {
     const extra = ($('#mnote')?.value || '').trim(), vnd = priceVnd(r);
     closeModal();
     put('ledger', uid(), { kid, amount: 0, ask: vnd, kind: 'bonus', note: r.name + (extra ? ` (${extra})` : ''), icon: r.icon || '🏅', at: new Date().toISOString(), pending: true });
-    return toast(`Đã gửi “${r.name}”. Bố mẹ duyệt thì con được +${money(vnd)}.`);
+    return toast(`Đã gửi “${r.name}”. Bố duyệt thì con được +${money(vnd)}.`);
   }
   if (a === 'fun-form') return funForm(b.dataset.kid, id, b.dataset.ask);
   if (a === 'fun-ask') {
@@ -818,7 +818,7 @@ document.addEventListener('click', e => {
     const x = { xin: 'fun', kid, name, icon: keep || (g !== '✅' ? g : c?.icon || '🎈'), minutes: Math.max(0, Math.min(600, Math.round(Number($('#fmin').value) || 0))), slot: $('#fslot').value || '', days, at: new Date().toISOString() };
     if (c) { x.chore = c.id; if (c.name === name && !funDiff(x).length) { closeModal(); if (old) del('paid', old.id); return toast('Con chưa đổi gì nên không cần gửi.'); } }
     closeModal(); put('paid', old ? old.id : 'xin-' + uid(), x);
-    return toast(c ? 'Đã gửi. Bố mẹ duyệt thì việc này mới đổi nhé.' : 'Đã gửi. Bố mẹ duyệt thì việc này mới có trong lịch của con nhé.');
+    return toast(c ? 'Đã gửi. Bố duyệt thì việc này mới đổi nhé.' : 'Đã gửi. Bố duyệt thì việc này mới có trong lịch của con nhé.');
   }
   if (a === 'fun-cancel') { const x = S.paid[id]; if (!String(id).startsWith('xin-') || !x || !armed(b, 'Chắc chưa?')) return; closeModal(); del('paid', id); return toast('Đã huỷ yêu cầu.'); }
   if (a === 'fun-ok' || a === 'fun-no') {

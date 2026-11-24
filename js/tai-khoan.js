@@ -8,7 +8,7 @@ import { DAY_SETS, formFoot, frow, kidRow, openModal, pillNum, pillSel, titleCar
 import { meritList, priceTag } from './quy-dinh.js';
 
 // ---------- việc thích làm con xin, thành tích chờ duyệt ----------
-// Việc thích làm con xin thêm hoặc xin sửa, chờ bố mẹ duyệt. Nằm trong nhóm `paid`, id "xin-<mã>":
+// Việc thích làm con xin thêm hoặc xin sửa, chờ bố duyệt. Nằm trong nhóm `paid`, id "xin-<mã>":
 //   { xin: 'fun', kid, chore: mã việc đang có (xin sửa; không có = xin thêm việc mới), name, icon, minutes, slot, days, at }.
 // Chưa duyệt thì lịch của con chưa đổi. Duyệt: thêm việc mới, hoặc sửa việc đang có cho riêng con đó. Không duyệt: xoá yêu cầu.
 export const funAsks = kidId => Object.entries(S.paid || {}).filter(([id, x]) => id.startsWith('xin-') && x && x.xin === 'fun' && S.kids[x.kid] && (!kidId || x.kid === kidId)
@@ -25,7 +25,7 @@ export function funDiff(x) {
   if (daysLabel(c.days) !== daysLabel(x.days)) p.push(`${daysLabel(c.days)} → ${daysLabel(x.days)}`);
   return p;
 }
-// Thành tích con đã báo, đang chờ bố mẹ duyệt. Nằm trong sổ tài khoản với amount = 0 (chưa tính vào số dư, cả với máy chưa cập nhật app),
+// Thành tích con đã báo, đang chờ bố duyệt. Nằm trong sổ tài khoản với amount = 0 (chưa tính vào số dư, cả với máy chưa cập nhật app),
 // số tiền sẽ cộng ghi ở ask. Duyệt: amount = ask, bỏ pending. Không duyệt: xoá.
 export const pendingList = kidId => Object.entries(S.ledger).filter(([, l]) => l.pending && S.kids[l.kid] && (!kidId || l.kid === kidId)).map(([id, l]) => ({ id, ...l })).sort((a, b) => String(a.at).localeCompare(String(b.at)));
 
@@ -171,12 +171,12 @@ function buyCard(kidId) {
       <div class="acts"><button class="linkbtn undo" data-act="ledger-undo" data-id="${l.id}">Huỷ</button><button class="btn primary sm" data-act="buy-added" data-id="${l.id}">Đã thêm</button></div></div>`).join('')}</div></section>`;
 }
 
-// Thành tích con báo, chờ bố mẹ duyệt. Chưa duyệt thì chưa tính vào số dư.
+// Thành tích con báo, chờ bố duyệt. Chưa duyệt thì chưa tính vào số dư.
 // withFun: kèm việc thích làm con xin thêm, xin sửa (màn Hôm nay); màn Tài khoản chỉ có thành tích vì chỉ thành tích mới có tiền.
 // Đứng trước là thẻ Hãy thêm thời gian (buyCard): những lần con tự mua thời gian mà bố mẹ chưa bấm Đã thêm.
 export function pendingCard(kidId, withFun) {
   const list = pendingList(kidId), asks = withFun ? funAsks(kidId) : []; if (!list.length && !asks.length) return buyCard(kidId);
-  return buyCard(kidId) + `<section class="slot tn3">${secHead(list.length ? '🏅' : '🎈', 'Chờ bố mẹ duyệt', { cnt: list.length + asks.length })}<div class="slot-list list">${list.map(l => {
+  return buyCard(kidId) + `<section class="slot tn3">${secHead(list.length ? '🏅' : '🎈', 'Chờ bố duyệt', { cnt: list.length + asks.length })}<div class="slot-list list">${list.map(l => {
     const dt = new Date(l.at);
     return `<div class="item pend"><span class="ico">${esc(l.icon || '🏅')}</span><div class="txt"><div class="t">${esc(l.note || 'Thành tích')}</div><div class="s">${esc(kidName(l.kid))} báo ${WDN(dt.getDay())} ${dm(dt)} · <b class="num plus">+${money(l.ask)}</b></div></div>
       <div class="acts"><button class="linkbtn undo" data-act="merit-no" data-id="${l.id}">Không</button><button class="btn primary sm" data-act="merit-ok" data-id="${l.id}">Duyệt</button></div></div>`;
@@ -192,15 +192,15 @@ export function pendingCard(kidId, withFun) {
 export function funSection(k) {
   const asks = funAsks(k.id), rows = funOf(k.id).map(c => {
     const x = asks.find(y => y.chore === c.id);
-    return `<div class="item ${x ? 'pend' : ''}"><span class="ico">${esc(c.icon || '🎈')}</span><div class="txt"><div class="t">${esc(c.name)}</div><div class="s">${x ? `⏳ Chờ bố mẹ duyệt: ${norm(x.name) !== norm(c.name) ? `đổi thành “${esc(x.name)}”` : 'đổi'}${funDiff(x).length ? ` · ${funDiff(x).map(esc).join(' · ')}` : ''}` : esc(funLine(c))}</div></div>
+    return `<div class="item ${x ? 'pend' : ''}"><span class="ico">${esc(c.icon || '🎈')}</span><div class="txt"><div class="t">${esc(c.name)}</div><div class="s">${x ? `⏳ Chờ bố duyệt: ${norm(x.name) !== norm(c.name) ? `đổi thành “${esc(x.name)}”` : 'đổi'}${funDiff(x).length ? ` · ${funDiff(x).map(esc).join(' · ')}` : ''}` : esc(funLine(c))}</div></div>
       <div class="acts"><button class="edit" data-act="fun-form" data-kid="${k.id}" data-id="${c.id}" aria-label="Sửa: ${esc(c.name)}">${CHEV}</button></div></div>`;
-  }).concat(asks.filter(x => !x.chore).map(x => `<div class="item pend"><span class="ico">${esc(x.icon || '🎈')}</span><div class="txt"><div class="t">${esc(x.name)}</div><div class="s">⏳ Chờ bố mẹ duyệt · ${esc(funLine(x))}</div></div>
+  }).concat(asks.filter(x => !x.chore).map(x => `<div class="item pend"><span class="ico">${esc(x.icon || '🎈')}</span><div class="txt"><div class="t">${esc(x.name)}</div><div class="s">⏳ Chờ bố duyệt · ${esc(funLine(x))}</div></div>
       <div class="acts"><button class="edit" data-act="fun-form" data-kid="${k.id}" data-ask="${x.id}" aria-label="Sửa: ${esc(x.name)}">${CHEV}</button></div></div>`));
   return `<section class="slot tn5">${secHead('🎈', 'Việc con thích làm', { cnt: rows.length || '' })}
     ${rows.length ? `<div class="slot-list list">${rows.join('')}</div>` : ''}
     <button class="slot-blank" data-act="fun-form" data-kid="${k.id}"><span>${rows.length ? 'Con thích làm gì nữa? Bấm để xin bố mẹ thêm' : 'Con thích làm gì khi xong việc? Bấm để xin bố mẹ thêm'}</span>${PLUS}</button></section>`;
 }
-// Con xin thêm một việc thích làm, hoặc xin sửa việc đang có (choreId), hoặc sửa lại yêu cầu đang chờ (askId). Gửi xong phải chờ bố mẹ duyệt.
+// Con xin thêm một việc thích làm, hoặc xin sửa việc đang có (choreId), hoặc sửa lại yêu cầu đang chờ (askId). Gửi xong phải chờ bố duyệt.
 export function funForm(kidId, choreId, askId) {
   if (!S.kids[kidId]) return;
   const asks = funAsks(kidId), c = choreId ? funOf(kidId).find(x => x.id === choreId) : null; if (choreId && !c) return;
@@ -208,28 +208,28 @@ export function funForm(kidId, choreId, askId) {
   const cur = x || (c ? { name: c.name, minutes: c.minutes, slot: choreSlot(c), days: c.days } : { name: '', minutes: 30, slot: slotAt(nowMin()), days: DAILY });
   const dk = [...(cur.days || [])].map(Number).sort().join(), sets = DAY_SETS.some(y => y[0] === dk) ? DAY_SETS : [[dk, daysLabel(cur.days).replace(/^./, m => m.toUpperCase())], ...DAY_SETS];
   openModal(`<h2>${c ? 'Sửa việc thích làm' : 'Thêm việc thích làm'}</h2>
-  <p class="muted small lead">${x ? 'Yêu cầu này đang chờ bố mẹ duyệt. Con sửa lại rồi gửi lần nữa cũng được.' : c ? 'Con sửa xong thì gửi; bố mẹ xem và duyệt thì việc này mới đổi.' : 'Việc con thích làm khi đã xong việc phải làm. Bố mẹ xem và duyệt thì việc này mới có trong lịch của con.'}</p>
+  <p class="muted small lead">${x ? 'Yêu cầu này đang chờ bố duyệt. Con sửa lại rồi gửi lần nữa cũng được.' : c ? 'Con sửa xong thì gửi; bố xem và duyệt thì việc này mới đổi.' : 'Việc con thích làm khi đã xong việc phải làm. Bố xem và duyệt thì việc này mới có trong lịch của con.'}</p>
   ${titleCard('fname', cur.name, 'Con thích làm gì?')}
   <div class="fg">
     ${frow('Làm trong bao lâu', pillNum('fmin', Number(cur.minutes) || '', { step: 5, unit: 'phút', attr: 'min="0" max="600"', ph: '0' }), { id: 'fmin' })}
     ${frow('Buổi', pillSel('fslot', SLOTS.map(([v, label]) => [v, label]), cur.slot || ''), { id: 'fslot', sub: 'Xong việc phải làm của buổi đó là được làm' })}
     ${frow('Lặp lại', pillSel('fdays', sets, dk), { id: 'fdays' })}
   </div>
-  <div class="foot">${x ? `<button class="btn danger left" data-act="fun-cancel" data-id="${x.id}">Huỷ yêu cầu</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="fun-ask" data-kid="${kidId}" data-id="${c ? c.id : ''}" data-ask="${x ? x.id : ''}">Gửi bố mẹ duyệt</button></div>`);
+  <div class="foot">${x ? `<button class="btn danger left" data-act="fun-cancel" data-id="${x.id}">Huỷ yêu cầu</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="fun-ask" data-kid="${kidId}" data-id="${c ? c.id : ''}" data-ask="${x ? x.id : ''}">Gửi bố duyệt</button></div>`);
   if (!c && !x) $('#fname').focus();
 }
-// Con báo thành tích: chọn một mục có sẵn, ghi thêm môn nếu muốn, rồi gửi bố mẹ duyệt.
+// Con báo thành tích: chọn một mục có sẵn, ghi thêm môn nếu muốn, rồi gửi bố duyệt.
 export function meritSheet(kidId) {
   if (!S.kids[kidId]) return;
-  openModal(`<h2>Con đạt được gì?</h2><p class="muted small lead">Ở trường hay ở lớp học thêm đều tính như nhau. Chọn một mục rồi gửi; bố mẹ xem và duyệt thì tiền mới vào tài khoản của con.</p>
+  openModal(`<h2>Con đạt được gì?</h2><p class="muted small lead">Ở trường hay ở lớp học thêm đều tính như nhau. Chọn một mục rồi gửi; bố xem và duyệt thì tiền mới vào tài khoản của con.</p>
   <div class="fg"><div class="list menu">${meritList().map(r => `<button class="item nav" data-act="merit-pick" data-id="${r.id}" data-kid="${kidId}"><span class="ico">${esc(r.icon || '🏅')}</span><span class="txt"><span class="t">${esc(r.name)}</span><span class="s"><b class="num plus">+${money(priceVnd(r))}</b></span></span>${CHEV}</button>`).join('')}</div></div>
   <div class="foot"><button class="btn quiet" data-act="close">Đóng</button></div>`);
 }
 export function meritForm(kidId, rid) {
   const r = meritList().find(x => x.id === rid); if (!r || !S.kids[kidId]) return;
-  openModal(`<h2>${esc(r.icon || '🏅')} ${esc(r.name)}</h2><p class="muted small lead">Bố mẹ duyệt thì con được cộng <b class="num plus">+${money(priceVnd(r))}</b>.</p>
+  openModal(`<h2>${esc(r.icon || '🏅')} ${esc(r.name)}</h2><p class="muted small lead">Bố duyệt thì con được cộng <b class="num plus">+${money(priceVnd(r))}</b>.</p>
   <div class="fg">${frow('Môn gì, bài gì?', `<input id="mnote" class="input" maxlength="60" placeholder="Ví dụ: Toán ở trường, Tiếng Anh học thêm">`, { id: 'mnote', cls: 'col', sub: 'Không bắt buộc, ghi để bố mẹ dễ xem' })}</div>
-  <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="merit-ask" data-id="${rid}" data-kid="${kidId}">Gửi bố mẹ duyệt</button></div>`);
+  <div class="foot"><button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="merit-ask" data-id="${rid}" data-kid="${kidId}">Gửi bố duyệt</button></div>`);
 }
 // Phiếu nghỉ việc nhà: hỏi con muốn nghỉ ngày nào rồi mới trừ tiền.
 export function skipForm(rid, kidId) {

@@ -16,7 +16,7 @@ const PRICE_ICONS = {
   fee: ['📱', '📺', '🎮', '💻', '🎧'],
   merit: ['👏', '⭐', '💯', '🥈', '🏆', '🏅', '🥇', '🎖️', '📝', '📖', '🎤', '🎨', '⚽'],
 };
-// Các loại mục giá trong trang Quy định (nhóm "rewards"): thành tích học tập, ở trường và ở lớp học thêm (con tự báo, bố mẹ duyệt), phạt, phí sử dụng theo giờ, phiếu thưởng.
+// Các loại mục giá trong trang Quy định (nhóm "rewards"): thành tích học tập, ở trường và ở lớp học thêm (con tự báo, bố duyệt), phạt, phí sử dụng theo giờ, phiếu thưởng.
 export const PRICE_KINDS = [['merit', 'Thành tích', '🏅'], ['penalty', 'Phạt', '⚠️'], ['fee', 'Phí sử dụng', '📱'], ['gift', 'Phiếu thưởng', '🎁']];
 
 // ---------- bảng mẫu ----------
@@ -86,7 +86,7 @@ const SAMPLE_PRICES = [
   { name: 'Thức khuya thêm 30 phút', icon: '🌙', kind: 'gift', price: 20000, note: 'Đi ngủ muộn hơn 30 phút, một tối' },
   { name: 'Một ngày không làm việc nhà', icon: '🧹', kind: 'gift', price: 20000, skip: true, note: 'Nghỉ hết việc phải làm trong một ngày, không làm đứt chuỗi ngày' },
 ];
-// Thành tích học tập (ở trường và ở lớp học thêm tính như nhau): con tự báo khi có (nút + ở màn của con), nằm chờ tới khi bố mẹ duyệt mới cộng tiền.
+// Thành tích học tập (ở trường và ở lớp học thêm tính như nhau): con tự báo khi có (nút + ở màn của con), nằm chờ tới khi bố duyệt mới cộng tiền.
 // Nhà nào cũng có sẵn 5 mục này (xem autoAdds trong mot-lan.js), sửa hay thêm bớt ở trang Quy định.
 export const SAMPLE_MERITS = [
   { name: 'Được cô khen', icon: '👏', price: 5000 },
@@ -276,13 +276,13 @@ export function viewPrices() {
     weekly.length ? (allDaily ? 'Không cộng tiền từng lần. Ngày nào làm đủ hết thì ngày đó được thưởng. Việc ghi “quan trọng” nằm đầu mỗi buổi ở màn Hôm nay.' : 'Không cộng tiền từng lần. Làm đủ tất cả các ngày thì cuối tuần được thưởng.') : kids.length ? `Chưa có việc phải làm nào, nên ${allDaily ? 'thưởng ngày đủ việc' : 'thưởng đủ tuần'} đang tính theo tất cả việc mỗi ngày bên dưới. Mở một việc, chọn Loại việc là Việc phải làm để đưa việc đó lên đây.` : '');
   h += sec('bg-each', 'tn1', 'each', each.length || '', list(each, ['Việc nằm trong lịch mỗi ngày, làm lần nào cộng tiền lần đó', 'each']), each.length && weekly.length ? 'Làm lần nào cộng tiền lần đó. Không tính vào thưởng làm đủ việc.' : '');
   h += sec('bg-extra', 'tn4', 'extra', extra.length || '', list(extra, ['Việc không bắt buộc, làm lúc nào được tiền lúc đó', 'extra']));
-  h += sec('bg-fun', 'tn2', 'fun', fun.length || '', list(fun, ['Con thích làm gì khi xong việc? Ví dụ: chơi game 15 phút', 'fun']), fun.length ? 'Không có tiền. Mở khoá khi xong việc phải làm của buổi đó và các việc mở khoá (ví dụ đọc sách 30 phút). Con xin thêm, xin sửa ở màn của con, bố mẹ duyệt ở màn Hôm nay.' : '');
-  const EMPTY = { merit: 'Con tự báo, bố mẹ duyệt mới cộng tiền. Ví dụ: được điểm 10 ở trường hay ở lớp học thêm', penalty: 'Lỗi nào thì bị trừ tiền. Ví dụ: nổi nóng, trì hoãn', fee: 'Dùng điện thoại, xem tivi mất bao nhiêu tiền mỗi 30 phút', gift: 'Con dùng tiền để đổi. Ví dụ: chọn phim tối nay' }, TINT = { merit: 'tn3', penalty: 's-late', fee: 'tn2', gift: 'tn5' };
+  h += sec('bg-fun', 'tn2', 'fun', fun.length || '', list(fun, ['Con thích làm gì khi xong việc? Ví dụ: chơi game 15 phút', 'fun']), fun.length ? 'Không có tiền. Mở khoá khi xong việc phải làm của buổi đó và các việc mở khoá (ví dụ đọc sách 30 phút). Con xin thêm, xin sửa ở màn của con, bố duyệt ở màn Hôm nay.' : '');
+  const EMPTY = { merit: 'Con tự báo, bố duyệt mới cộng tiền. Ví dụ: được điểm 10 ở trường hay ở lớp học thêm', penalty: 'Lỗi nào thì bị trừ tiền. Ví dụ: nổi nóng, trì hoãn', fee: 'Dùng điện thoại, xem tivi mất bao nhiêu tiền mỗi 30 phút', gift: 'Con dùng tiền để đổi. Ví dụ: chọn phim tối nay' }, TINT = { merit: 'tn3', penalty: 's-late', fee: 'tn2', gift: 'tn5' };
   for (const [kind, label, ic] of PRICE_KINDS) {
     const list = pricesList(kind);
     h += `<section class="slot ${TINT[kind]}">${secHead(ic, label, { cnt: list.length || '', key: 'bg-' + kind, add: addBtn('price-form', `Thêm: ${label}`, `data-kind="${kind}"`) })}${!secIsOpen('bg-' + kind) ? '' : list.length
       ? `<div class="slot-list list">${list.map(r => `<div class="item"><span class="ico">${esc(r.icon || ic)}</span><div class="txt"><div class="t">${esc(r.name)}</div><div class="s"><b class="num ${kind === 'gift' ? '' : kind === 'merit' ? 'plus' : 'minus'}">${priceTag(r)}</b>${againVnd(r) ? ` · từ lần 2 trong tuần −${money(againVnd(r))}` : r.all ? ' · trừ hết số tiền đang có' : r.week ? ' · tiền việc nhà và tiền thưởng từ Thứ Hai tới lúc phạt' : r.skip ? ' · miễn việc phải làm một ngày' : ''}</div></div>
-      <div class="acts">${editBtn('price-form', r.id, r.name)}</div></div>`).join('')}</div>${kind === 'merit' ? '<p class="foot-note" style="margin:0 6px">Ở trường hay ở lớp học thêm đều tính như nhau. Con tự báo ở màn của con khi đạt được, bố mẹ duyệt thì mới cộng tiền.</p>' : ''}` : blankAdd(EMPTY[kind], 'price-form', `data-kind="${kind}"`)}</section>`;
+      <div class="acts">${editBtn('price-form', r.id, r.name)}</div></div>`).join('')}</div>${kind === 'merit' ? '<p class="foot-note" style="margin:0 6px">Ở trường hay ở lớp học thêm đều tính như nhau. Con tự báo ở màn của con khi đạt được, bố duyệt thì mới cộng tiền.</p>' : ''}` : blankAdd(EMPTY[kind], 'price-form', `data-kind="${kind}"`)}</section>`;
   }
   return h + `</div>`;
 }
@@ -295,7 +295,7 @@ export function printPrices() {
     ${sec('Thưởng', chores.filter(c => !isWeekly(c)).map(c => cell(c.icon, c.name, money(choreVnd(c)))))}
     ${chores.some(isWeekly) ? `<h2>Việc phải làm${rules ? `: ${rules}` : ''}</h2><div class="pp-line">${chores.filter(isWeekly).map(c => `${esc(c.icon || '')} ${esc(c.name)}`).join(' · ')}</div>` : ''}
     ${rules && !chores.some(isWeekly) ? `<div class="pp-line">🏆 Việc phải làm: <b>${rules}</b></div>` : ''}
-    ${sec('Thành tích học tập, ở trường và học thêm (con báo, bố mẹ duyệt)', meritList().map(r => cell(r.icon, r.name, '+' + money(priceVnd(r)))))}
+    ${sec('Thành tích học tập, ở trường và học thêm (con báo, bố duyệt)', meritList().map(r => cell(r.icon, r.name, '+' + money(priceVnd(r)))))}
     ${sec('Phạt', pricesList('penalty').map(r => cell(r.icon, r.name, r.all ? 'mất hết tiền' : r.week ? 'mất tiền thưởng của tuần' : 'trừ ' + money(priceVnd(r)) + (againVnd(r) ? `, từ lần 2 trong tuần ${money(againVnd(r))}` : ''), 'minus')))}
     ${sec('Phí sử dụng', pricesList('fee').map(r => cell(r.icon, r.name, money(priceVnd(r)) + FEE_UNIT, 'minus')))}
     ${sec('Phiếu thưởng', pricesList('gift').map(r => cell(r.icon, r.name, giftTag(r))))}</div>`);
@@ -361,7 +361,7 @@ export function choreForm(id, kindPre, pre) {
   </details>
   <div class="foot">${c ? `<button class="btn danger left" data-act="chore-del" data-id="${id}">Xoá việc này</button>` : ''}<button class="btn quiet" data-act="close">Huỷ</button><button class="btn primary" data-act="chore-save" data-id="${id || ''}">Lưu</button></div>`);
 }
-export const PRICE_HELP = { merit: 'Con tự báo khi đạt được, bố mẹ duyệt thì mới cộng tiền', penalty: 'Trừ tiền khi con mắc lỗi', fee: 'Trừ tiền theo thời gian dùng điện thoại, tivi…', gift: 'Con dùng tiền trong tài khoản để đổi' }, PRICE_FEE = 'Tính cho mỗi 30 phút sử dụng';
+export const PRICE_HELP = { merit: 'Con tự báo khi đạt được, bố duyệt thì mới cộng tiền', penalty: 'Trừ tiền khi con mắc lỗi', fee: 'Trừ tiền theo thời gian dùng điện thoại, tivi…', gift: 'Con dùng tiền trong tài khoản để đổi' }, PRICE_FEE = 'Tính cho mỗi 30 phút sử dụng';
 export function priceForm(id, kindPre) {
   const r = id ? S.rewards[id] : null, kind = r ? priceKind(r) : PRICE_KINDS.some(x => x[0] === kindPre) ? kindPre : 'penalty';
   const icons = [...new Set([...PRICE_ICONS[kind], ...Object.values(PRICE_ICONS).flat()])];

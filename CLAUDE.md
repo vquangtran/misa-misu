@@ -48,6 +48,7 @@ Dùng đúng các tên này trên mọi màn, form, thông báo và bản in.
 | Điểm tốt, được khen (mục giá `kind: 'merit'`) | Thành tích | |
 | Trang việc nhà và mục giá | Quy định | Bảng giá (chỉ là tên tờ in "In bảng giá") |
 | Sổ của cô dạy thêm | Sổ học của cô; mỗi sổ tên "Nhật ký học" kèm môn | |
+| Người duyệt thành tích, việc thích làm con xin, và thêm thời gian con mua | Bố: "Chờ bố duyệt", "Bố đã duyệt", "Chờ bố thêm thời gian", "Bố đã thêm" | bố mẹ duyệt, mẹ duyệt (máy ở chế độ bố mẹ vẫn gọi là máy bố mẹ) |
 | Kỳ thi, bài kiểm tra có ngày (mốc `kind: 'exam'`, `kids` có đúng một con, có thêm `subj`, `content`, `plan`) | Lịch thi; mỗi môn là một Môn thi, có Nội dung ôn tập và Kế hoạch ôn tập (mỗi dòng là một việc ôn) | mốc kiểm tra |
 
 Trong mã, bốn loại việc nằm ở `CHORE_KINDS` (`week`, `each`, `extra`, `fun`), `choreKindOf(c)` cho biết một việc thuộc loại nào.
