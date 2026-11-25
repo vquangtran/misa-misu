@@ -360,6 +360,31 @@ export const CANH = [
     },
   },
 
+  // Bước một lần tbc2511 (mot-lan.js): bài của Su theo tin cô chủ nhiệm nhắn 25/11. Tối 25/11: Bài cần nộp ở Hôm nay có bài Tiếng Việt, Tiếng Anh
+  // (link ôn bài bấm mở được), bài Mĩ thuật hạn 2/12 nằm ở Học tập › Bài tập. Su đã tự ghi bài Tiếng Việt hạn 26/11 thì không thêm bài Tiếng Việt nữa.
+  {
+    ten: 'tin-co-2511',
+    gio: '2026-11-25T19:30:00+07:00',
+    sua: sua(d => { delete d.paid.caidat.tbc2511;
+      d.tasks['t-tv'] = { kid: 'k-su', title: 'Chuẩn bị bài viết', kind: 'bt', subj: 'Tiếng Việt', due: '2026-11-26', notes: '', steps: [], done: false, doneAt: '', by: 'k-su' }; }),
+    async chay(c) {
+      await c.go('/#hom-nay');
+      await c.click(act('today-kid', { kid: 'k-su' }));
+      await c.click(act('task-step', { id: 'tbc-2511-ta', i: 0 }), { label: 'tick bước Làm bài 1' });
+      await c.hash('#lich-hoc');
+      await c.click(act('learn-tab', { v: 'tren-lop' }));
+      await c.check('input[name="truong"][value="bai"]');
+      await c.click(act('task-form', { id: 'tbc-2511-mt' }));
+      await c.click(X);
+      await c.reload('tải lại: không thêm bài lần nữa');
+      // Chế độ cho bé của Su: link ôn bài hiện ở Bài cần nộp.
+      await c.go('/#hom-nay');
+      await c.click(act('today-menu'));
+      await c.click('#modal ' + act('km-open'));
+      await c.click(act('km-kid', { kid: 'k-su' }));
+    },
+  },
+
   // Bước một lần thi1con (mot-lan.js): lịch thi ghi chung cả nhà hoặc cho cả hai con được tách ra, mỗi con một bản; lịch thi của một con giữ nguyên.
   {
     ten: 'tach-lich-thi',

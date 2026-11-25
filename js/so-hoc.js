@@ -190,8 +190,11 @@ const linkHost = u => { try { return new URL(u).hostname.replace(/^www\./, ''); 
 const fileAttr = (code, f) => `data-code="${esc(code)}" data-fid="${esc(f.id)}" data-n="${Number(f.n) || 1}" data-name="${esc(f.name)}" data-type="${esc(f.type || '')}" data-size="${Number(f.size) || 0}"`;
 function attView(code, files, links) {
   const fs = cleanFiles(files), ls = linkList(links);
-  return fs.length || ls.length ? `<div class="atts">${fs.map(f => `<button class="att" data-act="file-open" ${fileAttr(code, f)}>${fileIcon(f)}<span>${esc(f.name)}</span><i class="num">${fileSize(f.size)}</i></button>`).join('')}${ls.map(u => `<a class="att" href="${esc(u)}" target="_blank" rel="noopener noreferrer">🔗<span>${esc(linkHost(u))}</span></a>`).join('')}</div>` : '';
+  return fs.length || ls.length ? `<div class="atts">${fs.map(f => `<button class="att" data-act="file-open" ${fileAttr(code, f)}>${fileIcon(f)}<span>${esc(f.name)}</span><i class="num">${fileSize(f.size)}</i></button>`).join('')}${ls.map(linkChip).join('')}</div>` : '';
 }
+const linkChip = (u, i, all) => `<a class="att" href="${esc(u)}" target="_blank" rel="noopener noreferrer">🔗<span>${esc(linkHost(u))}</span>${all.length > 1 && all.every(x => linkHost(x) === linkHost(u)) ? `<i class="num">${i + 1}</i>` : ''}</a>`;
+// Link trong ghi chú của bài bố mẹ, con tự ghi (ví dụ link ôn bài cô gửi): mỗi link một nút bấm để mở.
+export const noteLinks = notes => { const ls = linkList(String(notes || '').match(/https?:\/\/[^\s<>"]+/gi) || []); return ls.length ? `<div class="atts">${ls.map(linkChip).join('')}</div>` : ''; };
 // Loại file được mở ngay trong trình duyệt. Loại khác chỉ cho tải về, để một file lạ không chạy được trong trang của app.
 const FILE_SHOW = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
 // Bài con nộp: ảnh hiện thu nhỏ (bấm để xem to), file khác hiện như đính kèm. canDel: còn bỏ được file (cô chưa nhận bài).

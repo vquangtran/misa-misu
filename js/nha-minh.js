@@ -56,6 +56,17 @@ export const SAMPLE_YEAR = { label: 'năm học 2026 – 2027', items: [
 
 // Nghỉ học Thứ Ba 24/11/2026 (Ngày Văn hóa Việt Nam, trường thông báo 19/11); các cô dạy thêm cũng nghỉ. autoAdds (cờ nghi2411) thêm một lần.
 export const NGHI_2411 = { name: 'Nghỉ học nhân Ngày Văn hóa Việt Nam', icon: '🏖️', kind: 'holiday', from: '2026-11-24', off: 'both' };
+// Cô chủ nhiệm lớp 4A nhắn nhóm phụ huynh 25/11/2026 (thông báo chung): bài của Su. autoAdds (cờ tbc2511) thêm một lần vào Học tập › Trên lớp › Bài tập,
+// hạn nộp theo thời khoá biểu (Tiếng Việt, Tiếng Anh Thứ Năm 26/11; Mĩ thuật tiết tuần sau là Thứ Tư 2/12). Mục Toán chỉ là lời khen các bạn, không thêm.
+export const TBC_2511 = { last: '2026-12-02', tasks: {
+  'tbc-2511-tv': { title: 'Chữa đoạn văn, chuẩn bị bài viết trang 99', kind: 'bt', subj: 'Tiếng Việt', due: '2026-11-26',
+    steps: ['Chữa đoạn văn vào vở ghi theo hướng dẫn', 'Chuẩn bị bài viết trang 99'],
+    notes: 'Cô nhắn 25/11: GV đã trả vở ghi bài. Cả lớp chữa đoạn văn vào vở theo hướng dẫn. Em chuẩn bị bài viết s/99.' },
+  'tbc-2511-ta': { title: 'Ôn lại Unit 7', kind: 'bt', subj: 'Tiếng Anh', due: '2026-11-26', steps: ['Làm bài 1', 'Làm bài 2'],
+    notes: 'Cô nhắn 25/11: GVBM gửi links ôn luyện lại Unit 7.\nhttps://yourhomework.net/quiz/test/000000092085\nhttps://yourhomework.net/quiz/test/000000408029' },
+  'tbc-2511-mt': { title: 'Mang đủ đồ dùng học tập môn Mĩ thuật', kind: 'bt', subj: 'Mĩ thuật', due: '2026-12-02',
+    notes: 'Cô nhắn 25/11: tiết Mĩ thuật tuần sau cô kiểm tra đồ dùng học tập môn học.' },
+} };
 
 // ---------- các con ở đâu ----------
 export const PLACE_NAMES = ['Nhà B4', '6th Element', 'Nhà ông bà'];

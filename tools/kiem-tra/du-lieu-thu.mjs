@@ -49,7 +49,8 @@ export function duLieuThu() {
     },
     paid: {
       // Cờ nghi2411 đã chạy, để các cảnh vẫn có ngày mai 24/11 đi học (cảnh tu-ghi-nghi bỏ cờ này để thử bước tự thêm mốc nghỉ).
-      caidat: { nghi2411: 1 },
+      // Cờ tbc2511 cũng vậy: các cảnh không có sẵn bài cô chủ nhiệm nhắn 25/11 (cảnh tin-co-2511 bỏ cờ này).
+      caidat: { nghi2411: 1, tbc2511: 1 },
       'xin-a1': { xin: 'fun', kid: 'k-su', name: 'Đọc truyện tranh', icon: '📚', minutes: 20, slot: 'toi', days: [0, 6], at: '2026-11-22T10:00:00.000Z' },
     },
     timetables: {

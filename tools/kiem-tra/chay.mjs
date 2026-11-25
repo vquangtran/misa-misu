@@ -251,7 +251,7 @@ async function runAll() {
         if (canh.ten === 'mo-dau' && kho !== khos[0] && !args.includes('--tu-dau')) continue;
         const ls = canh.fb ? canh.ls || {} : canh.ten === 'mo-dau' ? seedLs() : canh.sua ? canh.sua(JSON.parse(JSON.stringify(diem.ls)), { pinHash, PIN }) : diem.ls;
         const fb = canh.fb ? canh.fb({ diem, seed: duLieuThu(), firestoreFromLs, firestoreFromData, pinHash, PIN }) : null;
-        const { ctx, page, st } = await newPage(browser, srv.origin, { kho, ls, fb, gio: canh.ten === 'mo-dau' || canh.gio === 'mo-dau' ? GIO_MO_DAU : GIO_CHAY });
+        const { ctx, page, st } = await newPage(browser, srv.origin, { kho, ls, fb, gio: canh.ten === 'mo-dau' || canh.gio === 'mo-dau' ? GIO_MO_DAU : canh.gio || GIO_CHAY });
         const c = new Canh(run, canh.ten, page, st, kho, srv.origin);
         process.stdout.write(`${canh.ten} [${kho}] `);
         try { await canh.chay(c, { diem, moDau, pinHash, PIN }); } catch (e) { st.errs.push('cảnh bị dừng: ' + (e.stack || e.message)); await c.snap('cảnh bị dừng').catch(() => {}); }

@@ -7,7 +7,7 @@ import { eventsList, eventsOf, eventTitle, holidayOn, kidName, kidsList, lessonM
 import { addBtn, ava, barCount, blankAdd, editBtn, kidChip, kidTabs, lessonIcon, mini, noKids, pillBar, plusBtn, secHead, secIsOpen, subjDot, subjTint,
   suggest } from './giao-dien.js';
 import { formFoot, frow, kidRow, openModal, pillSel, radioVal, titleCard, toggle } from './form.js';
-import { classesList, classesSection, classTasks, hwState, linkList, soPage } from './so-hoc.js';
+import { classesList, classesSection, classTasks, hwState, linkList, noteLinks, soPage } from './so-hoc.js';
 
 // ---------- thời khoá biểu có sẵn ----------
 // Môn học gợi ý khi nhập thời khoá biểu (tiểu học và THCS).
@@ -292,7 +292,7 @@ export function taskRow(t, showKid, mode = '') {
   const acts = bare ? '' : t.cls ? `<div class="acts"><button class="edit" data-act="hw-view" data-id="${esc(t.id)}" aria-label="Xem: ${esc(t.title)}">${CHEV}</button></div>` : RO ? (t.by && t.by === t.kid ? `<div class="acts"><button class="edit" data-act="task-form" data-id="${t.id}" data-lock="1" aria-label="Sửa: ${esc(t.title)}">${CHEV}</button></div>` : '') : `<div class="acts">${editBtn('task-form', t.id, t.title)}</div>`;
   const steps = !t.done && t.steps.length ? `<div class="steps">${t.steps.map((x, i) => `<button class="step ${x.done ? 'on' : ''}" data-act="task-step" data-id="${t.id}" data-i="${i}" aria-pressed="${!!x.done}">${esc(x.t)}</button>`).join('')}</div>` : '';
   return `<div class="${big ? 'big-item task' : 'item task'} ${t.done ? 'done' : ''}${off ? ' off' : ''}"><button class="check ${t.done ? 'on' : ''}" data-act="task-done" data-id="${t.id}" aria-pressed="${!!t.done}" aria-label="${t.done ? 'Chưa xong' : 'Xong'}: ${esc(t.title)}">✓</button>
-    <div class="txt"><div class="t">${kind[2]} ${esc(t.title)}</div><div class="s">${meta}</div>${t.notes && !bare ? `<div class="s snip">${esc(String(t.notes).slice(0, 120))}</div>` : ''}${steps}${t.cls && big ? `<button class="linkbtn hw-open" data-act="hw-view" data-id="${esc(t.id)}">Xem cô dặn gì${natt ? ` · 📎 ${natt} file` : ''}</button>` : ''}</div>
+    <div class="txt"><div class="t">${kind[2]} ${esc(t.title)}</div><div class="s">${meta}</div>${t.notes && !bare ? `<div class="s snip">${esc(String(t.notes).replace(/https?:\/\/\S+/gi, '').trim().slice(0, 120))}</div>` : ''}${steps}${t.cls || t.done ? '' : noteLinks(t.notes)}${t.cls && big ? `<button class="linkbtn hw-open" data-act="hw-view" data-id="${esc(t.id)}">Xem cô dặn gì${natt ? ` · 📎 ${natt} file` : ''}</button>` : ''}</div>
     ${acts}</div>`;
 }
 // Tab Trên lớp › Bài tập: bài bố mẹ và con tự ghi (bài cô ở trường giao, việc cần hoàn thành), xếp theo hạn nộp. Bài đã xong gập lại ở cuối.
