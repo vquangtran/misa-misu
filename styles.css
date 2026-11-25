@@ -1011,6 +1011,7 @@ span.slot-pill{cursor:default}
 .slot-list.pad{padding:12px 14px}
 .slot>.card{box-shadow:var(--shadow-sm)}
 .slot>.foot-note{margin:0 6px}
+.slot>.foot-note.km-pen,.slot>.foot-note.km-merits{margin:8px 6px 0;line-height:1.6}
 .slot>.tiles{margin:0}
 .kid-chip{display:inline-flex;align-items:center;gap:8px;font-family:var(--display);font-size:17px;font-weight:600;line-height:1.1}
 .wrap>.slot-h{margin-bottom:-8px}

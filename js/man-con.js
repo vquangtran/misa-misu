@@ -1,12 +1,12 @@
 // Màn của con: máy của con (nhà có mã PIN) và Chế độ cho bé dùng chung màn này, với ba tab Hôm nay, Học tập, Tài khoản.
-import { $, addDays, CHEV, dm, DOWN, durTxt, esc, key, money, nowMin, PLUS, PREV, signed, STAR, today, WD, weekStart } from './chung.js';
+import { $, addDays, CHEV, dm, DOWN, durTxt, esc, key, money, norm, nowMin, PLUS, PREV, signed, STAR, today, WD, weekStart } from './chung.js';
 import { againVnd, balance, dayBonusAt, dayBonuses, dayFull, deviceRole, FEE_DAY_MAX, FEE_MIN, FEE_UNIT, isBirthday, isDaily, isDone, isFun, kidsList,
   ledgerVnd, mustFor, placeLow, pricesList, priceVnd, S, setRO, shortPlace, slotAt, stayNow, stepMask, stepsShow, streakOf, UI, weekBonusOf, weekStats } from './du-lieu.js';
 import { ava, barCount, loading, moneyChip, secHead, secIsOpen, subjChips, tintOf } from './giao-dien.js';
 import { eventLines, learnPage, openTasks, studyRow, studySoon, taskRow, tasksSoon } from './hoc-tap.js';
 import { choreMeta, dayPlan, markRow, needLine, stepOff, schoolNow, SEC_LABEL, skipNote, slotCount, slotMissed, slotOpenDefault, slotSecs, subHead } from './hom-nay.js';
 import { acctStats, buyLeft, buyList, buyName, buyWhen, coins, funSection, goalProgress, goalsCard, histSection, pendingList } from './tai-khoan.js';
-import { meritList } from './quy-dinh.js';
+import { HW_PENALTY, meritList } from './quy-dinh.js';
 
 // ---------- thành tích, tin mới, bảng phạt, tài khoản của con ----------
 // Thành tích học tập trên màn của con: những mục con đã báo đang chờ duyệt, và nút + để báo mục mới.
@@ -15,7 +15,8 @@ function meritSection(k) {
   return meritList().length ? `<section class="slot tn3">${secHead('🏅', 'Thành tích học tập', { cnt: pend.length || '' })}
     ${pend.length ? `<div class="slot-list list">${pend.map(l => `<div class="item pend"><span class="ico">${esc(l.icon || '🏅')}</span><div class="txt"><div class="t">${esc(l.note || 'Thành tích')}</div><div class="s">⏳ Chờ bố duyệt · ${dm(new Date(l.at))}</div></div>
       <div class="acts col"><span class="delta num wait">+${money(l.ask)}</span><button class="linkbtn undo" data-act="merit-cancel" data-id="${l.id}">Huỷ</button></div></div>`).join('')}</div>` : ''}
-    <button class="slot-blank" data-act="merit-open" data-kid="${k.id}"><span>Được cô khen, được điểm 9, điểm 10 ở trường hay ở lớp học thêm? Bấm để báo bố</span>${PLUS}</button></section>` : '';
+    <button class="slot-blank" data-act="merit-open" data-kid="${k.id}"><span>Được cô khen, được điểm 9, điểm 10 ở trường hay ở lớp học thêm? Bấm để báo bố</span>${PLUS}</button>
+    <p class="foot-note km-merits">${meritList().map(r => `${esc(r.icon || '🏅')} ${esc(r.name)} <b class="num plus">+${money(priceVnd(r))}</b>`).join(' · ')}</p></section>` : '';
 }
 // Tin mới trên tab Hôm nay của con: hôm nay, hôm qua bị trừ tiền vì gì (phạt, phí sử dụng bố mẹ ghi; thời gian con tự mua thì báo đang chờ bố thêm hay bố đã thêm) và thành tích nào bố vừa duyệt. Bấm để sang tab Tài khoản.
 function kmNews(k, t) {
@@ -29,12 +30,22 @@ function kmNews(k, t) {
   return buyNews('ok', '✅ Bố đã thêm thời gian', added, l => esc(buyWhen(l.added))) + buyNews('', '⏳ Chờ bố thêm thời gian', wait, l => `mua ${esc(buyWhen(l.at))}`)
     + card('cut', `⚠️ Con bị trừ ${money(-cuts.reduce((a, l) => a + ledgerVnd(l), 0))}`, cuts, l => l.at) + card('ok', `🏅 Bố đã duyệt, con được cộng ${money(oks.reduce((a, l) => a + ledgerVnd(l), 0))}`, oks, l => l.okAt);
 }
-// Bảng phạt cho con xem (lấy từ trang Quy định của bố mẹ): lỗi nào bị trừ bao nhiêu, để con biết mà tránh.
+// Thưởng phạt cho con xem (lấy từ trang Quy định của bố mẹ): thành tích nào được cộng bao nhiêu, lỗi nào bị trừ bao nhiêu, phiếu thưởng nào đổi được bằng bao nhiêu tiền.
 function kidRules() {
-  const row = (r, ic, tag, sub) => `<div class="item"><span class="ico">${esc(r.icon || ic)}</span><div class="txt"><div class="t">${esc(r.name)}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div><div class="acts"><span class="delta num minus">${tag}</span></div></div>`;
-  const ps = pricesList('penalty');
-  return ps.length ? `<section class="slot s-late">${secHead('⚠️', 'Lỗi bị phạt', { cnt: ps.length, key: 'kr-pen' })}${secIsOpen('kr-pen') ? `<div class="slot-list list">${ps.map(r => row(r, '⚠️', r.all ? 'Mất hết tiền' : r.week ? 'Mất thưởng tuần' : '−' + money(priceVnd(r)),
-    r.all ? 'Trừ hết số tiền con đang có' : r.week ? 'Mất tiền việc nhà và tiền thưởng từ Thứ Hai tới lúc bị phạt' : againVnd(r) ? `Từ lần 2 trong tuần: <b class="num minus">−${money(againVnd(r))}</b>` : '')).join('')}</div><p class="foot-note" style="margin:0 6px">Mỗi lần mắc lỗi là bị trừ một lần.</p>` : ''}</section>` : '';
+  const row = (r, ic, tag, cls, sub) => `<div class="item"><span class="ico">${esc(r.icon || ic)}</span><div class="txt"><div class="t">${esc(r.name)}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div><div class="acts"><span class="delta num ${cls}">${tag}</span></div></div>`;
+  const ms = meritList(), ps = pricesList('penalty'), gs = pricesList('gift'), n = ms.length + ps.length + gs.length;
+  if (!n) return '';
+  const part = (label, list, html, note) => list.length ? `${secHead('', label, { cnt: list.length, sub: true })}<div class="slot-list list">${list.map(html).join('')}</div>${note ? `<p class="foot-note" style="margin:0 6px">${note}</p>` : ''}` : '';
+  return `<section class="slot">${secHead('⚖️', 'Thưởng phạt', { cnt: n, key: 'kr-pen' })}${secIsOpen('kr-pen') ? part('Thành tích được thưởng', ms, r => row(r, '🏅', '+' + money(priceVnd(r)), 'plus'), 'Được khen, được điểm tốt thì con bấm Báo thành tích để báo bố. Bố duyệt xong là được cộng tiền.')
+    + part('Lỗi bị phạt', ps, r => row(r, '⚠️', r.all ? 'Mất hết tiền' : r.week ? 'Mất thưởng tuần' : '−' + money(priceVnd(r)), 'minus',
+      r.all ? 'Trừ hết số tiền con đang có' : r.week ? 'Mất tiền việc nhà và tiền thưởng từ Thứ Hai tới lúc bị phạt' : againVnd(r) ? `Từ lần 2 trong tuần: <b class="num minus">−${money(againVnd(r))}</b>` : ''), 'Mỗi lần mắc lỗi là bị trừ một lần.')
+    + part('Phiếu thưởng', gs, r => row(r, '🎁', priceVnd(r) ? money(priceVnd(r)) : 'miễn phí', '', r.note ? esc(r.note) : ''), 'Con dùng tiền của mình để đổi. Muốn đổi thì nhờ bố.') : ''}</section>`;
+}
+// Tab Hôm nay của con: dưới Bài cần nộp nhắc mức phạt Thiếu BTVN; trong Thành tích học tập ghi mỗi thành tích được thưởng bao nhiêu.
+const hwPenalty = () => pricesList('penalty').find(r => r.id === HW_PENALTY[0] || norm(r.name) === norm(HW_PENALTY[1].name));
+function hwPenNote() {
+  const r = hwPenalty(); if (!r || r.all || r.week) return '';
+  return `<p class="foot-note km-pen">⚠️ ${esc(r.name)} bị trừ <b class="num minus">${money(priceVnd(r))}</b>${againVnd(r) ? `, từ lần 2 trong tuần trừ <b class="num minus">${money(againVnd(r))}</b>` : ''}.</p>`;
 }
 // Mua thời gian: các mục Phí sử dụng (xem TV, chơi game, điện thoại) kèm giá mỗi 30 phút, mỗi mục một nút Mua (buyForm trong tai-khoan.js).
 // Mỗi mục mỗi ngày mua tối đa 1 giờ: đủ rồi thì hết nút Mua. Bên dưới là các lần mua hôm nay và lần nào bố chưa thêm thời gian:
@@ -49,7 +60,7 @@ function kidBuy(k) {
       <div class="acts"><span class="delta num minus">${signed(ledgerVnd(l))}</span></div></div>`).join('')}</div>` : ''}
     <p class="foot-note" style="margin:0 6px">Con dùng tiền của mình để mua. Mỗi mục mỗi ngày mua tối đa ${durTxt(FEE_DAY_MAX)}. Mua xong con gửi yêu cầu thêm thời gian và nhắn bố thêm.</p></section>`;
 }
-// Tab Tài khoản của con: đang có bao nhiêu, mua thời gian (con tự mua), bảng phạt, mục tiêu tiết kiệm và toàn bộ lịch sử cộng trừ (kể cả các lần bị phạt).
+// Tab Tài khoản của con: đang có bao nhiêu, mua thời gian (con tự mua), thưởng phạt, mục tiêu tiết kiệm và toàn bộ lịch sử cộng trừ (kể cả các lần bị phạt).
 function kidAcct(k) {
   return `<div class="day-head"><h1>Tài khoản</h1></div>${acctStats(k)}<div class="slots">${kidBuy(k)}${kidRules()}${meritSection(k)}${goalsCard(k.id)}${histSection(k.id)}</div>`;
 }
@@ -101,7 +112,7 @@ export function drawKidMode() {
   // Bài cô vừa giao trong hai ngày qua (chưa tới hạn nên chưa nằm trong Bài cần nộp): báo để con biết có bài mới.
   const fresh = openTasks(k.id).filter(x => x.cls && x.hw.at && Date.now() - new Date(x.hw.at) < 2 * 864e5 && !kts.some(y => y.id === x.id));
   const school = (fresh.length ? `<section class="slot tn2">${secHead('📒', 'Cô mới giao bài', { cnt: fresh.length })}<div class="big-list">${fresh.map(x => taskRow(x, false, 'big')).join('')}</div></section>` : '')
-    + (kts.length ? `<section class="slot s-task">${secHead('📝', 'Bài cần nộp', { cnt: kts.length })}<div class="big-list">${kts.map(t => taskRow(t, false, 'big')).join('')}</div></section>` : '')
+    + (kts.length ? `<section class="slot s-task">${secHead('📝', 'Bài cần nộp', { cnt: kts.length })}<div class="big-list">${kts.map(t => taskRow(t, false, 'big')).join('')}</div>${hwPenNote()}</section>` : '')
     + (study.length ? `<section class="slot s-task">${secHead('📖', 'Ôn thi', { cnt: study.length })}<div class="big-list">${study.map(x => studyRow(x, 'big')).join('')}</div></section>` : '')
     + (sc ? `<section class="slot tn4">${secHead(sc.bag ? '🎒' : '🏫', esc(sc.title))}<div class="slot-list pad"><div class="sj-list">${subjChips(sc.subjects)}</div></div></section>` : '');
   const after = eventLines(k, 'km-event') + goal;
